@@ -74,4 +74,6 @@
 
 #define SO_SELECT_ERR_QUEUE	45
 
+#define SO_MAX_PACING_RATE	46
+
 #endif /* __ASM_AVR32_SOCKET_H */
