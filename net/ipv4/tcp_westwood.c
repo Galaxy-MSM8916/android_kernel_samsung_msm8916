@@ -276,7 +276,6 @@ static struct tcp_congestion_ops tcp_westwood __read_mostly = {
 	.init		= tcp_westwood_init,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
-	.min_cwnd	= tcp_westwood_bw_rttmin,
 	.cwnd_event	= tcp_westwood_event,
 	.in_ack_event	= tcp_westwood_ack,
 	.get_info	= tcp_westwood_info,
