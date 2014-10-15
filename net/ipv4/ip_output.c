@@ -1522,6 +1522,7 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
 		ip_push_pending_frames(sk, &fl4);
 	}
 out:
+
 	ip_rt_put(rt);
 }
 
