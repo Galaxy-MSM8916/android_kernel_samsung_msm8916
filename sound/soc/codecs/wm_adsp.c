@@ -1282,5 +1282,13 @@ int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs)
 	}
 
 	return 0;
+
+out_fw:
+	regmap_async_complete(regmap);
+	release_firmware(firmware);
+	wm_adsp_buf_free(&buf_list);
+out:
+	kfree(file);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_init);
