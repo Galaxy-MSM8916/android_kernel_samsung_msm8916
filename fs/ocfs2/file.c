@@ -2464,7 +2464,11 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 		.pos = *ppos,
 		.u.file = out,
 	};
-
+	ret = generic_write_checks(out, ppos, &len, 0);
+	if(ret)
+		return ret;
+	sd.total_len = len;
+	sd.pos = *ppos;
 
 	trace_ocfs2_file_splice_write(inode, out, out->f_path.dentry,
 			(unsigned long long)OCFS2_I(inode)->ip_blkno,
