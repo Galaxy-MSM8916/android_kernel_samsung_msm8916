@@ -730,6 +730,7 @@ extern void fixup_nr_big_small_task(int cpu);
 unsigned int max_task_load(void);
 extern void sched_account_irqtime(int cpu, struct task_struct *curr,
 				 u64 delta, u64 wallclock);
+extern unsigned int nr_eligible_big_tasks(int cpu);
 
 /*
  * 'load' is in reference to "best cpu" at its best frequency.
@@ -794,6 +795,11 @@ static inline unsigned long capacity_scale_cpu_freq(int cpu)
 static inline void sched_account_irqtime(int cpu, struct task_struct *curr,
 				 u64 delta, u64 wallclock)
 {
+}
+
+static inline unsigned int nr_eligible_big_tasks(int cpu)
+{
+	return 0;
 }
 
 #endif	/* CONFIG_SCHED_HMP */
