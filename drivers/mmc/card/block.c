@@ -2697,9 +2697,10 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 					 * h/w is in clean state and proceed
 					 * with new request.
 					 */
-					BUG_ON(card->host->areq);
-					goto start_new_req;
-				}
+					goto cmd_abort;
+				} else {
+                                        goto start_new_req;
+                                }
 				break;
 			}
 			goto cmd_abort;
