@@ -381,8 +381,10 @@ int dwc3_send_gadget_generic_command(struct dwc3 *dwc, int cmd, u32 param)
 		if (!(reg & DWC3_DGCMD_CMDACT)) {
 			dev_vdbg(dwc->dev, "Command Complete --> %d\n",
 					DWC3_DGCMD_STATUS(reg));
-			ret = 0;
-			break;
+			if (DWC3_DGCMD_STATUS(reg))
+				return -EINVAL;
+			return 0;
+                        break;
 		}
 
 		/*
