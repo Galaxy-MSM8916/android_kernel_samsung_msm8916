@@ -435,7 +435,10 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 				ret = -EAGAIN;
 			else
 				ret = 0;
-			break;
+			if (DWC3_DEPCMD_STATUS(reg))
+				return -EINVAL;
+			return 0;
+                        break;
 		}
 
 		/*
