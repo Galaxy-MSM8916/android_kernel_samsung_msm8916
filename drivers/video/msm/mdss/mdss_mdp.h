@@ -1003,8 +1003,10 @@ int mdss_mdp_wb_set_secure(struct msm_fb_data_type *mfd, int enable);
 int mdss_mdp_wb_get_secure(struct msm_fb_data_type *mfd, uint8_t *enable);
 void mdss_mdp_ctl_restore(void);
 int  mdss_mdp_ctl_reset(struct mdss_mdp_ctl *ctl);
+int mdss_mdp_user_pcc_config(struct mdp_pcc_cfg_data *config);
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 void mdss_dsi_check_te(void);
 void mdss_mdp_underrun_clk_info(void);
 #endif
+
 #endif /* MDSS_MDP_H */
