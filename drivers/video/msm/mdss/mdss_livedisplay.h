@@ -38,6 +38,16 @@ struct mdss_livedisplay_ctx {
 	unsigned int ce_off_cmds_len;
 	unsigned int ce_on_cmds_len;
 
+	const uint8_t *hbm_off_cmds;
+	const uint8_t *hbm_on_cmds;
+	unsigned int hbm_off_cmds_len;
+	unsigned int hbm_on_cmds_len;
+
+	const uint8_t *srgb_off_cmds;
+	const uint8_t *srgb_on_cmds;
+	unsigned int srgb_off_cmds_len;
+	unsigned int srgb_on_cmds_len;
+
 	const uint8_t *presets[MAX_PRESETS];
 	unsigned int presets_len[MAX_PRESETS];
 
@@ -52,6 +62,10 @@ struct mdss_livedisplay_ctx {
 	unsigned int sre_level;
 	bool aco_enabled;
 	bool ce_enabled;
+	bool hbm_enabled;
+	bool srgb_enabled;
+
+	unsigned int link_state;
 
 	unsigned int num_presets;
 	unsigned int caps;
@@ -85,14 +99,16 @@ enum {
 };
 
 enum {
-	MODE_CABC		= 0x01,
-	MODE_SRE		= 0x02,
-	MODE_AUTO_CONTRAST	= 0x04,
-	MODE_COLOR_ENHANCE	= 0x08,
-	MODE_PRESET		= 0x10,
-	MODE_RGB		= 0x20,
-	MODE_CABC_COLOR_ENHANCE	= 0x40,
-	MODE_UPDATE_ALL		= 0xFF,
+	MODE_CABC		= 0x001,
+	MODE_SRE		= 0x002,
+	MODE_AUTO_CONTRAST	= 0x004,
+	MODE_COLOR_ENHANCE	= 0x008,
+	MODE_PRESET		= 0x010,
+	MODE_RGB		= 0x020,
+	MODE_CABC_COLOR_ENHANCE	= 0x040,
+	MODE_HIGH_BRIGHTNESS	= 0x080,
+	MODE_SRGB		= 0x100,
+	MODE_UPDATE_ALL		= 0xFFF,
 };
 
 void mdss_livedisplay_update(struct mdss_livedisplay_ctx *mlc,
