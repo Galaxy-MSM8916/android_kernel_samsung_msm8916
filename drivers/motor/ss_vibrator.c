@@ -1,6 +1,12 @@
 
 /* Copyright (c) 2016, The Linux Foundation. All rights reserved.
  *
+ * Portions Copyright (c) 2013 The CyanogenMod Project
+ *                        Daniel Hillenbrand <codeworkx@cyanogenmod.com>
+ *                        Dan Pasanen <dan.pasanen@gmail.com>
+ *                        Shareef Ali <shareefalis@cyanogenmod.org>
+ *
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -25,6 +31,13 @@
 #include "../staging/android/timed_output.h"
 
 #include "ss_vibrator.h"
+
+#define LEVEL_MAX           100
+#define LEVEL_MIN           0
+#define LEVEL_DEFAULT       50
+#define LEVEL_THRESHOLD     75
+
+static unsigned long pwm_val = 100;
 
 /* default timeout */
 #define VIB_DEFAULT_TIMEOUT 10000
@@ -289,6 +302,106 @@ static int vibrator_parse_dt(struct ss_vib *vib)
 static struct device *vib_dev;
 extern struct class *sec_class;
 
+static ssize_t pwm_max_show(struct device *dev,
+                            struct device_attribute *attr, char *buf)
+{
+	int count;
+
+	count = sprintf(buf, "%d\n", LEVEL_MAX);
+	pr_info("vibrator: pwm max value: %d\n", LEVEL_MAX);
+
+	return count;
+}
+
+static DEVICE_ATTR(pwm_max, S_IRUGO | S_IWUSR,
+                   pwm_max_show, NULL);
+
+static ssize_t pwm_min_show(struct device *dev,
+                            struct device_attribute *attr, char *buf)
+{
+	int count;
+
+	count = sprintf(buf, "%d\n", LEVEL_MIN);
+	pr_info("vibrator: pwm min value: %d\n", LEVEL_MIN);
+
+	return count;
+}
+
+static DEVICE_ATTR(pwm_min, S_IRUGO | S_IWUSR,
+                   pwm_min_show, NULL);
+
+static ssize_t pwm_default_show(struct device *dev,
+                                struct device_attribute *attr, char *buf)
+{
+	int count;
+
+	count = sprintf(buf, "%d\n", LEVEL_DEFAULT);
+	pr_info("vibrator: pwm default value: %d\n", LEVEL_DEFAULT);
+
+	return count;
+}
+
+static DEVICE_ATTR(pwm_default, S_IRUGO | S_IWUSR,
+                   pwm_default_show, NULL);
+
+static ssize_t pwm_threshold_show(struct device *dev,
+                                  struct device_attribute *attr, char *buf)
+{
+	int count;
+
+	count = sprintf(buf, "%d\n", LEVEL_THRESHOLD);
+	pr_info("vibrator: pwm threshold value: %d\n", LEVEL_THRESHOLD);
+
+	return count;
+}
+
+static DEVICE_ATTR(pwm_threshold, S_IRUGO | S_IWUSR,
+                   pwm_threshold_show, NULL);
+
+static ssize_t pwm_value_show(struct device *dev, struct device_attribute *attr,
+                              char *buf)
+{
+	int count;
+
+	count = sprintf(buf, "%lu\n", pwm_val);
+	pr_debug("[VIB] pwm_val: %lu\n", pwm_val);
+
+	return count;
+}
+
+ssize_t pwm_value_store(struct device *dev, struct device_attribute *attr,
+                        const char *buf, size_t size)
+{
+	struct timed_output_dev *t_dev = dev_get_drvdata(dev);
+	struct ss_vib *vib = container_of(t_dev, struct ss_vib, timed_dev);
+
+	int set_intensity = 0;
+
+	if (kstrtoul(buf, 0, &pwm_val))
+		pr_err("[VIB] %s: error on storing pwm_val\n", __func__);
+
+	pr_info("[VIB] %s: pwm_val=%lu\n", __func__, pwm_val);
+
+	/* make sure new pwm duty is in range */
+	if(pwm_val > 100)
+		pwm_val = 100;
+	else if (pwm_val < 0)
+		pwm_val = 0;
+
+	/*calculate the new intensity value */
+	set_intensity = MAX_INTENSITY * pwm_val / 100;
+
+	/* set the new intensity value */
+	vibe_set_intensity(set_intensity);
+	vib->intensity = set_intensity;
+
+	return size;
+}
+
+static DEVICE_ATTR(pwm_value, S_IRUGO | S_IWUSR,
+    pwm_value_show, pwm_value_store);
+
+
 static ssize_t show_vib_tuning(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -433,6 +546,31 @@ static int ss_vibrator_probe(struct platform_device *pdev)
 	rc = sysfs_create_file(&vib_dev->kobj, &dev_attr_vib_tuning.attr);
 	if (rc) {
 		pr_info("Failed to create sysfs group for samsung specific led\n");
+	}
+
+	rc = device_create_file(vib->timed_dev.dev, &dev_attr_pwm_value);
+	if (rc < 0) {
+		pr_err("[VIB]: device_create_file fail: pwm_value\n");
+	}
+
+	rc = device_create_file(vib->timed_dev.dev, &dev_attr_pwm_max);
+	if (rc < 0) {
+		pr_err("[VIB]: create sysfs fail: pwm_max\n");
+	}
+
+	rc = device_create_file(vib->timed_dev.dev, &dev_attr_pwm_min);
+	if (rc < 0) {
+		pr_err("[VIB]: create sysfs fail: pwm_min\n");
+	}
+
+	rc = device_create_file(vib->timed_dev.dev, &dev_attr_pwm_default);
+	if (rc < 0) {
+		pr_err("[VIB]: create sysfs fail: pwm_default\n");
+	}
+
+	rc = device_create_file(vib->timed_dev.dev, &dev_attr_pwm_threshold);
+	if (rc < 0) {
+		pr_err("[VIB]: create sysfs fail: pwm_threshold\n");
 	}
 
 	return 0;
