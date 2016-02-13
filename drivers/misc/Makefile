@@ -81,3 +81,4 @@ obj-$(CONFIG_DM_VERITY) += dmverity_query.o
 obj-$(CONFIG_TZDEV)		+= tzdev/
 obj-$(CONFIG_SENSORS_BHI)       += bhy/
 obj-$(CONFIG_SEC_FPGA_ICE40XX)  += ice40xx.o
+obj-$(CONFIG_FORCE_FAST_CHARGE) += fastchg.o

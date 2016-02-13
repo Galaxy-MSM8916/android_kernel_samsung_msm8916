@@ -886,6 +886,13 @@ config MACH_KOR_EARJACK_WR
 	help
 	  Say Y to enable earjack-noise workaround at charging
 
+config FORCE_FAST_CHARGE
+	bool "Force faster charge rate for AC/USB"
+	default n
+	help
+	  This allows users to override default charge rate for both USB and AC
+	  charger input current
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
