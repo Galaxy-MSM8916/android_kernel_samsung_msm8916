@@ -162,6 +162,10 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 		goto error;
 	}
 	alts = &iface->altsetting[fp->altset_idx];
+	if (get_iface_desc(alts)->bNumEndpoints < 1) {
+		err = -EINVAL;
+		goto error;
+	}
 	if (fp->datainterval == 0)
 		fp->datainterval = snd_usb_parse_datainterval(chip, alts);
 	if (fp->maxpacksize == 0)
