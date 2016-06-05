@@ -13,6 +13,7 @@
 &soc {
 	/* To use BIMC based bus governor */
 	gpubw: qcom,gpubw {
+		label = "gpubw";
 		compatible = "qcom,devbw";
 		governor = "bw_hwmon";
 		qcom,src-dst-ports = <26 512>;
