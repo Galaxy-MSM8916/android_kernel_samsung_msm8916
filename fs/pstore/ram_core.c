@@ -45,37 +45,48 @@ static inline size_t buffer_start(struct persistent_ram_zone *prz)
 	return atomic_read(&prz->buffer->start);
 }
 
+static DEFINE_RAW_SPINLOCK(buffer_lock);
+
 /* increase and wrap the start pointer, returning the old value */
-static inline size_t buffer_start_add(struct persistent_ram_zone *prz, size_t a)
+static size_t buffer_start_add(struct persistent_ram_zone *prz, size_t a)
 {
 	int old;
 	int new;
+	unsigned long flags;
 
-	do {
-		old = atomic_read(&prz->buffer->start);
-		new = old + a;
-		while (unlikely(new > prz->buffer_size))
-			new -= prz->buffer_size;
-	} while (atomic_cmpxchg(&prz->buffer->start, old, new) != old);
+	raw_spin_lock_irqsave(&buffer_lock, flags);
+
+	old = atomic_read(&prz->buffer->start);
+	new = old + a;
+	while (unlikely(new >= prz->buffer_size))
+		new -= prz->buffer_size;
+	atomic_set(&prz->buffer->start, new);
+
+	raw_spin_unlock_irqrestore(&buffer_lock, flags);
 
 	return old;
 }
 
 /* increase the size counter until it hits the max size */
-static inline void buffer_size_add(struct persistent_ram_zone *prz, size_t a)
+static void buffer_size_add(struct persistent_ram_zone *prz, size_t a)
 {
 	size_t old;
 	size_t new;
+	unsigned long flags;
 
-	if (atomic_read(&prz->buffer->size) == prz->buffer_size)
-		return;
+	raw_spin_lock_irqsave(&buffer_lock, flags);
 
-	do {
-		old = atomic_read(&prz->buffer->size);
-		new = old + a;
-		if (new > prz->buffer_size)
-			new = prz->buffer_size;
-	} while (atomic_cmpxchg(&prz->buffer->size, old, new) != old);
+	old = atomic_read(&prz->buffer->size);
+	if (old == prz->buffer_size)
+		goto exit;
+
+	new = old + a;
+	if (new > prz->buffer_size)
+		new = prz->buffer_size;
+	atomic_set(&prz->buffer->size, new);
+
+exit:
+	raw_spin_unlock_irqrestore(&buffer_lock, flags);
 }
 
 static void notrace persistent_ram_encode_rs8(struct persistent_ram_zone *prz,
