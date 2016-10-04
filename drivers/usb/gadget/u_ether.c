@@ -1194,8 +1194,8 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	/* throttle high/super speed IRQ rate back slightly */
 	if (gadget_is_dualspeed(dev->gadget) &&
 		 (dev->gadget->speed == USB_SPEED_HIGH ||
-		  dev->gadget->speed == USB_SPEED_SUPER)) {
-		spin_lock_irqsave(&dev->req_lock, flags);
+		  dev->gadget->speed == USB_SPEED_SUPER) &&
+		  !list_empty(&dev->tx_reqs)) {
 		dev->tx_qlen++;
 		if (dev->tx_qlen == MAX_TX_REQ_WITH_NO_INT) {
 			req->no_interrupt = 0;
