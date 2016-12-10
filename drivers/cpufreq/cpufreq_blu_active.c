@@ -29,7 +29,6 @@
 #include <linux/tick.h>
 #include <linux/time.h>
 #include <linux/timer.h>
-#include <linux/hrtimer.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
@@ -37,7 +36,6 @@
 struct cpufreq_blu_active_policyinfo {
 	struct timer_list policy_timer;
 	struct timer_list policy_slack_timer;
-	struct hrtimer notif_timer;
 	spinlock_t load_lock; /* protects load tracking stat */
 	u64 last_evaluated_jiffy;
 	struct cpufreq_policy *policy;
@@ -52,11 +50,9 @@ struct cpufreq_blu_active_policyinfo {
 	u64 max_freq_hyst_start_time;
 	struct rw_semaphore enable_sem;
 	bool reject_notification;
-	bool notif_pending;
-	unsigned long notif_cpu;
 	int governor_enabled;
 	struct cpufreq_blu_active_tunables *cached_tunables;
-	struct sched_load *sl;
+	unsigned long *cpu_busy_times;
 };
 
 /* Protected by per-policy load_lock */
@@ -80,7 +76,6 @@ static struct mutex gov_lock;
 static int set_window_count;
 static int migration_register_count;
 static struct mutex sched_lock;
-static cpumask_t controlled_cpus;
 
 /* Target load.  Lower values result in higher CPU speeds. */
 #define DEFAULT_TARGET_LOAD 90
@@ -154,9 +149,6 @@ struct cpufreq_blu_active_tunables {
 
 	/* Ignore min_sample_time for notification */
 	bool fast_ramp_down;
-
-	/* Whether to enable prediction or not */
-	bool enable_prediction;
 };
 
 /* For cases where we have single governor instance for system */
@@ -299,25 +291,6 @@ static unsigned int freq_to_targetload(
 	return ret;
 }
 
-#define DEFAULT_MAX_LOAD 100
-u32 get_freq_max_load_blu_active(int cpu, unsigned int freq)
-{
-	struct cpufreq_blu_active_policyinfo *ppol = per_cpu(polinfo, cpu);
-
-	if (!cpumask_test_cpu(cpu, &controlled_cpus))
-		return DEFAULT_MAX_LOAD;
-
-	if (have_governor_per_policy()) {
-		if (!ppol || !ppol->cached_tunables)
-			return DEFAULT_MAX_LOAD;
-		return freq_to_targetload(ppol->cached_tunables, freq);
-	}
-
-	if (!cached_common_tunables)
-		return DEFAULT_MAX_LOAD;
-	return freq_to_targetload(cached_common_tunables, freq);
-}
-
 /*
  * If increasing frequencies never map to a lower target load then
  * choose_freq() will find the minimum frequency that does not exceed its
@@ -436,150 +409,114 @@ static u64 update_load(int cpu)
 	return now;
 }
 
-static unsigned int sl_busy_to_laf(struct cpufreq_blu_active_policyinfo *ppol,
-				   unsigned long busy)
+static void __cpufreq_blu_active_timer(unsigned long data, bool is_notif)
 {
-	int prev_load;
-	struct cpufreq_blu_active_tunables *tunables =
-		ppol->policy->governor_data;
-
-	prev_load = mult_frac(ppol->policy->cpuinfo.max_freq * 100,
-				busy, tunables->timer_rate);
-	return prev_load;
-}
-
-#define NEW_TASK_RATIO 75
-#define PRED_TOLERANCE_PCT 10
-static void cpufreq_blu_active_timer(unsigned long data)
-{
-	s64 now;
+	u64 now;
 	unsigned int delta_time;
 	u64 cputime_speedadj;
 	int cpu_load;
-	int pol_load = 0;
 	struct cpufreq_blu_active_policyinfo *ppol = per_cpu(polinfo, data);
 	struct cpufreq_blu_active_tunables *tunables =
 		ppol->policy->governor_data;
-	struct sched_load *sl = ppol->sl;
 	struct cpufreq_blu_active_cpuinfo *pcpu;
 	unsigned int new_freq;
-	unsigned int prev_laf = 0, t_prevlaf;
-	unsigned int pred_laf = 0, t_predlaf = 0;
-	unsigned int prev_chfreq, pred_chfreq, chosen_freq;
+	unsigned int loadadjfreq = 0, tmploadadjfreq;
 	unsigned int index;
 	unsigned long flags;
 	unsigned long max_cpu;
-	int cpu, i;
-	int new_load_pct = 0;
-	int prev_l, pred_l = 0;
+	int i, fcpu;
 	struct cpufreq_govinfo govinfo;
 	bool skip_hispeed_logic, skip_min_sample_time;
-	bool jump_to_max_no_ts = false;
-	bool jump_to_max = false;
+	bool policy_max_fast_restore = false;
 
 	if (!down_read_trylock(&ppol->enable_sem))
 		return;
 	if (!ppol->governor_enabled)
 		goto exit;
 
+	fcpu = cpumask_first(ppol->policy->related_cpus);
 	now = ktime_to_us(ktime_get());
-
-	spin_lock_irqsave(&ppol->target_freq_lock, flags);
-	spin_lock(&ppol->load_lock);
-
-	skip_hispeed_logic = tunables->enable_prediction ? true :
-		tunables->ignore_hispeed_on_notif && ppol->notif_pending;
-	skip_min_sample_time = tunables->fast_ramp_down && ppol->notif_pending;
-	ppol->notif_pending = false;
-	now = ktime_to_us(ktime_get());
+	spin_lock_irqsave(&ppol->load_lock, flags);
 	ppol->last_evaluated_jiffy = get_jiffies_64();
 
 	if (tunables->use_sched_load)
-		sched_get_cpus_busy(sl, ppol->policy->cpus);
+		sched_get_cpus_busy(ppol->cpu_busy_times,
+				    ppol->policy->related_cpus);
 	max_cpu = cpumask_first(ppol->policy->cpus);
-	i = 0;
-	for_each_cpu(cpu, ppol->policy->cpus) {
-		pcpu = &per_cpu(cpuinfo, cpu);
+	for_each_cpu(i, ppol->policy->cpus) {
+		pcpu = &per_cpu(cpuinfo, i);
 		if (tunables->use_sched_load) {
-			t_prevlaf = sl_busy_to_laf(ppol, sl[i].prev_load);
-			prev_l = t_prevlaf / ppol->target_freq;
-			if (tunables->enable_prediction) {
-				t_predlaf = sl_busy_to_laf(ppol,
-						sl[i].predicted_load);
-				pred_l = t_predlaf / ppol->target_freq;
-			}
-			if (sl[i].prev_load)
-				new_load_pct = sl[i].new_task_load * 100 /
-							sl[i].prev_load;
-			else
-				new_load_pct = 0;
+			cputime_speedadj = (u64)ppol->cpu_busy_times[i - fcpu]
+					* ppol->policy->cpuinfo.max_freq;
+			do_div(cputime_speedadj, tunables->timer_rate);
 		} else {
-			now = update_load(cpu);
+			now = update_load(i);
 			delta_time = (unsigned int)
 				(now - pcpu->cputime_speedadj_timestamp);
 			if (WARN_ON_ONCE(!delta_time))
 				continue;
 			cputime_speedadj = pcpu->cputime_speedadj;
 			do_div(cputime_speedadj, delta_time);
-			t_prevlaf = (unsigned int)cputime_speedadj * 100;
-			prev_l = t_prevlaf / ppol->target_freq;
 		}
+		tmploadadjfreq = (unsigned int)cputime_speedadj * 100;
+		pcpu->loadadjfreq = tmploadadjfreq;
 
-		/* find max of loadadjfreq inside policy */
-		if (t_prevlaf > prev_laf) {
-			prev_laf = t_prevlaf;
-			max_cpu = cpu;
+		if (tmploadadjfreq > loadadjfreq) {
+			loadadjfreq = tmploadadjfreq;
+			max_cpu = i;
 		}
-		pred_laf = max(t_predlaf, pred_laf);
-
-		cpu_load = max(prev_l, pred_l);
-		pol_load = max(pol_load, cpu_load);
-
-		/* save loadadjfreq for notification */
-		pcpu->loadadjfreq = max(t_prevlaf, t_predlaf);
-
-		/* detect heavy new task and jump to policy->max */
-		if (prev_l >= tunables->go_hispeed_load &&
-		    new_load_pct >= NEW_TASK_RATIO) {
-			skip_hispeed_logic = true;
-			jump_to_max = true;
-		}
-		i++;
 	}
-	spin_unlock(&ppol->load_lock);
+	spin_unlock_irqrestore(&ppol->load_lock, flags);
 
+	/*
+	 * Send govinfo notification.
+	 * Govinfo notification could potentially wake up another thread
+	 * managed by its clients. Thread wakeups might trigger a load
+	 * change callback that executes this function again. Therefore
+	 * no spinlock could be held when sending the notification.
+	 */
+	for_each_cpu(i, ppol->policy->cpus) {
+		pcpu = &per_cpu(cpuinfo, i);
+		govinfo.cpu = i;
+		govinfo.load = pcpu->loadadjfreq / ppol->policy->max;
+		govinfo.sampling_rate_us = tunables->timer_rate;
+		atomic_notifier_call_chain(&cpufreq_govinfo_notifier_list,
+					   CPUFREQ_LOAD_CHANGE, &govinfo);
+	}
+
+	spin_lock_irqsave(&ppol->target_freq_lock, flags);
+	cpu_load = loadadjfreq / ppol->target_freq;
 	tunables->boosted = now < tunables->boostpulse_endtime;
 
-	prev_chfreq = choose_freq(ppol, prev_laf);
-	pred_chfreq = choose_freq(ppol, pred_laf);
-	chosen_freq = max(prev_chfreq, pred_chfreq);
-
-	if (prev_chfreq < ppol->policy->max && pred_chfreq >= ppol->policy->max)
-		if (!jump_to_max)
-			jump_to_max_no_ts = true;
-
+	skip_hispeed_logic = tunables->ignore_hispeed_on_notif && is_notif;
+	skip_min_sample_time = tunables->fast_ramp_down && is_notif;
 	if (now - ppol->max_freq_hyst_start_time <
 	    tunables->max_freq_hysteresis &&
-	    pol_load >= tunables->go_hispeed_load &&
+	    cpu_load >= tunables->go_hispeed_load &&
 	    ppol->target_freq < ppol->policy->max) {
 		skip_hispeed_logic = true;
 		skip_min_sample_time = true;
-		if (!jump_to_max)
-			jump_to_max_no_ts = true;
+		policy_max_fast_restore = true;
 	}
 
-	new_freq = chosen_freq;
-	if (jump_to_max_no_ts || jump_to_max) {
+	if (policy_max_fast_restore) {
 		new_freq = ppol->policy->cpuinfo.max_freq;
-	} else if (!skip_hispeed_logic) {
-		if (pol_load >= tunables->go_hispeed_load ||
-		    tunables->boosted) {
-			if (ppol->target_freq < tunables->hispeed_freq)
+	} else if (skip_hispeed_logic) {
+		new_freq = choose_freq(ppol, loadadjfreq);
+	} else if (cpu_load >= tunables->go_hispeed_load || tunables->boosted) {
+		if (ppol->target_freq < tunables->hispeed_freq) {
+			new_freq = tunables->hispeed_freq;
+		} else {
+			new_freq = choose_freq(ppol, loadadjfreq);
+
+			if (new_freq < tunables->hispeed_freq)
 				new_freq = tunables->hispeed_freq;
-			else
-				new_freq = max(new_freq,
-					       tunables->hispeed_freq);
 		}
+	} else {
+		new_freq = choose_freq(ppol, loadadjfreq);
+		if (new_freq > tunables->hispeed_freq &&
+				ppol->policy->cur < tunables->hispeed_freq)
+			new_freq = tunables->hispeed_freq;
 	}
 
 	if (now - ppol->max_freq_hyst_start_time <
@@ -630,12 +567,12 @@ static void cpufreq_blu_active_timer(unsigned long data)
 	 */
 
 	if ((!tunables->boosted || new_freq > tunables->hispeed_freq)
-	    && !jump_to_max_no_ts) {
+	    && !policy_max_fast_restore) {
 		ppol->floor_freq = new_freq;
 		ppol->floor_validate_time = now;
 	}
 
-	if (new_freq >= ppol->policy->max && !jump_to_max_no_ts)
+	if (new_freq >= ppol->policy->max && !policy_max_fast_restore)
 		ppol->max_freq_hyst_start_time = now;
 
 	if (ppol->target_freq == new_freq &&
@@ -655,25 +592,14 @@ rearm:
 	if (!timer_pending(&ppol->policy_timer))
 		cpufreq_blu_active_timer_resched(data, false);
 
-	/*
-	 * Send govinfo notification.
-	 * Govinfo notification could potentially wake up another thread
-	 * managed by its clients. Thread wakeups might trigger a load
-	 * change callback that executes this function again. Therefore
-	 * no spinlock could be held when sending the notification.
-	 */
-	for_each_cpu(i, ppol->policy->cpus) {
-		pcpu = &per_cpu(cpuinfo, i);
-		govinfo.cpu = i;
-		govinfo.load = pcpu->loadadjfreq / ppol->policy->max;
-		govinfo.sampling_rate_us = tunables->timer_rate;
-		atomic_notifier_call_chain(&cpufreq_govinfo_notifier_list,
-					   CPUFREQ_LOAD_CHANGE, &govinfo);
-	}
-
 exit:
 	up_read(&ppol->enable_sem);
 	return;
+}
+
+static void cpufreq_blu_active_timer(unsigned long data)
+{
+	__cpufreq_blu_active_timer(data, false);
 }
 
 static int cpufreq_blu_active_speedchange_task(void *data)
@@ -771,38 +697,11 @@ static int load_change_callback(struct notifier_block *nb, unsigned long val,
 	unsigned long cpu = (unsigned long) data;
 	struct cpufreq_blu_active_policyinfo *ppol = per_cpu(polinfo, cpu);
 	struct cpufreq_blu_active_tunables *tunables;
-	unsigned long flags;
 
+	if (speedchange_task == current)
+		return 0;
 	if (!ppol || ppol->reject_notification)
 		return 0;
-
-	if (!down_read_trylock(&ppol->enable_sem))
-		return 0;
-	if (!ppol->governor_enabled)
-		goto exit;
-
-	tunables = ppol->policy->governor_data;
-	if (!tunables->use_sched_load || !tunables->use_migration_notif)
-		goto exit;
-
-	spin_lock_irqsave(&ppol->target_freq_lock, flags);
-	ppol->notif_pending = true;
-	ppol->notif_cpu = cpu;
-	spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
-
-	if (!hrtimer_is_queued(&ppol->notif_timer))
-		hrtimer_start(&ppol->notif_timer, ms_to_ktime(1),
-			      HRTIMER_MODE_REL);
-exit:
-	up_read(&ppol->enable_sem);
-	return 0;
-}
-
-static enum hrtimer_restart cpufreq_blu_active_hrtimer(struct hrtimer *timer)
-{
-	struct cpufreq_blu_active_policyinfo *ppol = container_of(timer,
-			struct cpufreq_blu_active_policyinfo, notif_timer);
-	int cpu;
 
 	if (!down_read_trylock(&ppol->enable_sem))
 		return 0;
@@ -810,13 +709,18 @@ static enum hrtimer_restart cpufreq_blu_active_hrtimer(struct hrtimer *timer)
 		up_read(&ppol->enable_sem);
 		return 0;
 	}
-	cpu = ppol->notif_cpu;
+	tunables = ppol->policy->governor_data;
+	if (!tunables->use_sched_load || !tunables->use_migration_notif) {
+		up_read(&ppol->enable_sem);
+		return 0;
+	}
+
 	del_timer(&ppol->policy_timer);
 	del_timer(&ppol->policy_slack_timer);
-	cpufreq_blu_active_timer(cpu);
+	__cpufreq_blu_active_timer(cpu, true);
 
 	up_read(&ppol->enable_sem);
-	return HRTIMER_NORESTART;
+	return 0;
 }
 
 static struct notifier_block load_notifier_block = {
@@ -943,8 +847,6 @@ static ssize_t store_target_loads(
 	tunables->ntarget_loads = ntokens;
 	spin_unlock_irqrestore(&tunables->target_loads_lock, flags);
 
-	sched_update_freq_max_load(&controlled_cpus);
-
 	return count;
 }
 
@@ -1031,7 +933,6 @@ show_store_one(max_freq_hysteresis);
 show_store_one(align_windows);
 show_store_one(ignore_hispeed_on_notif);
 show_store_one(fast_ramp_down);
-show_store_one(enable_prediction);
 
 static ssize_t show_go_hispeed_load(struct cpufreq_blu_active_tunables
 		*tunables, char *buf)
@@ -1394,7 +1295,6 @@ show_store_gov_pol_sys(max_freq_hysteresis);
 show_store_gov_pol_sys(align_windows);
 show_store_gov_pol_sys(ignore_hispeed_on_notif);
 show_store_gov_pol_sys(fast_ramp_down);
-show_store_gov_pol_sys(enable_prediction);
 
 #define gov_sys_attr_rw(_name)						\
 static struct global_attr _name##_gov_sys =				\
@@ -1423,7 +1323,6 @@ gov_sys_pol_attr_rw(max_freq_hysteresis);
 gov_sys_pol_attr_rw(align_windows);
 gov_sys_pol_attr_rw(ignore_hispeed_on_notif);
 gov_sys_pol_attr_rw(fast_ramp_down);
-gov_sys_pol_attr_rw(enable_prediction);
 
 static struct global_attr boostpulse_gov_sys =
 	__ATTR(boostpulse, 0200, NULL, store_boostpulse_gov_sys);
@@ -1449,7 +1348,6 @@ static struct attribute *blu_active_attributes_gov_sys[] = {
 	&align_windows_gov_sys.attr,
 	&ignore_hispeed_on_notif_gov_sys.attr,
 	&fast_ramp_down_gov_sys.attr,
-	&enable_prediction_gov_sys.attr,
 	NULL,
 };
 
@@ -1476,7 +1374,6 @@ static struct attribute *blu_active_attributes_gov_pol[] = {
 	&align_windows_gov_pol.attr,
 	&ignore_hispeed_on_notif_gov_pol.attr,
 	&fast_ramp_down_gov_pol.attr,
-	&enable_prediction_gov_pol.attr,
 	NULL,
 };
 
@@ -1529,7 +1426,7 @@ static struct cpufreq_blu_active_policyinfo *get_policyinfo(
 	struct cpufreq_blu_active_policyinfo *ppol =
 				per_cpu(polinfo, policy->cpu);
 	int i;
-	struct sched_load *sl;
+	unsigned long *busy;
 
 	/* polinfo already allocated for policy, return */
 	if (ppol)
@@ -1539,20 +1436,18 @@ static struct cpufreq_blu_active_policyinfo *get_policyinfo(
 	if (!ppol)
 		return ERR_PTR(-ENOMEM);
 
-	sl = kcalloc(cpumask_weight(policy->related_cpus), sizeof(*sl),
-		     GFP_KERNEL);
-	if (!sl) {
+	busy = kcalloc(cpumask_weight(policy->related_cpus), sizeof(*busy),
+		       GFP_KERNEL);
+	if (!busy) {
 		kfree(ppol);
 		return ERR_PTR(-ENOMEM);
 	}
-	ppol->sl = sl;
+	ppol->cpu_busy_times = busy;
 
 	init_timer_deferrable(&ppol->policy_timer);
 	ppol->policy_timer.function = cpufreq_blu_active_timer;
 	init_timer(&ppol->policy_slack_timer);
 	ppol->policy_slack_timer.function = cpufreq_blu_active_nop_timer;
-	hrtimer_init(&ppol->notif_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	ppol->notif_timer.function = cpufreq_blu_active_hrtimer;
 	spin_lock_init(&ppol->load_lock);
 	spin_lock_init(&ppol->target_freq_lock);
 	init_rwsem(&ppol->enable_sem);
@@ -1575,7 +1470,7 @@ static void free_policyinfo(int cpu)
 		if (per_cpu(polinfo, j) == ppol)
 			per_cpu(polinfo, cpu) = NULL;
 	kfree(ppol->cached_tunables);
-	kfree(ppol->sl);
+	kfree(ppol->cpu_busy_times);
 	kfree(ppol);
 }
 
@@ -1613,9 +1508,6 @@ static int cpufreq_governor_blu_active(struct cpufreq_policy *policy,
 			WARN_ON(tunables);
 		} else if (tunables) {
 			tunables->usage_count++;
-			cpumask_or(&controlled_cpus, &controlled_cpus,
-				   policy->related_cpus);
-			sched_update_freq_max_load(policy->related_cpus);
 			policy->governor_data = tunables;
 			return 0;
 		}
@@ -1653,10 +1545,6 @@ static int cpufreq_governor_blu_active(struct cpufreq_policy *policy,
 		if (tunables->use_sched_load)
 			cpufreq_blu_active_enable_sched_input(tunables);
 
-		cpumask_or(&controlled_cpus, &controlled_cpus,
-			   policy->related_cpus);
-		sched_update_freq_max_load(policy->related_cpus);
-
 		if (have_governor_per_policy())
 			ppol->cached_tunables = tunables;
 		else
@@ -1665,9 +1553,6 @@ static int cpufreq_governor_blu_active(struct cpufreq_policy *policy,
 		break;
 
 	case CPUFREQ_GOV_POLICY_EXIT:
-		cpumask_andnot(&controlled_cpus, &controlled_cpus,
-			       policy->related_cpus);
-		sched_update_freq_max_load(cpu_possible_mask);
 		if (!--tunables->usage_count) {
 			if (policy->governor->initialized == 1)
 				cpufreq_unregister_notifier(&cpufreq_notifier_block,
@@ -1707,7 +1592,6 @@ static int cpufreq_governor_blu_active(struct cpufreq_policy *policy,
 		ppol->hispeed_validate_time = ppol->floor_validate_time;
 		ppol->min_freq = policy->min;
 		ppol->reject_notification = true;
-		ppol->notif_pending = false;
 		down_write(&ppol->enable_sem);
 		del_timer_sync(&ppol->policy_timer);
 		del_timer_sync(&ppol->policy_slack_timer);
