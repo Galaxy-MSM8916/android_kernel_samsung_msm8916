@@ -20,6 +20,7 @@
 #define PARAM_WR	1
 
 #define SEC_PARAM_FILE_NAME	"/dev/block/platform/soc.0/7824900.sdhci/by-name/param"	/* parameter block */
+#define SEC_PARAM_FILE_NAME2	"/dev/block/platform/7824900.sdhci/by-name/param"	/* parameter block */
 #define SEC_PARAM_FILE_SIZE	0xA00000		/* 10MB */
 #define SEC_PARAM_FILE_OFFSET (SEC_PARAM_FILE_SIZE - 0x100000)
 
@@ -40,9 +41,16 @@ static bool param_sec_operation(void *value, int offset,
 	filp = filp_open(SEC_PARAM_FILE_NAME, flag, 0);
 
 	if (IS_ERR(filp)) {
-		pr_err("%s: filp_open failed. (%ld)\n",
+		pr_err("%s: filp_open failed. Trying second path. (%ld)\n",
 				__func__, PTR_ERR(filp));
-		return false;
+
+		filp = filp_open(SEC_PARAM_FILE_NAME2, flag, 0);
+
+		if (IS_ERR(filp)) {
+			pr_err("%s: filp_open failed. (%ld)\n",
+				__func__, PTR_ERR(filp));
+			return false;
+		}
 	}
 
 	fs = get_fs();
