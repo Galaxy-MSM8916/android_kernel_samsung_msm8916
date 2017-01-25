@@ -1517,6 +1517,7 @@ typedef int (*filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 struct dir_context {
 	filldir_t actor;
 	loff_t pos;
+	bool romnt;
 };
 
 static inline bool dir_emit(struct dir_context *ctx,
