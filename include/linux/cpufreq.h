@@ -11,6 +11,7 @@
 #ifndef _LINUX_CPUFREQ_H
 #define _LINUX_CPUFREQ_H
 
+#include <linux/pid_namespace.h>
 #include <linux/cpumask.h>
 #include <linux/completion.h>
 #include <linux/kobject.h>
@@ -497,5 +498,11 @@ void acct_update_power(struct task_struct *p, cputime_t cputime);
 static inline void acct_update_power(struct task_struct *p, cputime_t cputime) {}
 #endif
 #define MIN_FINGER_LIMIT 1344000
+
+void cpufreq_task_stats_init(struct task_struct *p);
+void cpufreq_task_stats_exit(struct task_struct *p);
+int  proc_time_in_state_show(struct seq_file *m, struct pid_namespace *ns,
+			     struct pid *pid, struct task_struct *p);
+
 
 #endif /* _LINUX_CPUFREQ_H */
