@@ -226,8 +226,12 @@ static struct mutex dbg_buf_lock;	/* mutex for debug_buffer */
 static ssize_t debug_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *file_pos)
 {
-	return simple_read_from_buffer(buf, count, file_pos, debug_buffer,
-					debug_data_size);
+	size_t ret;
+	mutex_lock(&dbg_buf_lock);
+	ret = simple_read_from_buffer(buf, count, file_pos,
+			debug_buffer, debug_data_size);
+	mutex_unlock(&dbg_buf_lock);
+	return ret;
 }
 
 static u32 fill_debug_info(char *buffer, u32 buffer_size)
