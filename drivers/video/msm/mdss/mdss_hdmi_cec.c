@@ -422,7 +422,7 @@ static void hdmi_cec_msg_recv(struct work_struct *work)
 		msg_node->msg.sender_id, msg_node->msg.recvr_id,
 		msg_node->msg.frame_size);
 
-	if (msg_node->msg.frame_size < 1) {
+	if (msg_node->msg.frame_size < 1 || msg_node->msg.frame_size > MAX_OPERAND_SIZE) {
 		DEV_ERR("%s: invalid message (frame length = %d)",
 			__func__, msg_node->msg.frame_size);
 		kfree(msg_node);
@@ -444,7 +444,7 @@ static void hdmi_cec_msg_recv(struct work_struct *work)
 		msg_node->msg.operand[i] = data & 0xFF;
 	}
 
-	for (; i < 14; i++)
+	for (; i < MAX_OPERAND_SIZE; i++)
 		msg_node->msg.operand[i] = 0;
 
 	DEV_DBG("%s: CEC read frame done\n", __func__);
