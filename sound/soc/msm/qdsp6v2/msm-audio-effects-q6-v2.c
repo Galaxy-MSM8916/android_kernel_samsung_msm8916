@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -45,25 +45,6 @@ bool msm_audio_effects_is_effmodule_supp_in_top(int effect_module,
 	case EQ_MODULE:
 		switch (topology) {
 		case ASM_STREAM_POSTPROC_TOPO_ID_SA_PLUS:
-		case ASM_STREAM_POSTPROC_TOPO_ID_HPX_PLUS:
-		case ASM_STREAM_POSTPROC_TOPO_ID_HPX_MASTER:
-			return true;
-		default:
-			return false;
-		}
-	case DTS_EAGLE_MODULE:
-		switch (topology) {
-		case ASM_STREAM_POSTPROC_TOPO_ID_DTS_HPX:
-		case ASM_STREAM_POSTPROC_TOPO_ID_HPX_PLUS:
-		case ASM_STREAM_POSTPROC_TOPO_ID_HPX_MASTER:
-			return true;
-		default:
-			return false;
-		}
-	case SOFT_VOLUME2_MODULE:
-		switch (topology) {
-		case ASM_STREAM_POSTPROC_TOPO_ID_HPX_PLUS:
-		case ASM_STREAM_POSTPROC_TOPO_ID_HPX_MASTER:
 			return true;
 		default:
 			return false;
