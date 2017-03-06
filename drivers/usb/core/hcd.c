@@ -1710,7 +1710,7 @@ rescan:
 		/* kick hcd */
 		unlink1(hcd, urb, -ESHUTDOWN);
 		dev_dbg (hcd->self.controller,
-			"shutdown urb %p ep%d%s%s\n",
+			"shutdown urb %pK ep%d%s%s\n",
 			urb, usb_endpoint_num(&ep->desc),
 			is_in ? "in" : "out",
 			({	char *s;
