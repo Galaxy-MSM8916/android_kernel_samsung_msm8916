@@ -601,10 +601,6 @@ static void sm5703_set_charging_current(struct sm5703_charger_data *charger, int
 		adj_current = usb_charging_current;
 #endif
 
-#if CONFIG_SIOP_CHARGING_LIMIT_CURRENT
-	if(charger->siop_level < 100 && adj_current > CONFIG_SIOP_CHARGING_LIMIT_CURRENT)
-		adj_current = CONFIG_SIOP_CHARGING_LIMIT_CURRENT;
-#endif
 	pr_info("%s adj_current = %dmA charger->siop_level = %d\n",__func__, adj_current,charger->siop_level);
 	mutex_lock(&charger->io_lock);
 	__sm5703_set_fast_charging_current(charger->sm5703->i2c_client,
@@ -1833,9 +1829,7 @@ static int sm5703_charger_parse_dt(struct device *dev,
 	kzalloc(sizeof(sec_charging_current_t) * len, GFP_KERNEL);
 
 	for(i = 0; i < len; i++) {
-		ret = sec_bat_read_u32_index_dt(np,
-				 "battery,input_current_limit", i,
-				 &pdata->charging_current_table[i].input_current_limit);
+		pdata->charging_current_table[i].input_current_limit = 1200;
 		ret = sec_bat_read_u32_index_dt(np,
 				 "battery,fast_charging_current", i,
 				 &pdata->charging_current_table[i].fast_charging_current);
