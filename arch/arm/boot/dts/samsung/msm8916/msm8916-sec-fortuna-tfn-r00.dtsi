@@ -178,6 +178,7 @@
 			reg = <0x10>;
 			interrupt-parent = <&msm_gpio>;
 			interrupts = <115 0>;
+			bma2x2,vdd-supply = <&pm8916_l5>;
 			bma2x2,vio-supply = <&pm8916_l5>;
 			bma2x2,gpio_int1 = <&msm_gpio 115 0x00>;
 			bma2x2,accel_place = <4>;
@@ -185,6 +186,7 @@
 		bmm_mag@12 {
 			compatible = "bmm050";
 			reg = <0x12>;
+			bmm050,vdd-supply = <&pm8916_l5>;
 			bmm050,vio-supply = <&pm8916_l5>;
 			bmm050,magnetic_place = <4>;
 			bmm050,offset_ta_x = <0>;
