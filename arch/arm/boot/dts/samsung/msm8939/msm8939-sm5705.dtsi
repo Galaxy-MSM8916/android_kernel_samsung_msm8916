@@ -1,0 +1,101 @@
+/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&soc {
+	i2c_9: i2c@9 {
+		cell-index = <9>;
+		compatible = "i2c-gpio";
+		i2c-gpio-scl = <&msm_gpio 73 0x00>;
+		i2c-gpio-sda = <&msm_gpio 72 0x00>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		muic-sm5705@25 {
+			status = "okay";
+			compatible = "muic-universal";
+			reg = <0x25>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <12 0>;
+			muic-universal,irq-gpio = <&msm_gpio 12 0x00>;
+			sm5705,wakeup;
+			muic-universal,chip_name = "sm,sm5705";
+			pinctrl-names = "muic_i2c_pins_default",
+				"muic_i2c_pins_active",
+				"muic_i2c_pins_suspend";
+			pinctrl-0 = <&sm5705_i2c_default &sm5705_interrupt_default &ifc_sense_int_ap_default>;
+			pinctrl-1 = <&sm5705_i2c_active &sm5705_interrupt_default &ifc_sense_int_ap_default>;
+			pinctrl-2 = <&sm5705_i2c_suspend &sm5705_interrupt_default &ifc_sense_int_ap_default>;
+		};
+
+		sm5705@49{
+			compatible = "sm,sm5705";
+			reg = <0x49>;
+			interrupt-parent = <&msm_gpio>;
+			sm5705,irq-gpio = <&msm_gpio 62 0x00>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&charger_int_active>;
+			sm5705,mrstb-gpio = <&expander_gpios 12 0x00>;
+/*
+			sm5705_charger {
+				compatible = "siliconmitus,sm5705-charger";
+				chg_autostop = <0>;
+				chg_autoset = <1>;
+				chg_aiclen = <1>;
+				chg_aiclth = <4300>;
+				fg_vol_val = <4350>;
+				fg_soc_val = <95>;
+				fg_curr_avr_val = <150>;
+			};
+*/
+
+			sm5705_fled {
+				compatible = "siliconmitus,sm5705-fled";
+				enable = <1 1>;
+				id = <0>;
+				flash-mode-current-mA = <1200>;
+				torch-mode-current-mA = <150>;
+				used-gpio-control = <1>;
+				flash-en-gpio = <&msm_gpio 100 0x00>;
+				torch-en-gpio = <&msm_gpio 108 0x00>;
+			};
+		};
+
+	};
+};
+
+/ {
+	muic {
+		status = "okay";
+		muic,support-list = "+OTG:GND",
+					"-MHL:1K",
+					"-VZW Accessory:28.7K",
+					"-VZW Incompatible:34K",
+					"-Smartdock:40.2K",
+					"-HMT:49.9K",
+					"-Audiodock:64.9K",
+					"+USB LANHUB:80.07K",
+					"+Charging Cable:102K",
+					"-Universal Multimedia dock:121K",
+					"+Jig USB Off:255K",
+					"+Jig USB On:301K",
+					"+Deskdock:365K",
+					"+TYPE2 Charger:442K",
+					"+Jig UART Off:523K",
+					"+Jig UART On:619K",
+					"+TA:OPEN",
+					"+USB:OPEN",
+					"+CDP:OPEN",
+					"+Undefined Charging:XXX";
+	};
+};
+

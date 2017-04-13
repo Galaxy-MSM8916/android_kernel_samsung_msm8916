@@ -1,0 +1,2 @@
+header-y += tts_common.h
+header-y += tts_structure.h

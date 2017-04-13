@@ -1,0 +1,11 @@
+#
+# Zinitix Touchscreen driver configuration
+#
+
+config TOUCHSCREEN_BT432_TS
+	tristate "ZINITIX BT432 I2C touchscreen driver"
+	depends on I2C
+	default n
+	help
+	  Say Y here to enable BT432 I2C touchscreen support
+

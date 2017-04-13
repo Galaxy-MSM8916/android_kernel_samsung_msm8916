@@ -1,0 +1,122 @@
+/*
+ * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&soc {
+};
+
+&cci {
+
+	qcom,camera@0 {
+		cell-index = <0>;
+		compatible = "qcom,camera";
+		reg = <0x0>;
+		qcom,csiphy-sd-index = <0>;
+		qcom,csid-sd-index = <0>;
+		qcom,mount-angle = <0>;
+		cam_vio-supply = <&pm8916_l16>;
+		qcom,cam-vreg-name = "cam_vdig","cam_vio";
+		qcom,cam-vreg-type = <1 0>;
+		qcom,cam-vreg-min-voltage = <0 1800000>;
+		qcom,cam-vreg-max-voltage = <0 1800000>;
+		qcom,cam-vreg-op-mode = <0 1800000>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_mclk0_default &cam_core_front_en_default &cam_core_en_default &cam_sensor_rear_default &cam_sensor_front_default>;
+		pinctrl-1 = <&cam_sensor_mclk0_sleep &cam_core_front_en_sleep &cam_core_en_sleep &cam_sensor_rear_sleep &cam_sensor_front_sleep>;
+		qcom,gpio-no-mux = <0>;
+		gpios = <&msm_gpio 26 0>,
+				<&msm_gpio 35 0>,
+				<&msm_gpio 34 0>,
+				<&msm_gpio 28 0>,
+				<&msm_gpio 32 0>,
+				<&msm_gpio 33 0>,
+				<&msm_gpio 120 0>,
+				<&msm_gpio 16 0>;
+		qcom,gpio-reset = <1>;
+		qcom,gpio-standby = <2>;
+		qcom,gpio-vt-reset = <3>;
+		qcom,gpio-vt-standby = <4>;
+		qcom,gpio-vdig = <5>;
+		qcom,gpio-vio = <6>;
+		qcom,gpio-vana = <7>;
+		qcom,gpio-req-tbl-num = <0 1 2 3 4 5 6 7>;
+		qcom,gpio-req-tbl-flags = <1 0 0 0 0 0 0 0>;
+		qcom,gpio-req-tbl-label = "CAMIF_MCLK",
+			"CAM_RESET",
+			"CAM_STBY",
+			"CAM_VT_RESET",
+			"CAM_VT_STBY",
+			"CAM_VDIG",
+			"CAM_VIO",
+			"CAM_VANA";
+		qcom,sensor-position = <0>;
+		qcom,sensor-mode = <0>;
+		qcom,cci-master = <0>;
+		status = "ok";
+		clocks = <&clock_gcc clk_mclk0_clk_src>,
+			   <&clock_gcc clk_gcc_camss_mclk0_clk>;
+		clock-names = "cam_src_clk", "cam_clk";
+	};
+
+	qcom,camera@2 {
+		cell-index = <2>;
+		compatible = "qcom,camera";
+		reg = <0x2>;
+		qcom,csiphy-sd-index = <1>;
+		qcom,csid-sd-index = <1>;
+		qcom,sensor-name = "sr130pc20";
+		qcom,mount-angle = <0>;
+		cam_vio-supply = <&pm8916_l16>;
+		qcom,cam-vreg-name = "cam_vdig","cam_vio";
+		qcom,cam-vreg-type = <1 0>;
+		qcom,cam-vreg-min-voltage = <0 1800000>;
+		qcom,cam-vreg-max-voltage = <0 1800000>;
+		qcom,cam-vreg-op-mode = <0 1800000>;
+		qcom,gpio-no-mux = <0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_mclk1_default  &cam_core_front_en_default &cam_core_en_default &cam_sensor_rear_default &cam_sensor_front_default>;
+		pinctrl-1 = <&cam_sensor_mclk1_sleep &cam_core_front_en_sleep &cam_core_en_sleep &cam_sensor_rear_sleep &cam_sensor_front_sleep>;
+		gpios = <&msm_gpio 27 0>,
+				<&msm_gpio 35 0>,
+				<&msm_gpio 34 0>,
+				<&msm_gpio 28 0>,
+				<&msm_gpio 32 0>,
+				<&msm_gpio 33 0>,
+				<&msm_gpio 120 0>,
+				<&msm_gpio 16 0>;
+		qcom,gpio-reset = <1>;
+		qcom,gpio-standby = <2>;
+		qcom,gpio-vt-reset = <3>;
+		qcom,gpio-vt-standby = <4>;
+		qcom,gpio-vdig = <5>;
+		qcom,gpio-vio = <6>;
+		qcom,gpio-vana = <7>;
+		qcom,gpio-req-tbl-num = <0 1 2 3 4 5 6 7>;
+		qcom,gpio-req-tbl-flags = <1 0 0 0 0 0 0 0>;
+		qcom,gpio-req-tbl-label = "CAMIF_MCLK",
+			"CAM_RESET1",
+			"CAM_STBY1",
+			"CAM_VT_RESET1",
+			"CAM_VT_STBY1",
+			"CAM_VDIG1",
+			"CAM_VIO1",
+			"CAM_VANA1";
+		qcom,sensor-position = <1>;
+		qcom,sensor-mode = <0>;
+		qcom,cci-master = <0>;
+		status = "ok";
+		clocks = <&clock_gcc clk_mclk1_clk_src>,
+			   <&clock_gcc clk_gcc_camss_mclk1_clk>;
+		clock-names = "cam_src_clk", "cam_clk";
+	};
+
+};

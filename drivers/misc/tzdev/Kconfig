@@ -1,0 +1,209 @@
+config TZDEV
+	bool "Samsung TZ Based Secure OS Support"
+	default n
+	depends on ARM || ARM64
+	help
+	  Samsung TZ Based Secure OS interface driver
+
+config QCOM_SCM_ARMV8
+	bool "QC ARM8 scm call"
+	depends on TZDEV
+	default n
+	help
+	  Use scm_call2() to send SMC commands to BF
+
+config TZDEV_32BIT_SECURE_KERNEL
+	bool "Secure kernel works in 32bit mode"
+	depends on TZDEV
+	default y
+	help
+	  Defines which version of secure kernel is used
+
+config TZDEV_USE_ARM_CALLING_CONVENTION
+	bool "Comply to ARM calling convention"
+	depends on TZDEV
+	default y
+	help
+	  Comply to ARM calling convention. New software architectures use
+	  EL3 code comply to this convention compared to old architectures
+	  when Secure kernel contains non-compatible commands handler
+
+config TZDEV_CMA
+	bool "Allocate TrustZone environment CMA region"
+	depends on TZDEV && (CMA || DMA_CMA) && !ARCH_MSM
+	default n
+	help
+	  Use CMA region to allocate TrustZone environment memory
+
+config TZDEV_MEMRESSZ
+	hex "TrustZone environment memory reservation size"
+	depends on TZDEV_CMA
+	default 0x01000000
+	help
+	  Provide reservation of memory for usage in secure world - allocation size.
+
+config TZDEV_MEMRESSZPROT
+	hex "TrustZone environment memory reservation size - protected"
+	depends on TZDEV_CMA
+	help
+	  Provide reservation of memory for usage in secure world - bootloader-protected size.
+
+config TZDEV_MEMRESADDR
+	hex "TrustZone environment memory reservation address"
+	depends on TZDEV_CMA
+	help
+	  Provide reservation of memory for usage in secure world - allocation address.
+
+config TZDEV_IWI_EVENT
+	int "IWI_EVENT interrupt number"
+	depends on TZDEV
+	default 280 if ARCH_MSM
+	default 125 if ARCH_EXYNOS3
+	default 113 if ARCH_EXYNOS4
+	default 501 if ARCH_EXYNOS5
+	default 446 if ARCH_EXYNOS7
+
+config TZDEV_IWI_PANIC
+	int "IWI_PANIC interrupt number"
+	depends on TZDEV
+	default 0 if ARCH_MSM
+	default 126 if ARCH_EXYNOS3
+	default 114 if ARCH_EXYNOS4
+	default 502 if ARCH_EXYNOS5
+	default 447 if ARCH_EXYNOS7
+
+config TZLOG
+	bool "TZDEV LOGGER support"
+	depends on TZDEV
+	default n
+	help
+	  Enable support for Samsung Secure OS Logger
+
+config TZLOG_POLLING
+	bool "TZDEV LOGGER polling"
+	depends on TZLOG
+	default n
+	help
+	  Enable periodic logs polling by TZDEV
+
+config TZLOG_POLLING_PERIOD
+	int "TZDEV LOGGER polling period (in ms)"
+	depends on TZLOG_POLLING
+	default 100
+	help
+	  Define logs polling period in milliseconds. The resolution is 1/Hz ms
+	  rounded down (e.g. for Hz = 100, value 117 would mean 110 ms period)
+
+config TZLOG_PG_CNT
+	int "TZDEV LOGGER per-CPU buffer size (in pages)"
+	depends on TZLOG
+	default 1
+	help
+	  Select TZDEV logger buffer size in pages per CPU.
+
+config TZDEV_MULTI_CORE_AUX_CHANNELS
+	bool "TZDEV multi aux channels"
+	depends on TZDEV
+	default n
+	help
+	  Enable usage of multi aux channels (for each cpu core). If disabled,
+	  aux channel 0 is always used.
+
+config TZDEV_MSM_CRYPTO_WORKAROUND
+	bool
+	default n
+
+config TZDEV_QC_CRYPTO_CLOCKS_MANAGEMENT
+	bool "TZDEV crypto clock management"
+	depends on TZDEV && QCOM_SCM_ARMV8
+	default n
+	help
+	  Enable QC HW crypto clock management.
+          If TZDEV_QC_CRYPTO_CLOCKS_USR_MNG is set then
+          QC HW clock disable/enable is done from User-space.
+          If disabled, QC HW crypto clock management is not used.
+
+config TZDEV_QC_CRYPTO_CLOCKS_USR_MNG
+	bool "User crypto clock management"
+	depends on TZDEV && QCOM_SCM_ARMV8 && TZDEV_QC_CRYPTO_CLOCKS_MANAGEMENT
+	default n
+	help
+	  Enable QC HW crypto clock management from User space. If disabled,
+	  QC HW clock disable/enable is done in TZDEV.
+
+config TZASC_TEST
+	tristate "TZASC test helper module"
+	depends on TZDEV
+	default n
+	help
+	Provide the way to allocate a region of DRAM suitable for protection by
+	a TZASC, get its physical address, and mmap it into userspace.
+
+config TZASC_TEST_PAGE_ORDER
+	int "TZASC test page allocation order"
+	depends on TZASC_TEST
+	default 5
+	help
+	  Select TZASC test buffer page allocation order.
+
+config TZPC_TEST
+	tristate "TZPC test helper module"
+	depends on TZDEV
+	default n
+	help
+	Provide the way to try access to SSS device.
+
+config TZ_MEMDUMP_TEST
+	tristate "TZ memdump test helper module"
+	default n
+	help
+	Provide the way to try to memdump from physical location.
+
+config TZ_MMAP_TEST
+	bool "TZ mmap test helper module"
+	default n
+	help
+	Provide the way to get physical address of a location with known
+	contents.
+
+config EFUSE_TEST
+	tristate "efuse test Kernel Module"
+	default n
+	help
+	  Say Y to enable efuse test kernel modules.
+
+config ION_FD2PHYS
+	tristate "ION FD to physical address converter"
+	depends on ION && (ARCH_EXYNOS || ARCH_MSM)
+	default y
+	help
+	Provide a method for userspace to get physical address from ION buffer
+	descriptor
+
+config TZIRS
+	bool "Integrity reporting system"
+	depends on TZDEV
+	default n
+	help
+	  Enable Integrity reporintg system for Samsung Secure OS
+
+config TZTUI
+	bool "Trusted user interface"
+	depends on TZDEV
+	default n
+	help
+	  Enable Trusted user interface support for Samsung Secure OS
+
+config TZ_CORE_MIGRATION
+	bool "Core migration"
+	depends on TZDEV
+	default n
+	help
+	  Enable Core migration functionality for Samsung Secure OS
+
+config TZDEV_PAGE_MIGRATION
+	bool "Page migration"
+	depends on TZDEV
+	default n
+	help
+	  Enable Page migration functionality for CMA Migration

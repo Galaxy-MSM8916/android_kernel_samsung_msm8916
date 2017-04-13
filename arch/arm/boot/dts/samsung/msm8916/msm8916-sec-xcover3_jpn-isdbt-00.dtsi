@@ -1,0 +1,108 @@
+ /*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/{
+        aliases {
+                spi0 = &spi_0;
+        };
+};
+
+&soc {
+        tlmm_pinmux: pinctrl@1000000 {
+
+                isdbt_gpio {
+                        qcom,pins = <&gp 91>;
+                        qcom,num-grp-pins = <1>;
+                        qcom,pin-func = <0>;
+	                label = "isdbt_gpio";
+
+                        isdbt_gpio_act: isdbt_gpio_act {
+                                drive-strength = <2>; /* 2 MA */
+                                bias-pull-down; /* PULL DOWN */
+                                output-low;
+                        };
+                        isdbt_gpio_sus: isdbt_gpio_sus {
+                                drive-strength = <2>; /* 2 MA */
+                                bias-pull-down; /* PULL DOWN */
+                                output-low;
+                        };
+                };
+
+                isdbt_int_gpio {
+                        qcom,pins = <&gp 92>;
+                        qcom,num-grp-pins = <1>;
+                        qcom,pin-func = <0>;
+                    label = "isdbt_int_gpio";
+
+                        isdbt_int_gpio_act: isdbt_int_gpio_act {
+                                drive-strength = <2>; /* 2 MA */
+                                bias-pull-down; /* PULL DOWN */
+                                input-low;
+                        };
+                        isdbt_int_gpio_sus: isdbt_int_gpio_sus {
+                                drive-strength = <2>; /* 2 MA */
+                                bias-pull-down; /* PULL DOWN */
+                                input-low;
+                        };
+                };
+        };
+
+        spi_0: spi@78b7000 { /* BLSP1 QUP3 */
+                compatible = "qcom,spi-qup-v2";
+                cell-index = <3>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg-names = "spi_physical", "spi_bam_physical";
+                reg = <0x78B7000 0x600>, <0x7884000 0x23000>;
+                interrupt-names = "spi_irq", "spi_bam_irq";
+                interrupts = <0 97 0>, <0 238 0>;
+                spi-max-frequency = <50000000>;
+                clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
+                         <&clock_gcc clk_gcc_blsp1_qup3_spi_apps_clk>;
+                clock-names = "iface_clk", "core_clk";
+
+                qcom,use-bam;
+                //qcom,use-pinctrl;
+                qcom,bam-consumer-pipe-index = <8>;
+                qcom,bam-producer-pipe-index = <9>;
+                qcom,infinite-mode = <0>;
+                qcom,ver-reg-exists;
+                qcom,master-id = <86>;
+
+                status = "ok";
+                qcom-spi@0 {
+                        compatible = "isdbt_spi_comp";
+                        reg = <0>;
+                        spi-max-frequency = <19200000>;
+                };
+        };
+
+        isdbt_data {
+                compatible = "isdbt_pdata";
+                isdbt,isdb-gpio-spi_di = <&msm_gpio 8 0>;
+                isdbt,isdb-gpio-spi_do = <&msm_gpio 9 0>;
+                isdbt,isdb-gpio-spi_cs = <&msm_gpio 10 0>;
+                isdbt,isdb-gpio-spi_clk = <&msm_gpio 11 0>;
+                isdbt,isdb-gpio-pwr-en = <&msm_gpio 91 0>;
+                isdbt,isdb-gpio-irq = <&msm_gpio 92 0>;
+
+		isdbt,isdb-bbm-xtal-freq = <19200>;
+		clocks = <&clock_rpm clk_bb_clk2>;
+		qcom,clk-src = "BBCLK2";
+		clock-names = "isdbt_clkout";
+
+                pinctrl-names = "isdbt_gpio_active", "isdbt_gpio_suspend";
+                pinctrl-0 = <&spi0_default &spi0_cs0_active &isdbt_gpio_act &isdbt_int_gpio_act>;
+                pinctrl-1 = <&spi0_sleep &spi0_cs0_sleep &isdbt_gpio_sus &isdbt_int_gpio_sus>;
+        };
+
+};
+

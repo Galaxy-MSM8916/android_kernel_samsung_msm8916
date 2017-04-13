@@ -1,0 +1,32 @@
+/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&soc {
+       i2c_13:i2c@13 {
+		cell-index = <13>;
+		compatible = "i2c-gpio";
+		i2c-gpio-scl = <&msm_gpio 3 0x00>;
+		i2c-gpio-sda = <&msm_gpio 2 0x00>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		max77849@66 {
+			compatible = "max77849,i2c";
+			reg = <0x66>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <12 0>;
+			max77849,irq-gpio = <&msm_gpio 12 0x00>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&muic_i2c_active &muic_int_pin &ta_int_n_default &ovp_en_default>;
+		};
+	};
+};

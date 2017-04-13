@@ -1,0 +1,81 @@
+#ifndef LINUX_MFD_SM5703_IRQ_H
+#define LINUX_MFD_SM5703_IRQ_H
+
+enum {
+    SM5703_AICL_IRQ = 0,
+    SM5703_BATOVP_IRQ,
+    SM5703_LOWBATT_IRQ,
+    SM5703_VBUSLIMIT_IRQ,
+    SM5703_DISLIMIT_IRQ,
+    SM5703_VSYSOLP_IRQ,
+    SM5703_OTGFAIL_IRQ,
+    SM5703_THEMREG_IRQ,
+    SM5703_THEMSHDN_IRQ,
+    SM5703_VSYSNG_IRQ,
+    SM5703_VSYSOK_IRQ,
+    SM5703_NOBAT_IRQ,
+    SM5703_PRETMROFF_IRQ,
+    SM5703_FASTTMROFF_IRQ,
+    SM5703_CHGON_IRQ,
+    SM5703_Q4FULLON_IRQ,
+    SM5703_TOPOFF_IRQ,
+    SM5703_DONE_IRQ,
+    SM5703_CHGRSTF_IRQ,
+    SM5703_FLEDSHORT_IRQ,
+    SM5703_FLEDOPEN_IRQ,
+    SM5703_BOOSTPOK_NG_IRQ,
+    SM5703_BOOSTPOK_IRQ,
+    SM5703_ABSTMRON_IRQ,
+    SM5703_IRQS_NR,
+};
+
+#define SM5703_INT1	                0x00
+#define SM5703_INT2			        0x01
+#define SM5703_INT3			        0x02
+#define SM5703_INT4			        0x03
+#define SM5703_INTMSK1			    0x04
+#define SM5703_INTMSK2			    0x05
+#define SM5703_INTMSK3				0x06
+#define SM5703_INTMSK4			    0x07
+#define SM5703_STATUS1				0x08
+#define SM5703_STATUS2				0x09
+#define SM5703_STATUS3				0x0A
+#define SM5703_STATUS4				0x0B
+#define SM5703_STATUS5              0x6B
+
+#define SM5703_STATUS1_OTGFAIL      0x80
+#define SM5703_STATUS3_DONE         0x08
+#define SM5703_STATUS3_TOPOFF       0x04
+#define SM5703_STATUS3_CHGON        0x01
+#define SM5703_STATUS5_VBUSOVP      0x80
+#define SM5703_STATUS5_VBUSUVLO     0x40
+#define SM5703_STATUS5_VBUSOK       0x20
+
+#define SM5703_AICL_IRQ_NAME "aicl" 
+#define SM5703_BATOVP_IRQ_NAME "batovp"
+#define SM5703_LOWBATT_IRQ_NAME "lowbat"
+#define SM5703_VBUSLIMIT_IRQ_NAME "vbuslimit"
+#define SM5703_DISLIMIT_IRQ_NAME "dislimit"
+#define SM5703_VSYSOLP_IRQ_NAME "vsysolp"
+#define SM5703_OTGFAIL_IRQ_NAME "otffail"
+#define SM5703_THEMREG_IRQ_NAME "themreg"
+#define SM5703_THEMSHDN_IRQ_NAME "themshdn"
+#define SM5703_VSYSNG_IRQ_NAME "vsysng"
+#define SM5703_VSYSOK_IRQ_NAME "vsysok"
+#define SM5703_NOBAT_IRQ_NAME "nobat"
+#define SM5703_PRETMROFF_IRQ_NAME "pretmroff"
+#define SM5703_FASTTMROFF_IRQ_NAME "fasttmroff"
+#define SM5703_CHGON_IRQ_NAME "chgon"
+#define SM5703_Q4FULLON_IRQ_NAME "q4fullon"
+#define SM5703_TOPOFF_IRQ_NAME "topoff"
+#define SM5703_DONE_IRQ_NAME "done"
+#define SM5703_CHGRSTF_IRQ_NAME "chgrstf"
+#define SM5703_FLEDSHORT_IRQ_NAME "fledshort"
+#define SM5703_FLEDOPEN_IRQ_NAME "fledopen"
+#define SM5703_BOOSTPOK_NG_IRQ_NAME "boostpok"
+#define SM5703_BOOSTPOK_IRQ_NAME "boostpok"
+#define SM5703_ABSTMRON_IRQ_NAME "abstmron"
+
+const char *sm5703_get_irq_name_by_index(int index);
+
+#endif /* LINUX_MFD_SM5703_IRQ_H */

@@ -1,0 +1,414 @@
+config SAMSUNG_DEBUG_DISPLAY
+        bool "Add Samsung Debugging code"
+        default n
+
+config FB_MSM_MDSS_SAMSUNG
+	depends on FB_MSM_MDSS
+	bool "mdss config for samsung product"
+	default n
+	---help---
+	Mdss config signature for samsung product
+
+#
+#	PANEL UNIQUE FEATURE
+#
+config DUAL_PANEL
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "dual paneloperation"
+	default n
+	---help---
+	dual panel operation support
+
+config PARTIAL_UPDATE
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "partial update operation"
+	default n
+	---help---
+	partial update operation support
+
+config ALPM_MODE
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "alpm mode operation"
+	default n
+	---help---
+	alpm mode operation support
+
+config CABC_FUNCTION
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "DDI cabc operation"
+	default n
+	---help---
+	DDI cabc operation support
+
+#
+#	HOW TO MAKE DEF-CONFIG NAME FOR PANEL
+#
+#	PANEL_DDI-model_PANEL-model_RESOLUTION
+#	PANEL_S6E3FA2    _AMS510CV01_FHD
+#	PANEL_S6E3FA2_AMS510CV01_FHD
+#
+
+config PANEL_EA8064G_AMS549EH03_FHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "MAG EA8064G LDI"
+	default n
+	---help---
+	MAG EA8064G LDI 1080_1920 U7 & K
+
+config PANEL_S6E3FA2_AMS510CV01_FHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E3FA2 LDI"
+	default n
+	---help---
+	LSI S6E3FA2 LDI 1080_1920 K
+
+config PANEL_S6E3HA0_AMS510CW01_WQHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E3HA0 LDI"
+	default n
+	---help---
+	LSI S6E3HA0 LDI 1440_2560 LENTIS
+
+config PANEL_S6E3HA2_AMS567DJ01_WQHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E3HA2 LDI"
+	default n
+	---help---
+	LSI S6E3HA2 LDI 1440_2560 TR
+
+config PANEL_S6E3HF2_AMS559DE01_WQXGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E3HF2 LDI"
+	default n
+	---help---
+	LSI S6E3HF2 LDI 1600_2560 TB
+
+config PANEL_S6D7AA0_LSL080AL03_WXGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SDC S6D7AA0 LDI"
+	default n
+	---help---
+	SDC S6D7AA0 LDI 1280_800
+
+config PANEL_S6D7AA0_LSL080AL03_BOE_WXGA
+    depends on FB_MSM_MDSS_SAMSUNG
+    bool "SDC S6D7AA0 LDI"
+    default n
+    ---help---
+    SDC S6D7AA0 LDI 1280_800
+
+config PANEL_SC7798A_BV045WVM_WVGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SITRONIX SC7798A LDI"
+	default n
+	---help---
+	SITRONIX SC7798A LDI 480_800
+
+config PANEL_SC7798D_BV038WVM_WVGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SITRONIX SC7798D LDI"
+	default n
+	---help---
+	SITRONIX SC7798D LDI 480_800
+
+config PANEL_HX8369B_BV045WVM_WVGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "HIMAX HX8369B LDI"
+	default n
+	---help---
+	HIMAX HX8369B LDI 480_800
+
+config PANEL_S6D7AA0_LTL101AT01_WXGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SDC S6D7AA0 LDI"
+	default n
+	---help---
+	SDC S6D7AA0 LDI 800_1280
+
+config PANEL_S6D7AA0_BOE_LTL101AT01_WXGA
+        depends on FB_MSM_MDSS_SAMSUNG
+        bool "SDC S6D7AA0 LDI"
+        default n
+        ---help---
+        SDC S6D7AA0 LDI 800_1280
+
+config PANEL_HX8389C_GH9607501A_QHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "HIMAX HX8389C LDI"
+	default n
+	---help---
+	HIMAX HX8389C LDI 540_960
+
+config PANEL_S6D78A0_GH9607501A_QHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "HIMAX HX8389C LDI"
+	default n
+	---help---
+	HIMAX HX8389C LDI 540_960
+
+config PANEL_S6D77A1A01_WVGA_VIDEO_PANEL
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "BOE S6D77A1A01 LDI"
+	default n
+	---help---
+	BOE S6D77A1A01 LDI 480_8000
+
+config PANEL_S6D77A1A01_WVGA_VIDEO_PANEL_REVB
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "BOE S6D77A1A01_REVB LDI"
+	default n
+	---help---
+	BOE S6D77A1A01_REVB LDI 480_8000
+
+config PANEL_S6E3FA3_AMS499ER01_FHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E3FA3 LDI"
+	default n
+	---help---
+	LSI S6E3FA3 LDI 1080_1920 K5
+
+config PANEL_VX5B3D_LTI550HN06_FHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "VX5B3D_LTI550HN06"
+	default n
+	---help---
+	LSI VX5B3D_LTI550HN06 1080_1920 smart lte display
+
+config PANEL_VX5B3D_LTM215HT05_FHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "VX5B3D_LTM215HT05"
+	default n
+	---help---
+	LSI VX5B3D_LTM215HT05 1080_1920 smart lte display
+
+config PANEL_VX5B3D_LTM184HL01_FHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "VX5B3D_LTM184HL01"
+	default n
+	---help---
+	LSI VX5B3D_LTM184HL01 1080_1920 smart lte display
+
+config PANEL_S6E88A0_AMS452EF01_QHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E88A0 LDI"
+	default n
+	---help---
+	LSI S6E88A0 LDI 540_960 A3
+
+config PANEL_S6E88A0_AMS427AP24_QHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E88A0 LDI"
+	default n
+	---help---
+	LSI S6E88A0 LDI 540_960 SERRANOVE
+
+config PANEL_EA8061V_AMS497EE01_HD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "MAGNA EA8061V DDI"
+	default n
+	---help---
+	MAGNA EA8061V DDI 720_1280 A5
+
+config PANEL_EA8061V_AMS497EE10_HD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "MAGNA EA8061V DDI"
+	default n
+	---help---
+	MAGNA EA8061V DDI 720_1280 A5
+
+config PANEL_EA8061_HD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "MAGNA EA8061 DDI"
+	default n
+	---help---
+	MAGNA EA8061 LDI 720_1280 E7
+
+config PANEL_S6E3FA2_AMS549EH01_FHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E3FA2 LDI"
+	default n
+	---help---
+	LSI S6E3FA2 LDI 1080_1920 A7
+
+config PANEL_S6E3HF2_AMB509EG01_WQHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E3HF2 LDI"
+	default n
+	---help---
+	LSI S6E3HF2 LDI 1440_2560 ZERO
+
+config PANEL_S6E3HF2_AMB509EG01_WQHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E3HF2 LDI"
+	default n
+	---help---
+	LSI S6E3HF2 LDI 1440_2560 ZERO_Q
+
+config PANEL_NT71391_BP080WX7_WXGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "NOVATEK NT71391 LDI"
+	default n
+	---help---
+	NOVATEK NT71391 LDI 1280_800 Note8
+
+config PANEL_S6E3HA2_AMS509ES01_WQHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E3HA2 LDI"
+	default n
+	---help---
+	LSI S6E3HF2 LDI 1440_2560 ZERO_Q_F
+
+config PANEL_S6D7AA0_LSL080AL03_RT8555_WXGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SDC S6D7AA0 LDI"
+	default n
+	---help---
+	SDC S6D7AA0 LDI 1280_800
+
+config PANEL_TC358764_LTL101AL06_KTD3156_WXGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "TOSHIBA TC358764 LDI"
+	default n
+	---help---
+	TOSHIBA TC358764 LDI 1280_800
+
+config PANEL_S6D7AA0_LSL080AL03_RT8511_WXGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SDC S6D7AA0 LDI"
+	default n
+	---help---
+	SDC S6D7AA0 LDI 1280_800
+
+config PANEL_S6E3FA3_AMS568HN01_FHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E3FA3 LDI"
+	default n
+	---help---
+	LSI S6E3FA3 LDI 1080_1920 A8
+
+config PANEL_S6E3FA3_AMS549JR01_FHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E3FA3 LDI"
+	default n
+	---help---
+	LSI S6E3FA3 LDI 1080_1920 A7X
+
+config PANEL_S6E3FA3_AMS520KG01_FHD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6E3FA3 LDI"
+	default n
+	---help---
+	LSI S6E3FA3 LDI 1080_1920 A5X
+
+config PANEL_EA8061V_AMS391DT01_XGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "MAGNA EA8061V LDI"
+	default n
+	---help---
+	MAGNA EA8061V LDI 768_1024
+
+config PANEL_SC7798A_BV045WVM_WVGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SITRONIX SC7798A LDI"
+	default n
+	---help---
+	SITRONIX SC7798A LDI 480_800
+
+config PANEL_SC7798D_BV038WVM_WVGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SITRONIX SC7798D LDI"
+	default n
+	---help---
+	SITRONIX SC7798D LDI 480_800
+
+config PANEL_S6D77A1A01_WVGA_VIDEO_PANEL
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "BOE S6D77A1A01 LDI"
+	default n
+	---help---
+	BOE S6D77A1A01 LDI 480_800
+
+config PANEL_S6D77A1A01_WVGA_VIDEO_PANEL_REVB
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "BOE S6D77A1A01_REVB LDI"
+	default n
+	---help---
+	BOE S6D77A1A01_REVB LDI 480_800
+
+config PANEL_HX8369B_BV045WVM_WVGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "HIMAX HX8369B LDI"
+	default n
+	---help---
+	HIMAX HX8369B LDI 480_800
+
+config PANEL_S6D7AA0X62_BV050HDM_HD_5_0
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SDC S6D7AA0X62 LDI"
+	default n
+	---help---
+	SDC S6D7AA0X62 LDI 720_1280
+
+config PANEL_S6D7AA0X62_BV050HDM_HD_5_5
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SDC S6D7AA0X62 LDI"
+	default n
+	select MFD_LM3632
+	---help---
+	SDC S6D7AA0X62 LDI 720_1280
+
+config PANEL_NT51017_B4P096WX5VP09_WXGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "NOVATEK NT51017 LDI"
+	default n
+	---help---
+	NOVATEK NT51017 LDI 1280_800
+
+config PANEL_S6D7AA0X11_TV080WXM_WXGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "LSI S6D7AA0X11 LDI"
+	default n
+	---help---
+	BOE TV080WXM 800_1280
+
+config PANEL_ILI9881C_SKI550002_HD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "ILI ILI9881C LDI"
+	default n
+	---help---
+	ILI ILI9881C LDI 720_1280
+
+config PANEL_S6E8AA5X01_AMS497HY01_HD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SDC S6E8AA5X01 LDI"
+	default n
+	---help---
+	SDC S6E8AA5X01 LDI 720_1280
+
+config PANEL_S6E8AA5X01_AMS497HY01_720P
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SDC S6E8AA5X01 LDI"
+	default n
+	---help---
+	SDC S6E8AA5X01 LDI 720_1280
+
+config PANEL_S6E8AA5X01_AMS520KT01_HD
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "SDC S6E8AA5X01 LDI"
+	default n
+	---help---
+	SDC S6E8AA5X01 LDI 720_1280 J5X
+
+config PANEL_EA8061_AMS549HZ01
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "MAGNA EA8061 DDI"
+	default n
+	---help---
+	MAGNA EA8061 LDI 720_1280 J7_KTT
+
+config PANEL_EA8061S_AMS450JV01_WVGA
+	depends on FB_MSM_MDSS_SAMSUNG
+	bool "MAGNA EA8061S DDI"
+	default n
+	---help---
+	MAGNA EA8061S DDI 480_800 J1_2016_SPR

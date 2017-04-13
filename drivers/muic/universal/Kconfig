@@ -1,0 +1,49 @@
+#
+# MUIC devices
+#
+
+comment "MUIC configs"
+
+config MUIC_UNIVERSAL
+  bool "UNIVERSAL MUIC"
+	depends on USE_MUIC
+	default n
+	help
+	  If you say yes here you will get support for various MUIC chips.
+
+config MUIC_UNIVERSAL_SM5703
+  bool "SM5703 MUIC"
+	depends on USE_MUIC
+	default n
+	help
+	  If you say yes here you will get support for the SM5703 MUIC chip.
+
+config MUIC_UNIVERSAL_SM5705
+	bool "SM5705 MUIC"
+	depends on USE_MUIC
+	default n
+	help
+	  If you say yes here you will get support for the SM5705 MUIC chip.
+
+config MUIC_UNIVERSAL_SM5705_AFC
+	bool "SM5705 MUIC AFC"
+	depends on USE_MUIC
+	default n
+	help
+	  If you say yes here you will get support for the SM5705 MUIC
+	  AFC feature.
+
+config MUIC_UNIVERSAL_SM5504
+  bool "SM5504 MUIC"
+	depends on USE_MUIC
+	default n
+	help
+	  If you say yes here you will get support for the SM5504 MUIC chip.
+
+config MUIC_PINCTRL
+  bool "MUIC PINCTRL"
+	depends on USE_MUIC
+	default n
+	help
+	  If you say yes here you will get support for the Pinctrl in MUIC driver.
+

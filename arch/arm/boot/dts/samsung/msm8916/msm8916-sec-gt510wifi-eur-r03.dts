@@ -1,0 +1,44 @@
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License version 2 and
+* only version 2 as published by the Free Software Foundation.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*/
+
+/dts-v1/;
+
+#include "msm8916-sec-gt510lte-eur-r03.dtsi"
+#include "msm8916-memory.dtsi"
+
+/ {
+	model = "APQ8016 SAMSUNG GT510 WIFI PROJECT REV03";
+	/* compatible = "qcom,msm8916-mtp", "qcom,msm8916", "qcom,mtp"; */
+	compatible = "qcom,apq8016", "qcom,mtp";
+	/*QCOM BOARD REV TYPE...*/
+        /*qcom,board-id = <8 0>;*/
+        /*SEC BOARD REV TYPE...*/
+	qcom,board-id = <0xF708FF01 3>;
+        /*parm1)[31:20]platform_id [19:12]qc_hw_id [11:4]national code [3:0] operator, param2)SEC hw-rev*/
+
+	memory {
+		modem_adsp_mem: modem_adsp_region@0 {
+			reg = <0x0 0x86800000 0x0 0x02b00000>;
+		};
+
+		peripheral_mem: pheripheral_region@0 {
+			reg = <0x0 0x89300000 0x0 0x0600000>;
+		};
+	};
+
+};
+
+/*overwrite s2 cpr voltage for model variant*/
+&apc_vreg_corner {
+	qcom,cpr-voltage-ceiling = <1050000 1150000 1350000>;
+        qcom,cpr-voltage-floor = <1050000 1050000 1162500>;
+};
