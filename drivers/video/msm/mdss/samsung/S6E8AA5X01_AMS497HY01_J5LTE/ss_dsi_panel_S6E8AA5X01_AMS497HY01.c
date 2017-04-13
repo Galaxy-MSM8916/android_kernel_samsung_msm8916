@@ -732,13 +732,18 @@ static void mdss_panel_init(struct samsung_display_driver_data *vdd)
 static int __init samsung_panel_init(void)
 {
 	struct samsung_display_driver_data *vdd = samsung_get_vdd();
-	//char panel_string[] = "ss_dsi_panel_S6E8AA5X01_AMS497HY01_HD";
-	char panel_string[] = "ss_dsi_panel_S6E8AA5X01_AMS497HY01_720p";
-	
+	char old_panel_string[] = "ss_dsi_panel_S6E8AA5X01_AMS497HY01_HD";
+	char new_panel_string[] = "ss_dsi_panel_S6E8AA5X01_AMS497HY01_720p";
+
 	vdd->panel_name = mdss_mdp_panel + 8;
 	pr_info("%s : %s\n", __func__, vdd->panel_name);
 
-	if (!strncmp(vdd->panel_name, panel_string, strlen(panel_string)))
+	if (!strncmp(vdd->panel_name, old_panel_string, strlen(old_panel_string))) {
+		strncpy(vdd->panel_name, new_panel_string, strlen(new_panel_string)+1);
+		strncat(vdd->panel_name, ":1:none", 7);
+		vdd->panel_func.samsung_panel_init = mdss_panel_init;
+	}
+	else if (!strncmp(vdd->panel_name, new_panel_string, strlen(new_panel_string)))
 		vdd->panel_func.samsung_panel_init = mdss_panel_init;
 
 	return 0;
