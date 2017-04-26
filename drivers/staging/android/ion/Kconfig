@@ -1,0 +1,50 @@
+menuconfig ION
+	bool "Ion Memory Manager"
+	depends on HAVE_MEMBLOCK
+	select GENERIC_ALLOCATOR
+	select DMA_SHARED_BUFFER
+	---help---
+	  Chose this option to enable the ION Memory Manager,
+	  used by Android to efficiently allocate buffers
+	  from userspace that can be shared between drivers.
+	  If you're not using Android its probably safe to
+	  say N here.
+
+config ION_TEST
+	tristate "Ion Test Device"
+	depends on ION
+	help
+	  Choose this option to create a device that can be used to test the
+	  kernel and device side ION functions.
+
+config ION_TEGRA
+	tristate "Ion for Tegra"
+	depends on ARCH_TEGRA && ION
+	help
+	  Choose this option if you wish to use ion on an nVidia Tegra.
+
+config ION_MSM
+	tristate "Ion for MSM"
+	depends on ARCH_MSM && ION
+	help
+	  Choose this option if you wish to use ion on an MSM target.
+
+config ALLOC_BUFFERS_IN_4K_CHUNKS
+	bool "Turns off allocation optimization and allocate only 4K pages"
+	depends on ARCH_MSM && ION
+	help
+          Choose this option if you want ION to allocate buffers in
+          only 4KB chunks.
+
+config ION_MSM_SYSTEM_HEAP_POOL_LIMIT
+	bool "Enable ion msm system heap pool limit for low memory device"
+	depends on ION_MSM
+	help
+	  Choose this option if you want limit ion msm system heap pool total.
+
+config MAX_ION_MSM_SYSTEM_HEAP_POOL
+	int "Max ion msm system heap pool"
+	depends on ION_MSM_SYSTEM_HEAP_POOL_LIMIT
+	default 12800
+	help
+	  Modify it if you want set different max ion msm system heap pool.

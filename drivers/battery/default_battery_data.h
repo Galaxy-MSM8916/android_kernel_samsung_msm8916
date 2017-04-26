@@ -1,0 +1,42 @@
+#define CAPACITY_MAX			1000
+#define CAPACITY_MAX_MARGIN     30
+#define CAPACITY_MIN			0
+
+static sec_bat_adc_table_data_t temp_table[] = {
+  {25950, 900},
+  {26173, 850},
+  {26424, 800},
+  {26727, 750},
+  {26884, 700},
+  {27346, 650},
+  {27750, 600},
+  {28213, 550},
+  {28760, 500},
+  {29384, 450},
+  {30180, 400},
+  {31095, 350},
+  {32085, 300},
+  {33132, 250},
+  {34242, 200},
+  {35340, 150},
+  {36430, 100},
+  {37471, 50},
+  {38406, 0},
+  {39388, -50},
+  {40184, -100},
+  {40852, -150},
+  {41420, -200},
+};
+
+#define TEMP_HIGH_THRESHOLD_EVENT  600
+#define TEMP_HIGH_RECOVERY_EVENT   460
+#define TEMP_LOW_THRESHOLD_EVENT   (-50)
+#define TEMP_LOW_RECOVERY_EVENT    0
+#define TEMP_HIGH_THRESHOLD_NORMAL 600
+#define TEMP_HIGH_RECOVERY_NORMAL  460
+#define TEMP_LOW_THRESHOLD_NORMAL  (-50)
+#define TEMP_LOW_RECOVERY_NORMAL   0
+#define TEMP_HIGH_THRESHOLD_LPM    600
+#define TEMP_HIGH_RECOVERY_LPM     460
+#define TEMP_LOW_THRESHOLD_LPM     (-50)
+#define TEMP_LOW_RECOVERY_LPM      0

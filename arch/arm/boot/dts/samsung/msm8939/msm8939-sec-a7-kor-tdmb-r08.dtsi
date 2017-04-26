@@ -1,0 +1,79 @@
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&soc {
+	tlmm_pinmux: pinctrl@1000000 {
+		tdmb_pwr_pinctrl {
+			qcom,pins = <&gp 45>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "tdmb_pwr_pinctrl";
+			tdmb_pwr_on:tdmb_pwr_on {
+				drive-strength = <2>;
+				bias-disable;
+			};
+			tdmb_pwr_off: tdmb_pwr_off {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+		tdmb_irq_pinctrl {
+			qcom,pins = <&gp 46>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "tdmb_irq_pinctrl";
+			tdmb_irq_on: tdmb_irq_on {
+				drive-strength = <2>;
+				bias-disable;
+			};
+			tdmb_irq_off: tdmb_irq_off {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+		tdmb_spi0_cs0_suspend {
+			/* CS */
+			qcom,pins = <&gp 10>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "spi0-cs0-suspend";
+			tdmb_spi0_cs0_sleep: tdmb_spi0_cs0_sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+	};
+
+	spi_0: spi@78b7000 { /* BLSP1 QUP3 */
+		pinctrl-0 = <&spi0_default &spi0_cs0_active>;
+		pinctrl-1 = <&spi0_sleep &tdmb_spi0_cs0_sleep>;
+		status = "ok";
+		tdmb-spi@0 {
+			compatible = "tdmb_spi_comp";
+			reg = <0>;
+			spi-max-frequency = <9600000>;
+		};
+	};
+
+	tdmb_data {
+		compatible = "samsung,tdmb";
+		pinctrl-names = "tdmb_on", "tdmb_off", "tdmb_gpio_init";
+		pinctrl-0 = <&tdmb_pwr_on &tdmb_irq_on>;
+		pinctrl-1 = <&tdmb_pwr_off &tdmb_irq_off>;
+		pinctrl-2 = <&tdmb_pwr_off &tdmb_irq_off &spi0_sleep &tdmb_spi0_cs0_sleep>;
+		tdmb_pwr_en = <&msm_gpio 45 0x00>;
+		tdmb_irq = <&msm_gpio 46 0x00>;
+		tdmb_use_irq;
+		tdmb_xtal_freq = <24576>;
+	};
+
+};

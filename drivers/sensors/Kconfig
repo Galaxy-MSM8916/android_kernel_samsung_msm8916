@@ -1,0 +1,399 @@
+#
+# Sensor  drivers configuration
+#
+
+menuconfig SENSORS
+	bool "Sensor devices"
+	help
+	  Say Y here, and a list of sensors drivers will be displayed.
+	  Everything that didn't fit into the other categories is here. This option
+	  doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+config SENSORS_CORE
+	bool "Sensors Class Support"
+	help
+	  This option enables the sensor sysfs class in /sys/class/sensors.
+	  You'll need this to do anything useful with sensorss. If unsure, say N.
+
+config SENSORS_SSC
+	bool "Enable Sensors Driver Support for SSC"
+	help
+	  Add support for sensors SSC driver.
+	  This driver is used for exercising sensors use case,
+	  time syncing with ADSP clock.
+
+config SENSORS_K2HH
+	depends on I2C
+	tristate "SENSORS_K2HH"
+	default n
+	help
+	  Say Y here if you use SENSORS_K2HH.
+	  This option enables accelerometer sensors using
+	  STMicroelectronic K2HH device driver.
+
+config SENSORS_K2HH_VDD
+	depends on SENSORS_K2HH
+	tristate "SENSORS_K2HH_VDD"
+	default n
+	help
+	  Say Y here if you use SENSORS_K2HH.
+	  This option enables accelerometer sensors using
+	  STMicroelectronic K2HH device driver with VDD control.
+
+config SENSORS_CM36672P
+	depends on I2C
+	tristate "CM36672P driver"
+	default n
+	help
+	  This option enables proximity sensor using CM36672P driver.
+	  
+config SENSORS_CM36672P_SMART_PERS
+	depends on SENSORS_CM36672P
+	tristate "CM36672P driver"
+	default n
+	help
+	  This option enables smart persistence option using CM36672P driver.
+
+config SENSORS_CM36652
+	depends on I2C
+	tristate "CM366852 driver"
+	default n
+	help
+	  This option enables proximity & light sensors using CM36652 driver.
+
+config SENSORS_CM36652_LEDA_EN_GPIO
+	depends on I2C
+	tristate "CM36652 leda_en controlled by GPIO"
+	default n
+	help
+	  This option enables leda_en controlled by GPIO using CM36652 driver.
+
+config SENSORS_CM36652_SENSOR_EN_GPIO
+	depends on I2C
+	tristate "CM36652 sensor_en controlled by GPIO"
+	default n
+	help
+	  This option enables leda_en controlled by GPIO using CM36652 driver.
+
+config SENSORS_CM36655
+	depends on I2C
+	tristate "CM36655 driver"
+	default n
+	help
+	  This option enables proximity & light sensors using CM36655 driver.
+
+config SENSORS_CM36686
+	depends on I2C
+	tristate "CM36686 driver"
+	default n
+	help
+	  This option enables proximity & light sensors using CM36686 driver.
+
+config SENSORS_CM36686_LEDA_EN_GPIO
+	depends on I2C
+	tristate "CM36686 leda_en controlled by GPIO"
+	default n
+	help
+	  This option enables leda_en controlled by GPIO using CM36686 driver.
+
+config SENSORS_GP2A002
+	tristate "GP2A002 proximity sensor support"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you get support for sharp Sensortec's
+	  proximity sensors GP2A002.
+
+config SENSORS_GP2A_MODE_A
+	bool "GP2A002 proximity sensor A mode support"
+	depends on SENSORS_GP2A002
+	default n
+	help
+	  If you say yes here you get support for sharp Sensortec's
+	  proximity sensors GP2A002 A mode values.
+
+config SENSORS_GP2A_MODE_B1
+	bool "GP2A002 proximity sensor B1 mode support"
+	depends on SENSORS_GP2A002
+	default n
+	help
+	  If you say yes here you get support for sharp Sensortec's
+	  proximity sensors GP2A002 B1 mode values.
+
+config SENSORS_GP2A_MODE_B15
+	bool "GP2A002 proximity sensor B15 mode support"
+	depends on SENSORS_GP2A002
+	default n
+	help
+	  If you say yes here you get support for sharp Sensortec's
+	  proximity sensors GP2A002 B15 mode values.
+
+config SENSORS_GP2A_VDD
+	tristate "SENSORS_K2HH_VDD"
+	depends on SENSORS_GP2A002
+	default n
+	help
+	  Say Y here if you use SENSORS_GP2A002.
+	  This option enables proximity sensors using
+	  sharp Sensortec's GP2A002S device driver with VDD control.
+
+config SENSORS_LEDA_EN_GPIO
+	depends on I2C
+	tristate "LEDA_EN controlled by GPIO"
+	default n
+	help
+	  This option enables leda_en controlled by GPIO using optical sensor driver.
+
+config SENSORS_CM3323
+	depends on I2C
+	tristate "CM3323 driver"
+	default n
+	help
+	  Say Y here if you use cm3323.
+	  This option enables RGB sensors using
+	  Capella cm3323 device driver.
+
+	  Say N here if you do not use cm3323.
+
+config SENSORS_CM3323_ESD_DEFENCE
+	depends on I2C
+	tristate "CM3323 ESD Defence"
+	default n
+	help
+	  Say Y here if you use ESD defence in cm3323.
+	  This option enables ESD defence code.
+
+	  Say N here if you do not use ESD defence in cm3323.
+
+config SENSORS_STK3013
+	depends on I2C
+	tristate "STK3013 driver"
+	default n
+	help
+	  This option enables proximity sensor using STK3013 driver.
+
+config SENSORS_TCS3490
+	depends on I2C
+	tristate "TCS3490 driver"
+	default n
+	help
+	  This option enables light sensor using TCS3490 driver.
+
+config SENSORS_SX9500
+	depends on I2C
+	tristate "SX9500 driver"
+	default n
+	help
+	  Say Y here if you use sx9500.
+	  This option enables grip sensors using
+	  SemTech sx9500 device driver.
+
+	  Say N here if you do not use sx9500.
+
+config SENSORS_SX9500_INIT_TOUCH_THRESHOLD
+	int "SX9500 Grip sensor threshold for init touch"
+	depends on I2C
+	default "3000"
+	help
+	  This value is the standard of init touch using
+	  SemTech sx9500 device driver.
+
+config SENSORS_SX9500_NORMAL_TOUCH_THRESHOLD
+	int "SX9500 Grip sensor threshold for normal touch"
+	depends on I2C
+	default "17"
+	help
+	  This value is the standard of normal touch using
+	  SemTech sx9500 device driver.
+
+config SENSORS_SX9500_TEMPERATURE_COMPENSATION
+	depends on I2C
+	tristate "SX9500 Grip sensor temperature compensation"
+	default n
+	help
+	  Say Y here if you use temperature compensation code.
+	  This option enables grip sensors using
+	  temperature compensation code.
+
+config SENSORS_SX9500_DEFENCE_CODE_FOR_TA_NOISE
+	depends on I2C
+	tristate "SX9500 Grip sensor defence code for TA noise"
+	default n
+	help
+	  Say Y here if you use defence code for TA noise.
+	  This option enables grip sensors using
+	  defence code for TA noise.
+
+config SENSORS_SX9500_REGULATOR_ONOFF
+	depends on I2C
+	tristate "SX9500 Grip sensor Regulator"
+	default n
+	help
+	  Say Y here if you use regulator for grip sensor.
+	  This option enables regulator for grip sensor using
+	  SemTech sx9500 device driver.
+
+config SENSORS_SX9500_SAMPLE_RATE_SET_125KHZ
+	depends on I2C
+	tristate "SX9500 sample rate set 125KHZ"
+	default n
+	help
+	  Say Y here if you want to set the sample rate to 125KHZ.
+
+config SENSORS_SX9500_WIFI
+	depends on I2C
+	tristate "SX9500 driver for wifi"
+	default n
+	help
+	  Say Y here if you use sx9500 for wifi.
+	  This option enables grip sensors using
+	  SemTech sx9500 device driver for wifi.
+
+	  Say N here if you do not use sx9500 for wifi.
+
+config SENSORS_SX9500_WIFI_INIT_TOUCH_THRESHOLD
+	int "SX9500 wifi Grip sensor threshold for init touch"
+	depends on SENSORS_SX9500_WIFI
+	default "3000"
+	help
+	  This value is the standard of init touch using
+	  SemTech sx9500 device driver for wifi.
+
+config SENSORS_SX9500_WIFI_NORMAL_TOUCH_THRESHOLD
+	int "SX9500 wifi Grip sensor threshold for normal touch"
+	depends on SENSORS_SX9500_WIFI
+	default "17"
+	help
+	  This value is the standard of normal touch using
+	  SemTech sx9500 device driver for wifi.
+
+config SENSORS_SX9500_WIFI_DEFENCE_CODE_FOR_TA_NOISE
+	depends on SENSORS_SX9500_WIFI
+	tristate "SX9500 wifi Grip sensor wifi defence code for TA noise"
+	default n
+	help
+	  Say Y here if you use defence code for TA noise.
+	  This option enables grip sensors using
+	  defence code for TA noise.
+
+config SENSORS_SX9500_WIFI_TEMPERATURE_COMPENSATION
+	depends on SENSORS_SX9500_WIFI
+	tristate "SX9500 wifi Grip sensor temperature compensation"
+	default n
+	help
+	  Say Y here if you use temperature compensation code.
+	  This option enables grip sensors using
+	  temperature compensation code.
+
+config SENSORS_SX9500_WIFI_REGULATOR_ONOFF
+	depends on SENSORS_SX9500_WIFI
+	tristate "SX9500 wifi Grip sensor Regulator"
+	default n
+	help
+	  Say Y here if you use regulator for grip sensor for WIFI.
+	  This option enables regulator for grip sensor using
+	  SemTech sx9500 device driver for WIFI.
+
+config SENSORS_SX9310
+	depends on I2C
+	tristate "SX9310 driver"
+	default n
+	help
+	  Say Y here if you use sx9310.
+	  This option enables grip sensors using
+	  SemTech sx9310 device driver.
+
+	  Say N here if you do not use sx9310.
+
+config SENSORS_SX9310_NORMAL_TOUCH_THRESHOLD
+	int "SX9310 Grip sensor threshold for normal touch"
+	depends on SENSORS_SX9310
+	default "193"
+	help
+	  This value is the standard of normal touch using
+	  SemTech sx9310 device driver.
+	  
+config SENSORS_SX9500_ALWAYS
+	depends on I2C
+	tristate "SX9500 driver"
+	default n
+	help
+	  Say Y here if you use sx9500 always on mode.
+	  This option enables grip sensors using
+	  SemTech sx9500 device driver.
+
+	  Say N here if you do not use sx9500.
+
+config SENSORS_BMA2X2
+	tristate "BMA255/BMA250E/BMA222E/BMA280 acceleration sensor support"
+	depends on I2C=y
+	help
+	  If you say yes here you get support for Bosch Sensortec's
+	  acceleration sensors BMA255/BMA250E/BMA222E/BMA280.
+
+config SENSORS_BMA2X2_ENABLE_INT1
+	tristate "BMA2X2 acceleration sensor interrupt INT1 support"
+	depends on SENSORS_BMA2X2
+	help
+	 If you say yes here, you get INT1 support for Bosch Sensortec
+	 acceleration sensors BMA255/BMA254/BMA355/BMA250E/BMA222E/BMA280.
+
+config SENSORS_BMM050
+	tristate "BMM050 Magnetic Sensor Driver"
+	depends on I2C=y
+	help
+	 BMM050 Magnetic Sensor Driver implemented by Bosch-Sensortec.
+
+config INPUT_BMA2x2_ACC_ALERT_INT
+	tristate "BMA255/BMA250E/BMA222E/BMA280 acceleration sensor support"
+	depends on I2C=y
+	help
+	  If you say yes here you get support for Bosch Sensortec's
+	  acceleration sensors BMA255/BMA250E/BMA222E/BMA280.
+
+config SENSORS_BMC150_VDD
+	tristate "BMC150 ACC MAGNETIC Sensor Driver"
+	depends on I2C=y
+	help
+	 BMC150 ACC MAGNETIC Sensor Driver implemented by Bosch-Sensortec.
+
+config SENSORS_TMD3782S
+	depends on I2C
+	tristate "SENSORS_TMD3782S"
+	default n
+	help
+	  Say Y here if you use TAOS_TMD3782S.
+	  This option enables optial sensors using
+	  Sharp TAOS_TMD3782S device driver.
+
+config CHARGER_NOTIFY_SENSOR
+	tristate "Nofity sensor when charging"
+	default n
+	help
+	  Say Y here if you need to know the status if charging or not.
+
+config SENSORS_ACCELEROMETER_2G
+	depends on SENSORS_BMA2X2
+	tristate "Set 2G BMA2X2 accelerometer sensor"
+	default n
+	help
+	  This config is temporary option for L OS upgrade models.
+	  If you want to enable this option, you must enable HAL 2G feature also.
+
+config SENSORS_AK09911C
+	tristate "AK09911C compass support"
+	default n
+	depends on I2C
+	help
+	  If you say yes here you get support for Asahi Kasei's
+	  orientation sensor AK09911C.
+
+config SENSORS_AK09916C
+	tristate "AK09916C compass support"
+	default n
+	depends on I2C
+	help
+	  If you say yes here you get support for Asahi Kasei's
+	  orientation sensor AK09911C.

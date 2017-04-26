@@ -1,0 +1,10 @@
+#
+# Goodix IST30XX Touchscreen driver
+#
+
+config TOUCHSCREEN_IST30XX_CORE3
+  tristate "IST30XX I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have the Imagis IST30XX I2C touchscreen
+	  connected to your system.

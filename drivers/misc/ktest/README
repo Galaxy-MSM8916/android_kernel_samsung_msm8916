@@ -1,0 +1,25 @@
+Fast development build instructions
+
+make -f Makefile.dev clean
+
+make -f Makefile.dev TARGET=<product_name> all ARCH=arm CROSS_COMPILE=arm-eabi-
+
+where <product_name> appears in android/out/target/product/<product_name>
+
+e.g.
+
+make -f Makefile.dev TARGET=hlteuc all ARCH=arm CROSS_COMPILE=arm-eabi-
+
+Some Notes
+==========================================================================
+One has to disable LKMAUTH feature for active development of this module.Otherwise each change force us to build kernel and modem files. To disable LKMAUTH you can modify android/kernel/Makefile and edit out -DTIMA_LKM_AUTH_ENABLED.
+
+You also need -DTIMA_ENABLED -DTIMA_TEST_INFRA.
+
+One can enable and disable this feature by turning on/off CONFIG_TIMA_TEST in android/kernel/arch/arm/configs/<appropriate_defconfig>
+
+e.g. set
+
+CONFIG_TIMA_TEST=m
+in
+kernel/arch/arm/configs/msm8974_sec_eng_defconfig

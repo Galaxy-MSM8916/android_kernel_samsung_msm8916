@@ -1,0 +1,52 @@
+#
+# Kconfig for MELFAS MMS400 Touchscreen driver
+#
+
+if INPUT_TOUCHSCREEN
+
+config TOUCHSCREEN_MELFAS_MMS438
+        tristate "MELFAS MMS438 Touchscreen"
+        depends on I2C
+        help
+          Say Y here if you have a MELFAS MMS438 touchscreen device in your system.
+
+          If unsure, say N.
+
+          To compile this driver as a module, choose M here: the module will be called mms_ts.
+
+config TOUCHSCREEN_MELFAS_MMS449
+        tristate "MELFAS MMS449 Touchscreen"
+        depends on I2C
+        help
+          Say Y here if you have a MELFAS MMS449 touchscreen device in your system.
+
+          If unsure, say N.
+
+          To compile this driver as a module, choose M here: the module will be called mms_ts.
+
+config TOUCHSCREEN_MELFAS_MMS458
+        tristate "MELFAS MMS458 Touchscreen"
+        depends on I2C
+        help
+          Say Y here if you have a MELFAS MMS458 touchscreen device in your system.
+
+          If unsure, say N.
+
+          To compile this driver as a module, choose M here: the module will be called mms_ts.
+
+config TOUCHSCREEN_MELFAS_MMS492
+        tristate "MELFAS MMS492 Touchscreen"
+        depends on I2C
+        help
+          Say Y here if you have a MELFAS MMS492 touchscreen device in your system.
+
+          If unsure, say N.
+
+          To compile this driver as a module, choose M here: the module will be called mms_ts.
+
+config TOUCHSCREEN_DUMP_MODE
+        tristate "TSP dump mode"
+        depends on I2C
+
+endif
+

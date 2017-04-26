@@ -1,0 +1,24 @@
+menuconfig MSM_VIBRATOR
+        tristate "MSM_VIBRATOR"
+	default n
+	help
+	Say Y to enable MSM_VIBRATOR support.
+
+menuconfig BLDC_VIBRATOR
+        tristate "BLDC_VIBRATOR"
+	default n
+	help
+	Say Y to enable BLDC_VIBRATOR support.
+
+
+menuconfig SS_VIBRATOR
+	tristate "SS_VIBRATOR"
+	default n
+	help
+	  Say Y to enable SAMSUNG VIBRATOR support
+
+menuconfig SM5703_VIBRATOR
+        tristate "SM5703_VIBRATOR"
+        default n
+        help
+          Say Y to enable SM5703_VIBRATOR support.

@@ -1,0 +1,22 @@
+obj-$(CONFIG_TOUCHSCREEN_CYTTSP5_TMA445A) += cyttsp5_core.o
+obj-$(CONFIG_TOUCHSCREEN_CYTTSP5_TMA445A) += cyttsp5_i2c.o
+obj-$(CONFIG_TOUCHSCREEN_CYTTSP5_TMA445A) += cyttsp5_mt_common.o
+obj-$(CONFIG_TOUCHSCREEN_CYTTSP5_TMA445A) += cyttsp5_loader.o
+obj-$(CONFIG_TOUCHSCREEN_CYTTSP5_TMA445A) += cyttsp5_device_access.o
+obj-$(CONFIG_TOUCHSCREEN_CYTTSP5_TMA445A) += cyttsp5_samsung_factory.o
+obj-$(CONFIG_TOUCHSCREEN_CYTTSP5_TMA445A) += cyttsp5_platform.o
+obj-$(CONFIG_TOUCHSCREEN_CYTTSP5_TMA445A) += cyttsp5_devtree.o
+
+CYTTSP_CFLAGS = -DCONFIG_TOUCHSCREEN_CYTTSP5_DEVICETREE_SUPPORT\
+			    -DCONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_LOADER\
+				-DCONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICE_ACCESS
+
+CFLAGS_cyttsp5_core.o 			 += $(CYTTSP_CFLAGS) -DDEBUG
+CFLAGS_cyttsp5_i2c.o 			 += $(CYTTSP_CFLAGS)
+CFLAGS_cyttsp5_mt_common.o 		 += $(CYTTSP_CFLAGS)
+CFLAGS_cyttsp5_loader.o 		 += $(CYTTSP_CFLAGS)
+CFLAGS_cyttsp5_device_access.o   += $(CYTTSP_CFLAGS)
+CFLAGS_cyttsp5_samsung_factory.o += $(CYTTSP_CFLAGS)
+CFLAGS_cyttsp5_platform.o 		 += $(CYTTSP_CFLAGS)
+CFLAGS_cyttsp5_devtree.o 		 += $(CYTTSP_CFLAGS)
+

@@ -1,0 +1,32 @@
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License version 2 and
+* only version 2 as published by the Free Software Foundation.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*/
+
+/dts-v1/;
+
+#include "msm8916-sec-gt5note10lte-eur-r02.dtsi"
+#include "msm8916-memory.dtsi"
+
+/ {
+	model = "MSM8916 SAMSUNG GT5NOTE10 PROJECT bring up 2GB";
+	compatible = "qcom,msm8916-mtp", "qcom,msm8916", "qcom,mtp";
+	/*QCOM BOARD REV TYPE...*/
+        /*qcom,board-id = <8 0>;*/
+        /*SEC BOARD REV TYPE...*/
+	qcom,board-id = <0xCE08FF01 2>, <0xF808FF01 2>;
+        /*parm1)[31:20]platform_id [19:12]qc_hw_id [11:4]national code [3:0] operator, param2)SEC hw-rev*/
+};
+
+/*overwrite s2 cpr voltage for model variant*/
+&apc_vreg_corner {
+	qcom,cpr-voltage-ceiling = <1050000 1150000 1350000>;
+        qcom,cpr-voltage-floor = <1050000 1050000 1162500>;
+};

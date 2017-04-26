@@ -1,0 +1,11 @@
+ANDROIDROOT=$(PWD)/../../../../../android
+KERNELSRC=$(ANDROIDROOT)/kernel
+KERNELOUT=$(ANDROIDROOT)/out/target/product/hlteatt/obj/KERNEL_OBJ 
+#KERNELOUT=$(ANDROIDROOT)/../output/n/kernel_obj
+ktestmod-objs := ktest.o kt_l1pgt.o kt_pkm.o kt_lkmauth.o
+obj-m += ktestmod.o
+all:
+	make -C $(KERNELSRC) O=$(KERNELOUT) M=$(PWD) modules
+
+clean:
+	make -C $(KERNELSRC) O=$(KERNELOUT) M=$(PWD) clean 
