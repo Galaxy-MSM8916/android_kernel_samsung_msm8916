@@ -114,15 +114,17 @@
 		battery0,temp_std = <25>;
 		battery0,temp_offset = <10>;
 		battery0,temp_offset_cal = <0x01>;
-		battery0,charge_offset_cal = <(-0x05)>;
+		battery0,charge_offset_cal = <(-0x01)>;
 		battery0,rce_value = <0x0749 0x0580 0x371>;
 		battery0,dtcd_value = <0x1>;
 		battery0,rs_value = <0x1ae 0x47a 0x3800 0x00a4>; /*rs mix_factor max min*/
-		battery0,vit_period = <0x350a>;
+		battery0,vit_period = <0x3506>;
 		battery0,mix_value = <0x0503 0x0004>; /*mix_rate init_blank*/
 		battery0,topoff_soc = <0x0 0x5>; /*disable soc*/
 		battery0,volt_cal = <0x8000>;
-		battery0,curr_cal = <0x7800>;
+		battery0,curr_cal = <0x7500>;
 		battery0,tem_poff = <3400 100 3320 100>;
+		battery0,ext_temp_cal = <0 10 1 1 1 7 1 2>;
+		battery0,min_charge_curr = <150>;
 	};
 };

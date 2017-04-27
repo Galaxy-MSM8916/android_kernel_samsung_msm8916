@@ -216,7 +216,6 @@ static void tdmb_gpio_off(void)
 
 static bool tdmb_power_on(void)
 {
-	int param = 0;
 	if (tdmb_create_databuffer(tdmbdrv_func->get_int_size()) == false) {
 		DPRINTK("tdmb_create_databuffer fail\n");
 		goto create_databuffer_fail;
@@ -225,10 +224,7 @@ static bool tdmb_power_on(void)
 		DPRINTK("tdmb_create_workqueue fail\n");
 		goto create_workqueue_fail;
 	}
-#ifdef CONFIG_TDMB_XTAL_FREQ
-	param = dt_pdata->tdmb_xtal_freq;
-#endif
-	if (tdmbdrv_func->power_on(param) == false) {
+	if (tdmbdrv_func->power_on(dt_pdata) == false) {
 		DPRINTK("power_on fail\n");
 		goto power_on_fail;
 	}
@@ -971,6 +967,11 @@ static struct tdmb_dt_platform_data *get_tdmb_dt_pdata(struct device *dev)
 							&pdata->tdmb_xtal_freq)) {
 		DPRINTK("Failed to get tdmb_xtal_freq\n");
 		goto alloc_err;
+	}
+	if(of_property_read_u8(dev->of_node,
+			"tdmb_xtal_load_cap", &pdata->xtal_load_cap)) {
+		DPRINTK("Unable to find tdmb_xtal_load_cap (default value 0x14)\n");
+		pdata->xtal_load_cap = 0x14;
 	}
 #endif
 	pdata->tdmb_pinctrl = devm_pinctrl_get(dev);

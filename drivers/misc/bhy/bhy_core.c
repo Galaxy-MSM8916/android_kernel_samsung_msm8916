@@ -7,14 +7,14 @@
  * available at http://www.fsf.org/copyleft/gpl.html
 *
 * @filename bhy_core.c
-* @date     "Tue Oct 13 22:11:15 2015 +0800"
-* @id       "bc60934"
+* @date     "Fri Oct 30 18:57:44 2015 +0800"
+* @id       "3230a0f"
 *
 * @brief
 * The implementation file for BHy driver core
 */
 
-#define DRIVER_VERSION "1.2.16.0"
+#define DRIVER_VERSION "1.3.0.0"
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -37,6 +38,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/wakelock.h>
+#include <linux/firmware.h>
 
 #include "bhy_core.h"
 #include "bhy_host_interface.h"
@@ -45,6 +47,10 @@
 #ifdef BHY_DEBUG
 static s64 g_ts[4]; /* For fw load time test */
 #endif /*~ BHY_DEBUG */
+
+/** Monitor Thread **/
+#define ACC_EVENT_TIMEOUT	15000000000ULL
+#define RESET_TIMEOUT		1800000000000ULL  /* 30 min */
 
 static int axis_matrix[8][9] = {
 	{ 1, 0, 0, 0, 1, 0, 0, 0, 1, }, /* X Y Z */
@@ -56,6 +62,43 @@ static int axis_matrix[8][9] = {
 	{ 1, 0, 0, 0, -1, 0, 0, 0, -1, }, /* X -Y -Z */
 	{ 0, -1, 0, -1, 0, 0, 0, 0, -1,}, /* -Y -X Z */
 };
+
+static int check_watchdog_reset(struct bhy_client_data *client_data);
+void report_last_step_counter_data(struct bhy_client_data *client_data);
+
+static void int_debug(struct bhy_client_data *client_data,
+	char *log, const char *func, int line)
+{
+	static int count;
+	int ret;
+
+	if (count++ > INT_DEBUG_COUNT) {
+		printk(KERN_INFO "[D]" KERN_DEBUG MODULE_TAG
+			"<%s><%d> %s \n", func, line, log);
+
+		disable_irq_nosync(client_data->data_bus.irq);
+		client_data->irq_force_disabled = true;
+
+		ret = check_watchdog_reset(client_data);
+
+		/*
+		printk(KERN_INFO "[D]" KERN_DEBUG MODULE_TAG
+			"<%s><%d> irq_force_disabled \n", func, line);
+			*/
+		count = 0;
+	}
+}
+
+static void frame_debug(char *log, const char *func, int line)
+{
+	static int count;
+
+	if (count++ > FRAME_DEBUG_COUNT) {
+		printk(KERN_INFO "[D]" KERN_DEBUG MODULE_TAG
+			"<%s><%d> %s \n", func, line, log);
+		count = 0;
+	}
+}
 
 static int bhy_read_reg(struct bhy_client_data *client_data,
 		u8 reg, u8 *data, u16 len)
@@ -463,15 +506,17 @@ static int bhy_check_chip_id(struct bhy_data_bus *data_bus)
 }
 
 static void sync_sensor(struct bhy_client_data *client_data);
+static int bhy_request_irq(struct bhy_client_data *client_data);
+static u64 get_current_timestamp(void);
 
-static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
+static int bhy_load_ram_patch(struct bhy_client_data *client_data)
 {
 	ssize_t ret;
 	u8 u8_val;
 	u16 u16_val;
 	u32 u32_val;
 	int retry = BHY_RESET_WAIT_RETRY;
-	int reset_flag_copy;
+	/* int reset_flag_copy; */
 	struct file *f;
 	mm_segment_t old_fs;
 	struct ram_patch_header header;
@@ -485,16 +530,31 @@ static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
 	bhy_get_ap_timestamp(&g_ts[0]);
 #endif /*~ BHY_DEBUG */
 
+	wake_lock(&client_data->patch_wlock);
+	mutex_lock(&client_data->mutex_bus_op);
+
+	atomic_set(&client_data->ram_patch_loaded, RAM_PATCH_READY);
+	PINFO("Check : ram_patch_loaded = %d ",
+		atomic_read(&client_data->ram_patch_loaded));
+
+	client_data->last_acc_check_time = get_current_timestamp();
+	PINFO("Set to ram_patch_loaded = false");
+
 	/* Reset FPGA */
 	atomic_set(&client_data->reset_flag, RESET_FLAG_TODO);
 	u8_val = 1;
 	ret = bhy_write_reg(client_data, BHY_REG_RESET_REQ, &u8_val,
 		sizeof(u8));
 	if (ret < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Write reset reg failed");
 		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+
+		wake_unlock(&client_data->patch_wlock);
+
 		return ret;
 	}
+	/* Ignore checking
 	while (retry--) {
 		reset_flag_copy = atomic_read(&client_data->reset_flag);
 		if (reset_flag_copy == RESET_FLAG_READY)
@@ -502,10 +562,12 @@ static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
 		udelay(50);
 	}
 	if (retry <= 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Reset ready status wait failed");
 		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
 		return -EIO;
 	}
+	*/
 	PINFO("FPGA reset successfully");
 
 	/* Check chip status */
@@ -514,7 +576,9 @@ static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
 		ret = bhy_read_reg(client_data, BHY_REG_CHIP_STATUS,
 			&u8_val, 1);
 		if (ret < 0) {
+			mutex_unlock(&client_data->mutex_bus_op);
 			PERR("Read chip status failed");
+			wake_unlock(&client_data->patch_wlock);
 			return -EIO;
 		}
 		if (u8_val & BHY_CHIP_STATUS_BIT_FIRMWARE_IDLE)
@@ -522,7 +586,9 @@ static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
 		udelay(50);
 	}
 	if (retry <= 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Chip status error after reset");
+		wake_unlock(&client_data->patch_wlock);
 		return -EIO;
 	}
 
@@ -534,24 +600,30 @@ static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
 	u16_val = 0;
 	if (bhy_write_reg(client_data, BHY_REG_UPLOAD_ADDR_0,
 		(u8 *)&u16_val, 2) < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Init upload addr failed");
 		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		wake_unlock(&client_data->patch_wlock);
 		return -EIO;
 	}
 
 	/* Write upload request */
 	u8_val = 2;
 	if (bhy_write_reg(client_data, BHY_REG_CHIP_CTRL, &u8_val, 1) < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Set chip ctrl failed");
 		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		wake_unlock(&client_data->patch_wlock);
 		return -EIO;
 	}
 
 	/* Upload data */
 	f = filp_open(BHY_DEF_RAM_PATCH_FILE_PATH, O_RDONLY, 0);
 	if (f == NULL || IS_ERR(f)) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("open file [%s] error\n", BHY_DEF_RAM_PATCH_FILE_PATH);
 		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		wake_unlock(&client_data->patch_wlock);
 		return -EIO;
 	}
 	old_fs = get_fs();
@@ -559,44 +631,54 @@ static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
 	pos = 0;
 	read_len = vfs_read(f, (char *)&header, sizeof(header), &pos);
 	if (read_len < 0 || read_len != sizeof(header)) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Read file header failed");
 		set_fs(old_fs);
 		filp_close(f, NULL);
 		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		wake_unlock(&client_data->patch_wlock);
 		return -EIO;
 	}
 	remain = header.data_length;
 	if (remain % 4 != 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("data length cannot be divided by 4");
 		set_fs(old_fs);
 		filp_close(f, NULL);
 		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		wake_unlock(&client_data->patch_wlock);
 		return -EINVAL;
 	}
 	while (remain > 0) {
 		read_len = vfs_read(f, data_buf, sizeof(data_buf), &pos);
 		if (read_len < 0) {
+			mutex_unlock(&client_data->mutex_bus_op);
 			PERR("Read file data failed");
 			set_fs(old_fs);
 			filp_close(f, NULL);
 			atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+			wake_unlock(&client_data->patch_wlock);
 			return -EIO;
 		}
 		if (read_len == 0) {
+			mutex_unlock(&client_data->mutex_bus_op);
 			PERR("File ended abruptly");
 			set_fs(old_fs);
 			filp_close(f, NULL);
 			atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+			wake_unlock(&client_data->patch_wlock);
 			return -EINVAL;
 		}
 		for (i = 0; i < read_len; i += 4)
 			*(u32 *)(data_buf + i) = swab32(*(u32 *)(data_buf + i));
 		if (bhy_write_reg(client_data, BHY_REG_UPLOAD_DATA,
 			(u8 *)data_buf, read_len) < 0) {
+			mutex_unlock(&client_data->mutex_bus_op);
 			PERR("Write ram patch data failed");
 			set_fs(old_fs);
 			filp_close(f, NULL);
 			atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+			wake_unlock(&client_data->patch_wlock);
 			return -EIO;
 		}
 		remain -= read_len;
@@ -607,21 +689,27 @@ static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
 	/* Check CRC */
 	if (bhy_read_reg(client_data, BHY_REG_DATA_CRC_0,
 		(u8 *)&u32_val, 4) < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Read CRC failed");
 		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		wake_unlock(&client_data->patch_wlock);
 		return -EIO;
 	}
 	if (u32_val != header.crc) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("CRC mismatch 0X%08X vs 0X%08X", u32_val, header.crc);
 		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		wake_unlock(&client_data->patch_wlock);
 		return -EIO;
 	}
 
 	/* Disable upload mode */
 	u8_val = 0;
 	if (bhy_write_reg(client_data, BHY_REG_CHIP_CTRL, &u8_val, 1) < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Write chip ctrl reg failed");
 		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		wake_unlock(&client_data->patch_wlock);
 		return -EIO;
 	}
 	usleep_range(50, 60);
@@ -631,7 +719,9 @@ static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
 		ret = bhy_read_reg(client_data, BHY_REG_CHIP_STATUS,
 			&u8_val, 1);
 		if (ret < 0) {
+			mutex_unlock(&client_data->mutex_bus_op);
 			PERR("Read chip status failed");
+			wake_unlock(&client_data->patch_wlock);
 			return -EIO;
 		}
 		if (u8_val & BHY_CHIP_STATUS_BIT_FIRMWARE_IDLE)
@@ -639,7 +729,9 @@ static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
 		udelay(50);
 	}
 	if (retry <= 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Chip status error after upload patch");
+		wake_unlock(&client_data->patch_wlock);
 		return -EIO;
 	}
 
@@ -650,8 +742,10 @@ static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
 	/* Enable cpu run */
 	u8_val = 1;
 	if (bhy_write_reg(client_data, BHY_REG_CHIP_CTRL, &u8_val, 1) < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Write chip ctrl reg failed #2");
 		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		wake_unlock(&client_data->patch_wlock);
 		return -EIO;
 	}
 
@@ -661,7 +755,9 @@ static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
 		ret = bhy_read_reg(client_data, BHY_REG_CHIP_STATUS,
 			&u8_val, 1);
 		if (ret < 0) {
+			mutex_unlock(&client_data->mutex_bus_op);
 			PERR("Read chip status failed");
+			wake_unlock(&client_data->patch_wlock);
 			return -EIO;
 		}
 		if (!(u8_val & BHY_CHIP_STATUS_BIT_FIRMWARE_IDLE))
@@ -669,16 +765,113 @@ static int bhy_load_ram_patch(struct bhy_client_data *client_data, bool sync)
 		udelay(50);
 	}
 	if (retry <= 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Chip status error after CPU run request");
+		wake_unlock(&client_data->patch_wlock);
 		return -EIO;
 	}
 
+	mutex_unlock(&client_data->mutex_bus_op);
 	PINFO("Ram patch loaded successfully.");
 
-	if (sync) {
-		msleep(300);
-		sync_sensor(client_data);
+	if ((client_data->irq_enabled == false) &&
+		(atomic_read(&client_data->ram_patch_loaded) == RAM_PATCH_READY)) {
+
+		PERR("Request IRQ!");
+		ret = bhy_request_irq(client_data);
+		if (ret < 0)
+			PERR("Request IRQ failed");
+		client_data->irq_enabled = true;
 	}
+
+	atomic_set(&client_data->ram_patch_loaded, RAM_PATCH_LOADED);
+	PINFO("Check : ram_patch_loaded = %d ",
+		atomic_read(&client_data->ram_patch_loaded));
+
+	client_data->last_acc_check_time = get_current_timestamp();
+
+	msleep(300);
+	sync_sensor(client_data);
+	wake_unlock(&client_data->patch_wlock);
+
+	return 0;
+}
+
+int bhy_reinit(struct bhy_client_data *client_data)
+{
+	int retry;
+	u8 reg_data;
+	int ret;
+
+	mutex_lock(&client_data->mutex_bus_op);
+
+	reg_data = 0;
+	ret = bhy_write_reg(client_data, BHY_REG_CHIP_CTRL, &reg_data, 1);
+	if (ret < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Write chip control reg failed");
+		return -EIO;
+	}
+	retry = 1000;
+	do {
+		ret = bhy_read_reg(client_data, BHY_REG_CHIP_STATUS,
+			&reg_data, 1);
+		if (ret < 0) {
+			mutex_unlock(&client_data->mutex_bus_op);
+			PERR("Read chip status failed");
+			return -EIO;
+		}
+		if (reg_data & BHY_CHIP_STATUS_BIT_FIRMWARE_IDLE)
+			break;
+		usleep_range(10000, 11000);
+	} while (--retry);
+	if (retry == 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Wait for chip idle status timed out");
+		return -EBUSY;
+	}
+	/* Clear self test bit */
+	ret = bhy_read_reg(client_data, BHY_REG_HOST_CTRL, &reg_data, 1);
+	if (ret < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Read host ctrl reg failed");
+		return -EIO;
+	}
+	reg_data &= ~HOST_CTRL_MASK_SELF_TEST_REQ;
+	ret = bhy_write_reg(client_data, BHY_REG_HOST_CTRL, &reg_data, 1);
+	if (ret < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Write host ctrl reg failed");
+		return -EIO;
+	}
+	/* Enable CPU run from chip control */
+	reg_data = 1;
+	ret = bhy_write_reg(client_data, BHY_REG_CHIP_CTRL, &reg_data, 1);
+	if (ret < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Write chip control reg failed");
+		return -EIO;
+	}
+	retry = 1000;
+	do {
+		ret = bhy_read_reg(client_data, BHY_REG_CHIP_STATUS,
+			&reg_data, 1);
+		if (ret < 0) {
+			mutex_unlock(&client_data->mutex_bus_op);
+			PERR("Read chip status failed");
+			return -EIO;
+		}
+		if (!(reg_data & BHY_CHIP_STATUS_BIT_FIRMWARE_IDLE))
+			break;
+		usleep_range(10000, 11000);
+	} while (--retry);
+	if (retry == 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Wait for chip running status timed out");
+		return -EBUSY;
+	}
+
+	mutex_unlock(&client_data->mutex_bus_op);
 
 	return 0;
 }
@@ -825,6 +1018,7 @@ static void bhy_init_sensor_type_data_len(struct bhy_client_data *client_data)
 		BHY_SENSOR_DATA_LEN_CUSTOM_5_WU;
 }
 
+#ifdef BHY_AR_HAL_SUPPORT
 static int bhy_get_sensor_type_data_len(int sensor_type, int *report_to_ar)
 {
 	*report_to_ar = 0;
@@ -973,8 +1167,311 @@ static int bhy_get_sensor_type_data_len(int sensor_type, int *report_to_ar)
 		return BHY_SENSOR_DATA_LEN_CUSTOM_5_WU;
 	}
 }
+#endif /*~ BHY_AR_HAL_SUPPORT */
 
-u64 convert_mcu_crystal_to_nano(unsigned int time)
+
+static void reset(struct bhy_client_data *client_data)
+{
+	mm_segment_t old_fs;
+	struct file *filp = NULL;
+	char temp = 0;
+	int ret = 0;
+
+	PINFO("Reset sequence started (%d)",
+		client_data->irq_force_disabled);
+
+	wake_lock(&client_data->reset_wlock);
+	if (client_data->ldo_enable_pin < 0) {
+		PINFO("no ldo_enable_pin");
+		goto direct_ram_patch;
+	}
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	/* Reset mag sensor power */
+	PINFO("Reset mag sensor power");
+	filp = filp_open(MAG_POWER, O_RDONLY, 0666);
+	if (IS_ERR(filp)) {
+		ret = PTR_ERR(filp);
+		if (ret != -ENOENT)
+			PERR("Can't open mag power file");
+	} else {
+		ret = filp->f_op->read(filp, (u8 *)&temp,
+			sizeof(temp), &filp->f_pos);
+		filp_close(filp, current->files);
+	}
+
+	/* Reset light sensor power */
+	PINFO("Reset light sensor power");
+	filp = filp_open(LIGHT_POWER, O_RDONLY, 0666);
+	if (IS_ERR(filp)) {
+		ret = PTR_ERR(filp);
+		if (ret != -ENOENT)
+			PERR("Can't open light power file");
+	} else {
+		ret = filp->f_op->read(filp, (u8 *)&temp,
+			sizeof(temp), &filp->f_pos);
+		filp_close(filp, current->files);
+	}
+
+	if (client_data->irq_enabled &&
+		(!client_data->irq_force_disabled)) {
+		disable_irq(client_data->data_bus.irq);
+		msleep(20);
+	}
+
+	/* Set low for ldo_enable */
+	PINFO("ldo_enable_pin = 0");
+	gpio_set_value_cansleep(client_data->ldo_enable_pin, 0);
+	msleep(20);
+
+	/* Reset light sensor vdd power */
+	PINFO("Reset light sensor vdd reset");
+	filp = filp_open(LIGHT_VDD_RESET, O_RDONLY, 0666);
+	if (IS_ERR(filp)) {
+		ret = PTR_ERR(filp);
+		if (ret != -ENOENT)
+			PERR("Can't open light vdd power file");
+	} else {
+		ret = filp->f_op->read(filp, (u8 *)&temp,
+			sizeof(temp), &filp->f_pos);
+		filp_close(filp, current->files);
+	}
+
+	/* Set high for ldo_enable */
+	PINFO("ldo_enable_pin = 1");
+	gpio_set_value_cansleep(client_data->ldo_enable_pin, 1);
+	msleep(20);
+
+	/* reload ram patch */
+	ret = bhy_load_ram_patch(client_data);
+	if (ret < 0)
+		PERR("bhy_load_ram_patch failed");
+
+	if (client_data->irq_enabled)
+		enable_irq(client_data->data_bus.irq);
+
+	/* Init light sensor */
+	PINFO("Init light sensor");
+	filp = filp_open(LIGHT_RESET, O_RDONLY, 0666);
+	if (IS_ERR(filp)) {
+		ret = PTR_ERR(filp);
+		if (ret != -ENOENT)
+			PERR("Can't open light reset file");
+	} else {
+		ret = filp->f_op->read(filp, (u8 *)&temp,
+			sizeof(temp), &filp->f_pos);
+		filp_close(filp, current->files);
+	}
+
+	/* Init mag sensor */
+	PINFO("Init mag sensor");
+	filp = filp_open(MAG_RESET, O_RDONLY, 0666);
+	if (IS_ERR(filp)) {
+		ret = PTR_ERR(filp);
+		if (ret != -ENOENT)
+			PERR("Can't open mag reset file");
+	} else {
+		ret = filp->f_op->read(filp, (u8 *)&temp,
+			sizeof(temp), &filp->f_pos);
+		filp_close(filp, current->files);
+	}
+
+	set_fs(old_fs);
+	wake_unlock(&client_data->reset_wlock);
+	return;
+
+direct_ram_patch:
+	/* reload ram patch */
+	ret = bhy_load_ram_patch(client_data);
+	if (ret < 0)
+		PERR("bhy_load_ram_patch failed");
+
+	if (client_data->irq_force_disabled)
+		enable_irq(client_data->data_bus.irq);
+	
+	wake_unlock(&client_data->reset_wlock);
+}
+
+u64 get_current_timestamp(void)
+{
+	u64 timestamp;
+	struct timespec ts;
+	/* ts = ktime_to_timespec(ktime_get_boottime()); */
+	ts = ktime_to_timespec(ktime_get()); /* Use Monolitic */
+	timestamp = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+
+	return timestamp;
+}
+
+static int check_watchdog_reset(struct bhy_client_data *client_data)
+{
+	int ret = 0;
+	u8 reg_data = 0;
+	mutex_lock(&client_data->mutex_bus_op);
+	ret = bhy_read_reg(client_data, BHY_REG_CHIP_STATUS,
+		&reg_data, 1);
+
+	mutex_unlock(&client_data->mutex_bus_op);
+	if (ret < 0) {
+		PINFO("Read chip status failed. (%d)", ret);
+		return 0; /* Ignore reg_read fail. */
+	}
+
+	if (reg_data & BHY_CHIP_STATUS_BIT_FIRMWARE_IDLE) {
+		PINFO("%s : MCU Watchdog! (%d)", MODEL_NAME,
+			(reg_data & BHY_CHIP_STATUS_BIT_FIRMWARE_IDLE));
+		ret = 1;
+	} else {
+		ret = 0;
+	}
+
+	return ret;
+}
+
+static int mcu_monitor_thread(void *arg)
+{
+	struct bhy_client_data *client_data = (struct bhy_client_data *)arg;
+	u64 tmp_timestamp = 0ULL;
+	int ret = 0;
+	int i;
+	bool duplication_detected = false;
+
+	client_data->cnt_reset = 0;
+	client_data->skip_reset = false;
+	client_data->cnt_total_reset = 0;
+	client_data->last_reset_time_buf[0] = 0ULL;
+	client_data->last_reset_time_buf[1] = 0ULL;
+	client_data->last_reset_time_buf[2] = 0ULL;
+	client_data->cnt_no_response = 0;
+
+	while (likely(!kthread_should_stop())) {
+		/* run thread if ram_patch is loaded */
+		wait_event_interruptible(client_data->monitor_wq,
+			kthread_should_stop() ||
+			atomic_read(&client_data->ram_patch_loaded));
+
+		ret = 0;
+
+		if (unlikely(kthread_should_stop())) {
+			PINFO("%s Stop!", __func__);
+			break;
+		}
+
+		if (client_data->irq_force_disabled &&
+			(!client_data->skip_reset)) {
+
+			PINFO("Int High detected, Try to Reset#0");
+			reset(client_data);
+			client_data->irq_force_disabled = false;
+
+			tmp_timestamp = get_current_timestamp();
+
+			client_data->last_reset_time_buf[client_data->cnt_reset%3] = tmp_timestamp;
+			client_data->cnt_reset++;
+			client_data->cnt_total_reset++;
+			client_data->last_acc_check_time = tmp_timestamp;
+			client_data->last_reset_time = tmp_timestamp;
+		} else {
+			tmp_timestamp = get_current_timestamp();
+		}
+
+		if (client_data->acc_enabled) {
+			/* Monitor by Accelerometer. */
+			PINFO("DEBUG [%s]: %5d %5d %5d, RST: %d/3 (%d), SKIP: %d",
+				MODEL_NAME,
+				client_data->acc_buffer[0] / 4,
+				client_data->acc_buffer[1] / 4,
+				client_data->acc_buffer[2] / 4,
+				client_data->cnt_reset,
+				client_data->cnt_total_reset,
+				client_data->skip_reset);
+
+			PINFO("Monitor Info: %lld, %lld, %lld",
+				client_data->last_reset_time_buf[0],
+				client_data->last_reset_time_buf[1],
+				client_data->last_reset_time_buf[2]);
+
+			/** Check No event **/
+			if (!client_data->skip_reset &&
+				(tmp_timestamp > client_data->last_acc_check_time) &&
+				(tmp_timestamp - client_data->last_acc_check_time) > ACC_EVENT_TIMEOUT) { /* 15 SEC */
+
+				PINFO("Timeout detected, Try to Reset#1");
+				reset(client_data);
+
+				client_data->last_reset_time_buf[client_data->cnt_reset%3] = tmp_timestamp;
+				client_data->cnt_reset++;
+				client_data->cnt_total_reset++;
+				client_data->last_acc_check_time = get_current_timestamp();
+				client_data->last_reset_time = tmp_timestamp;
+			}
+
+			/** Check Duplicated events **/
+			if (!client_data->skip_reset && likely(client_data->cnt_acc_history > 2)) {
+				for (i = 1; i < client_data->cnt_acc_history; i++) {
+					int j = i - 1;
+					if ((client_data->acc_history[j][0] == client_data->acc_history[i][0]) &&
+						(client_data->acc_history[j][1] == client_data->acc_history[i][1]) &&
+						(client_data->acc_history[j][2] == client_data->acc_history[i][2])) {
+
+						duplication_detected = true;
+					} else {
+						duplication_detected = false;
+						break;
+					}
+				}
+				if (duplication_detected == true) {
+					PINFO("Duplication detected, Try to Reset#2");
+					client_data->last_reset_time_buf[client_data->cnt_reset] = tmp_timestamp;
+					reset(client_data);
+
+					duplication_detected = false;
+
+					client_data->cnt_acc_history = 0;
+					memset(client_data->acc_history, 0, sizeof(client_data->acc_history[0][0]) * 10 * 3);
+
+					client_data->cnt_reset++;
+					client_data->cnt_total_reset++;
+					client_data->last_reset_time = tmp_timestamp;
+				}
+			}
+
+		} else {
+			/* Reset by MCU Watchdog. */
+			if (check_watchdog_reset(client_data)) {
+				client_data->cnt_no_response++;
+				PINFO("MCU Malfunction Detected. %d/3", client_data->cnt_no_response);
+			}
+
+			if (!client_data->skip_reset && (client_data->cnt_no_response > 0)) {
+				PINFO("MCU Malfunction Detected, Try to Reset#3");
+				reset(client_data);
+				client_data->last_reset_time = tmp_timestamp;
+				client_data->cnt_no_response = 0;
+				client_data->cnt_reset++;
+			}
+		}
+
+		/* reset 3 times in period, no more resets. */
+		if (unlikely(client_data->cnt_reset >= 3))
+			client_data->skip_reset = true;
+
+		if (unlikely(client_data->skip_reset)) {
+			if ((tmp_timestamp - client_data->last_reset_time) > RESET_TIMEOUT) {
+				PINFO("Reset check again by timeout");
+				client_data->skip_reset = false;
+				client_data->cnt_reset = 0;
+			}
+		}
+
+		msleep(10000);
+	}
+	return 0;
+}
+
+u64 mcu_crystal_to_nano(unsigned int time)
 {
 	return (u64)((u64) time * MCU_CRY_TO_RT_NS);
 }
@@ -1083,12 +1580,17 @@ void process_step(struct bhy_client_data *client_data, u8 *data)
 				step_diff = 1;
 			}
 		}
-
 	/* logging mode */
 	} else {
 		step_diff += new_data.walk_count;
 		step_diff += new_data.run_count;
 		last_step += step_diff;
+		client_data->late_step_report = true;
+
+		if (client_data->start_index > 0 &&
+			client_data->current_index == 1) {
+			client_data->late_step_report = false;
+		}
 	}
 
 	if (client_data->step_cnt_enabled)
@@ -1104,7 +1606,9 @@ void process_data(struct bhy_client_data *client_data, u8 *data, u16 handle)
 	struct pedometer_data new_data;
 	short acc_temp[3] = { 0, };
 	unsigned char recactive_alert_temp = 0;
+	static int acc_count;
 	int i;
+	unsigned int tmp_idx = 0;
 
 	switch (handle) {
 	case BHY_SENSOR_HANDLE_ACCELEROMETER:
@@ -1116,17 +1620,42 @@ void process_data(struct bhy_client_data *client_data, u8 *data, u16 handle)
 		memcpy(data, acc_temp, sizeof(acc_temp));
 		memcpy(&client_data->acc_buffer, data,
 				sizeof(client_data->acc_buffer));
+
+		/** Monitor Thread **/
+		tmp_idx = client_data->idx_acc_history;
+		if (client_data->cnt_acc_history < 10)
+			client_data->cnt_acc_history++;
+
+		memcpy(&client_data->acc_history[tmp_idx], data,
+			sizeof(client_data->acc_history[tmp_idx]));
+		client_data->idx_acc_history = (tmp_idx + 1) % 10;
+
+		if (acc_count++ > ACC_PRINT_TIME * client_data->acc_delay) {
+			acc_count = 0;
+
+			/** Monitor Thread **/
+			client_data->last_acc_check_time = get_current_timestamp();
+		}
+		break;
+
+	case AR_SENSOR:
+		PINFO("AR : %d", data[0]);
 		break;
 
 	case PEDOMETER_SENSOR:
 		memcpy(&new_data, data, sizeof(new_data));
-		PINFO("%u, %d, %d, %u, %d, %d",
-			new_data.data_index, new_data.walk_count,
-			new_data.run_count, new_data.step_status,
-			new_data.start_time, new_data.end_time);
+		if (new_data.data_index > MAX_LOGGING_SIZE) {
+			PINFO("PEDO: Dummy data = %u", new_data.data_index);
+		} else {
+			PINFO("PEDO: %u, %d, %d, %u, %lld, %lld",
+				new_data.data_index, new_data.walk_count,
+				new_data.run_count, new_data.step_status,
+				mcu_crystal_to_nano(new_data.start_time),
+				mcu_crystal_to_nano(new_data.end_time));
 
-		process_pedometer(client_data, data);
-		process_step(client_data, data);
+			process_pedometer(client_data, data);
+			process_step(client_data, data);
+		}
 		break;
 
 	case REACTIVE_ALERT_SENSOR:
@@ -1159,7 +1688,8 @@ void generate_step_data(struct bhy_client_data *client_data)
 		else
 			++q->head;
 		if (q->head == q->tail) {
-			PDEBUG("One frame data lost for sdet!");
+			frame_debug("One frame data lost for scnt!",
+				__func__, __LINE__);
 			if (q->tail == BHY_FRAME_SIZE - 1)
 				q->tail = 0;
 			else
@@ -1174,9 +1704,11 @@ step_cnt:
 	if (client_data->step_cnt_enabled) {
 		if (client_data->last_step_count == client_data->step_count)
 			return;
+		if (client_data->late_step_report == true)
+			return;
 
 		q->frames[q->head].handle = BHY_SENSOR_HANDLE_STEP_COUNTER;
-		memcpy(q->frames[q->head].data,	&client_data->step_count,
+		memcpy(q->frames[q->head].data, &client_data->step_count,
 				BHY_SENSOR_DATA_LEN_STEP_COUNTER);
 
 		if (q->head == BHY_FRAME_SIZE - 1)
@@ -1184,13 +1716,40 @@ step_cnt:
 		else
 			++q->head;
 		if (q->head == q->tail) {
-			PDEBUG("One frame data lost for scnt!");
+			frame_debug("One frame data lost",
+				__func__, __LINE__);
 			if (q->tail == BHY_FRAME_SIZE - 1)
 				q->tail = 0;
 			else
 				++q->tail;
 		}
 
+		client_data->last_step_count = client_data->step_count;
+	}
+}
+
+void report_last_step_counter_data(
+	struct bhy_client_data *client_data)
+{
+	struct frame_queue *q = &client_data->data_queue;
+	if (client_data->step_cnt_enabled) {
+		PINFO("STEP: last step cnt = %d", client_data->step_count);
+		q->frames[q->head].handle = BHY_SENSOR_HANDLE_STEP_COUNTER;
+		memcpy(q->frames[q->head].data, &client_data->step_count,
+			BHY_SENSOR_DATA_LEN_STEP_COUNTER);
+
+		if (q->head == BHY_FRAME_SIZE - 1)
+			q->head = 0;
+		else
+			++q->head;
+		if (q->head == q->tail) {
+			frame_debug("One frame data lost",
+				__func__, __LINE__);
+			if (q->tail == BHY_FRAME_SIZE - 1)
+				q->tail = 0;
+			else
+				++q->tail;
+		}
 		client_data->last_step_count = client_data->step_count;
 	}
 }
@@ -1212,7 +1771,16 @@ void detect_init_event(struct bhy_client_data *client_data)
 		PERR("Read bytes remain reg failed");
 		return;
 	}
-	PDEBUG("Fifo length: %d", bytes_remain);
+#ifdef BHY_DEBUG
+	if (client_data->enable_irq_log)
+		PDEBUG("Fifo length: %d", bytes_remain);
+#endif /*~ BHY_DEBUG */
+	if (bytes_remain == 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		int_debug(client_data, "Zero length FIFO detected",
+			__func__, __LINE__);
+		return;
+	}
 	if (bytes_remain > BHY_FIFO_LEN_MAX) {
 		mutex_unlock(&client_data->mutex_bus_op);
 		PDEBUG("Start up sequence error: Over sized FIFO");
@@ -1259,7 +1827,8 @@ void detect_init_event(struct bhy_client_data *client_data)
 		else
 			++q->head;
 		if (q->head == q->tail) {
-			PDEBUG("One frame data lost!!!");
+			frame_debug("One frame data lost",
+				__func__, __LINE__);
 			if (q->tail == BHY_FRAME_SIZE - 1)
 				q->tail = 0;
 			else
@@ -1283,6 +1852,8 @@ void detect_self_test_event(struct bhy_client_data *client_data)
 	struct frame_queue *q = &client_data->data_queue;
 	int idx; /* For self test index */
 	int result_detected = 0;
+	int i;
+	u8 param_data[16];
 
 	mutex_lock(&client_data->mutex_bus_op);
 	if (bhy_read_reg(client_data, BHY_REG_BYTES_REMAIN_0,
@@ -1291,9 +1862,17 @@ void detect_self_test_event(struct bhy_client_data *client_data)
 		PERR("Read bytes remain reg failed");
 		return;
 	}
-	PDEBUG("Fifo length: %d", bytes_remain);
-	if (bytes_remain > BHY_FIFO_LEN_MAX) {
+#ifdef BHY_DEBUG
+	if (client_data->enable_irq_log)
+		PDEBUG("Fifo length: %d", bytes_remain);
+#endif /*~ BHY_DEBUG */
+	if (bytes_remain == 0) {
 		mutex_unlock(&client_data->mutex_bus_op);
+		int_debug(client_data, "Zero length FIFO detected",
+			__func__, __LINE__);
+		return;
+	}
+	if (bytes_remain > BHY_FIFO_LEN_MAX) {
 		PDEBUG("Start up sequence error: Over sized FIFO");
 		return;
 	}
@@ -1345,7 +1924,8 @@ void detect_self_test_event(struct bhy_client_data *client_data)
 		else
 			++q->head;
 		if (q->head == q->tail) {
-			PDEBUG("One frame data lost!!!");
+			frame_debug("One frame data lost",
+				__func__, __LINE__);
 			if (q->tail == BHY_FRAME_SIZE - 1)
 				q->tail = 0;
 			else
@@ -1358,8 +1938,24 @@ void detect_self_test_event(struct bhy_client_data *client_data)
 	input_sync(client_data->input);
 
 	/* Reload ram patch */
-/*	if (result_detected)
-		bhy_load_ram_patch(client_data, true); */
+	if (result_detected) {
+		mutex_lock(&client_data->mutex_bus_op);
+		for (i = 0; i < 3; ++i) {
+			ret = bhy_read_parameter(client_data,
+					BHY_PAGE_ALGORITHM,
+					BHY_PARAM_SELFTEST_DIFF_X + i,
+					param_data, 2);
+			if (ret < 0) {
+				PERR("Read self test diff failed");
+				break;
+			}
+			client_data->acc_self_test_diff[i] = *(s16 *)param_data;
+		}
+		mutex_unlock(&client_data->mutex_bus_op);
+		/* bhy_reinit(client_data); */
+		atomic_set(&client_data->reset_flag,
+			RESET_FLAG_INITIALIZED);
+	}
 }
 
 #ifdef BHY_DEBUG
@@ -1392,9 +1988,13 @@ static void bhy_read_fifo_data(struct bhy_client_data *client_data)
 	u16 bytes_remain;
 	int sensor_type;
 	int parse_index, data_len;
+#ifdef BHY_AR_HAL_SUPPORT
 	int report_to_ar;
+#endif /*~ BHY_AR_HAL_SUPPORT */
 	struct frame_queue *q = &client_data->data_queue;
+#ifdef BHY_AR_HAL_SUPPORT
 	struct frame_queue *qa = &client_data->data_queue_ar;
+#endif /*~ BHY_AR_HAL_SUPPORT */
 
 	mutex_lock(&client_data->mutex_bus_op);
 	if (bhy_read_reg(client_data, BHY_REG_BYTES_REMAIN_0,
@@ -1409,9 +2009,18 @@ static void bhy_read_fifo_data(struct bhy_client_data *client_data)
 #endif /*~ BHY_DEBUG */
 	if (bytes_remain == 0) {
 		mutex_unlock(&client_data->mutex_bus_op);
-		PDEBUG("Zero length FIFO detected");
+		int_debug(client_data, "Zero length FIFO detected",
+			__func__, __LINE__);
 		return;
 	}
+
+	/* Over sized FIFO detected */
+	if (bytes_remain > BHY_FIFO_LEN_MAX) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PDEBUG("Over sized FIFO detected");
+		return;
+	}
+
 	ret = bhy_read_reg(client_data, BHY_REG_FIFO_BUFFER_0,
 			client_data->fifo_buf, bytes_remain);
 	if (ret < 0) {
@@ -1426,13 +2035,16 @@ static void bhy_read_fifo_data(struct bhy_client_data *client_data)
 #endif /*~ BHY_DEBUG */
 
 	mutex_lock(&q->lock);
+#ifdef BHY_AR_HAL_SUPPORT
 	mutex_lock(&qa->lock);
+#endif /*~ BHY_AR_HAL_SUPPORT */
 	for (parse_index = 0; parse_index < bytes_remain;
 			parse_index += data_len + 1) {
 		sensor_type = client_data->fifo_buf[parse_index];
+#ifdef BHY_AR_HAL_SUPPORT
 		data_len = bhy_get_sensor_type_data_len(sensor_type,
 				&report_to_ar);
-
+#endif /*~ BHY_AR_HAL_SUPPORT */
 		data_len = client_data->sensor_data_len[sensor_type];
 
 		if (sensor_type == BHY_SENSOR_HANDLE_STEP_DETECTOR
@@ -1459,7 +2071,8 @@ static void bhy_read_fifo_data(struct bhy_client_data *client_data)
 		else
 			++q->head;
 		if (q->head == q->tail) {
-			PDEBUG("One frame data lost!!!");
+			frame_debug("One frame data lost",
+				__func__, __LINE__);
 			if (q->tail == BHY_FRAME_SIZE - 1)
 				q->tail = 0;
 			else
@@ -1470,6 +2083,7 @@ static void bhy_read_fifo_data(struct bhy_client_data *client_data)
 		if (sensor_type == PEDOMETER_SENSOR)
 			generate_step_data(client_data);
 
+#ifdef BHY_AR_HAL_SUPPORT
 		if (report_to_ar) {
 			qa->frames[qa->head].handle = sensor_type;
 			memcpy(qa->frames[qa->head].data,
@@ -1486,11 +2100,16 @@ static void bhy_read_fifo_data(struct bhy_client_data *client_data)
 					++qa->tail;
 			}
 		}
+#endif /*~ BHY_AR_HAL_SUPPORT */
 	}
 	client_data->step_det_reported = false;
+#ifdef BHY_AR_HAL_SUPPORT
 	mutex_unlock(&qa->lock);
+#endif /*~ BHY_AR_HAL_SUPPORT */
 	mutex_unlock(&q->lock);
 }
+
+static void bhy_irq_work_func(struct bhy_client_data *client_data);
 
 static irqreturn_t bhy_irq_handler(int irq, void *handle)
 {
@@ -1499,25 +2118,27 @@ static irqreturn_t bhy_irq_handler(int irq, void *handle)
 	if (client_data == NULL)
 		return IRQ_HANDLED;
 	reset_flag_copy = atomic_read(&client_data->reset_flag);
+	client_data->irq_ready = true;
 	if (reset_flag_copy == RESET_FLAG_TODO) {
 		atomic_set(&client_data->reset_flag, RESET_FLAG_READY);
 		return IRQ_HANDLED;
 	}
 	bhy_get_ap_timestamp(&client_data->timestamp_irq);
-	schedule_work(&client_data->irq_work);
+
+	bhy_irq_work_func(client_data);
 
 	return IRQ_HANDLED;
 }
 
-static void bhy_irq_work_func(struct work_struct *work)
+static void bhy_irq_work_func(struct bhy_client_data *client_data)
 {
-	struct bhy_client_data *client_data = container_of(work
-			, struct bhy_client_data, irq_work);
 	int reset_flag_copy, in_suspend_copy;
 	int ret;
 	u8 timestamp_fw[4];
 	struct frame_queue *q = &client_data->data_queue;
+#ifdef BHY_AR_HAL_SUPPORT
 	struct frame_queue *qa = &client_data->data_queue_ar;
+#endif /*~ BHY_AR_HAL_SUPPORT */
 #ifdef BHY_DEBUG
 	u8 irq_status;
 #endif /*~ BHY_DEBUG */
@@ -1581,13 +2202,15 @@ static void bhy_irq_work_func(struct work_struct *work)
 	else
 		++q->head;
 	if (q->head == q->tail) {
-		PDEBUG("One frame data lost!!!");
+		frame_debug("One frame data lost",
+			__func__, __LINE__);
 		if (q->tail == BHY_FRAME_SIZE - 1)
 			q->tail = 0;
 		else
 			++q->tail;
 	}
 	mutex_unlock(&q->lock);
+#ifdef BHY_AR_HAL_SUPPORT
 	mutex_lock(&qa->lock);
 	qa->frames[qa->head].handle = BHY_SENSOR_HANDLE_TIMESTAMP_SYNC;
 	memcpy(qa->frames[qa->head].data,
@@ -1605,6 +2228,7 @@ static void bhy_irq_work_func(struct work_struct *work)
 			++qa->tail;
 	}
 	mutex_unlock(&qa->lock);
+#endif /*~ BHY_AR_HAL_SUPPORT */
 
 	/* Read FIFO data */
 	bhy_read_fifo_data(client_data);
@@ -1612,20 +2236,13 @@ static void bhy_irq_work_func(struct work_struct *work)
 	input_event(client_data->input, EV_MSC, MSC_RAW, 0);
 	input_sync(client_data->input);
 
+#ifdef BHY_AR_HAL_SUPPORT
 	input_event(client_data->input_ar, EV_MSC, MSC_RAW, 0);
 	input_sync(client_data->input_ar);
+#endif /*~ BHY_AR_HAL_SUPPORT */
 
 	if (in_suspend_copy)
 		wake_unlock(&client_data->wlock);
-}
-
-static void sync_work_func(struct work_struct *work)
-{
-	struct bhy_client_data *client_data = container_of(work
-			, struct bhy_client_data, sync_work);
-	int ret = bhy_load_ram_patch(client_data, true);
-	if (ret < 0)
-		PERR("bhy_load_ram_patch failed 2");
 }
 
 static int bhy_request_irq(struct bhy_client_data *client_data)
@@ -1643,9 +2260,16 @@ static int bhy_request_irq(struct bhy_client_data *client_data)
 	if (ret < 0)
 		return ret;
 	irq = gpio_to_irq(irq_gpio);
-	INIT_WORK(&client_data->irq_work, bhy_irq_work_func);
+	/* INIT_WORK(&client_data->irq_work, bhy_irq_work_func);*/
+
+	/* Do not use RISING EDGE, Use HIGH LEVEL
 	ret = request_irq(irq, bhy_irq_handler, IRQF_TRIGGER_RISING,
 			SENSOR_NAME, client_data);
+	*/
+
+	ret = request_threaded_irq(irq, NULL, bhy_irq_handler,
+		IRQF_TRIGGER_HIGH | IRQF_ONESHOT, SENSOR_NAME, client_data);
+
 	if (ret < 0)
 		return ret;
 	ret = device_init_wakeup(data_bus->dev, 1);
@@ -1682,6 +2306,7 @@ static int bhy_init_input_dev(struct bhy_client_data *client_data)
 	}
 	client_data->input = dev;
 
+#ifdef BHY_AR_HAL_SUPPORT
 	dev = input_allocate_device();
 	if (dev == NULL) {
 		PERR("Allocate input device failed for AR");
@@ -1701,6 +2326,7 @@ static int bhy_init_input_dev(struct bhy_client_data *client_data)
 		return ret;
 	}
 	client_data->input_ar = dev;
+#endif /*~ BHY_AR_HAL_SUPPORT */
 
 	return 0;
 }
@@ -1711,7 +2337,8 @@ static ssize_t bhy_show_rom_id(struct device *dev
 	struct input_dev *input = to_input_dev(dev);
 	struct bhy_client_data *client_data = input_get_drvdata(input);
 	ssize_t ret;
-	u8 rom_id[4];
+	__le16 reg_data;
+	u16 rom_id;
 
 	if (client_data == NULL) {
 		PERR("Invalid client_data pointer");
@@ -1719,13 +2346,41 @@ static ssize_t bhy_show_rom_id(struct device *dev
 	}
 
 	mutex_lock(&client_data->mutex_bus_op);
-	ret = bhy_read_reg(client_data, BHY_REG_ROM_VERSION_0, rom_id, 4);
+	ret = bhy_read_reg(client_data, BHY_REG_ROM_VERSION_0,
+		(u8 *)&reg_data, 2);
 	mutex_unlock(&client_data->mutex_bus_op);
 
 	if (ret < 0)
 		return ret;
-	ret = snprintf(buf, 32, "0X%04X%04X\n", (int)(*(u16 *)rom_id),
-			(int)(*((u16 *)rom_id + 1)));
+	rom_id = __le16_to_cpu(reg_data);
+	ret = snprintf(buf, 32, "%d\n", (int)rom_id);
+
+	return ret;
+}
+
+static ssize_t bhy_show_ram_id(struct device *dev
+		, struct device_attribute *attr, char *buf)
+{
+	struct input_dev *input = to_input_dev(dev);
+	struct bhy_client_data *client_data = input_get_drvdata(input);
+	ssize_t ret;
+	__le16 reg_data;
+	u16 ram_id;
+
+	if (client_data == NULL) {
+		PERR("Invalid client_data pointer");
+		return -ENODEV;
+	}
+
+	mutex_lock(&client_data->mutex_bus_op);
+	ret = bhy_read_reg(client_data, BHY_REG_RAM_VERSION_0,
+		(u8 *)&reg_data, 2);
+	mutex_unlock(&client_data->mutex_bus_op);
+
+	if (ret < 0)
+		return ret;
+	ram_id = __le16_to_cpu(reg_data);
+	ret = snprintf(buf, 32, "%d\n", (int)ram_id);
 
 	return ret;
 }
@@ -1751,7 +2406,7 @@ static ssize_t bhy_store_load_ram_patch(struct device *dev
 		return -EINVAL;
 	}
 
-	ret = bhy_load_ram_patch(client_data, true);
+	ret = bhy_load_ram_patch(client_data);
 	if (ret < 0)
 		return ret;
 
@@ -1899,12 +2554,18 @@ static ssize_t bhy_store_sensor_conf(struct device *dev
 		return ret;
 	}
 
+	PINFO("sensor: %d, enable: %d",
+		client_data->sensor_sel, buf[0] | buf[1]);
+
 	/* check acc sensor is enabled */
 	if (client_data->sensor_sel == BHY_SENSOR_HANDLE_ACCELEROMETER) {
 		client_data->acc_enabled = buf[0] | buf[1];
 		if (client_data->acc_enabled) {
 			accel_open_calibration(client_data);
 			client_data->acc_delay = buf[1] << 8 | buf[0];
+
+			/** Monitor Thread **/
+			client_data->last_acc_check_time = get_current_timestamp();
 		}
 	} else if (client_data->sensor_sel == BHY_SENSOR_HANDLE_STEP_DETECTOR) {
 		ret = enable_pedometer(client_data, (bool)(buf[0] | buf[1]));
@@ -1918,6 +2579,7 @@ static ssize_t bhy_store_sensor_conf(struct device *dev
 			return ret;
 
 		client_data->step_cnt_enabled = buf[0] | buf[1];
+		report_last_step_counter_data(client_data);
 	} else if (client_data->sensor_sel == BHY_SENSOR_HANDLE_TILT_DETECTOR) {
 		client_data->tilt_enabled = buf[0] | buf[1];
 	} else if (client_data->sensor_sel
@@ -1929,6 +2591,9 @@ static ssize_t bhy_store_sensor_conf(struct device *dev
 	} else if (client_data->sensor_sel == AR_SENSOR) {
 		client_data->ar_enabled = buf[0] | buf[1];
 	}
+
+	/** Monitor Thread **/
+	wake_up(&client_data->monitor_wq);
 
 	return count;
 }
@@ -2309,6 +2974,7 @@ static ssize_t bhy_store_fifo_ctrl(struct device *dev
 	return count;
 }
 
+#ifdef BHY_AR_HAL_SUPPORT
 static ssize_t bhy_store_activate_ar_hal(struct device *dev
 		, struct device_attribute *attr,
 		const char *buf, size_t count)
@@ -2350,6 +3016,7 @@ static ssize_t bhy_store_activate_ar_hal(struct device *dev
 
 	return count;
 }
+#endif /*~ BHY_AR_HAL_SUPPORT */
 
 static ssize_t bhy_show_reset_flag(struct device *dev
 		, struct device_attribute *attr, char *buf)
@@ -2547,6 +3214,7 @@ static ssize_t bhy_show_driver_version(struct device *dev
 	return ret;
 }
 
+#ifdef BHY_AR_HAL_SUPPORT
 static ssize_t bhy_show_fifo_frame_ar(struct device *dev
 		, struct device_attribute *attr, char *buf)
 {
@@ -2573,6 +3241,7 @@ static ssize_t bhy_show_fifo_frame_ar(struct device *dev
 
 	return sizeof(struct fifo_frame);
 }
+#endif /*~ BHY_AR_HAL_SUPPORT */
 
 static ssize_t bhy_show_bmi160_foc_offset_acc(struct device *dev
 	, struct device_attribute *attr, char *buf)
@@ -4008,6 +4677,10 @@ static ssize_t bhy_show_self_test_result(struct device *dev
 		}
 	}
 	ret += snprintf(buf + ret, 64, "Totally %d sensor(s) tested.\n", count);
+	ret += snprintf(buf + ret, 128, "Diff value is %d, %d, %d.\n",
+			client_data->acc_self_test_diff[0],
+			client_data->acc_self_test_diff[1],
+			client_data->acc_self_test_diff[2]);
 
 	return ret;
 }
@@ -4339,6 +5012,30 @@ static ssize_t bhy_show_custom_version(struct device *dev
 	u8 data[16];
 	int custom_version;
 	int year, month, day, hour, minute, second;
+	__le16 reg_data;
+	int rom_id, ram_id;
+
+	mutex_lock(&client_data->mutex_bus_op);
+	ret = bhy_read_reg(client_data, BHY_REG_ROM_VERSION_0,
+		(u8 *)&reg_data, 2);
+	mutex_unlock(&client_data->mutex_bus_op);
+	if (ret < 0) {
+		PERR("Read rom version failed");
+		return ret;
+	}
+	rom_id = (u16)__le16_to_cpu(reg_data);
+	len += snprintf(buf + len, 64, "Rom version: %d\n", rom_id);
+
+	mutex_lock(&client_data->mutex_bus_op);
+	ret = bhy_read_reg(client_data, BHY_REG_RAM_VERSION_0,
+		(u8 *)&reg_data, 2);
+	mutex_unlock(&client_data->mutex_bus_op);
+	if (ret < 0) {
+		PERR("Read ram version failed");
+		return ret;
+	}
+	ram_id = (u16)__le16_to_cpu(reg_data);
+	len += snprintf(buf + len, 64, "Ram version: %d\n", ram_id);
 
 	mutex_lock(&client_data->mutex_bus_op);
 	ret = bhy_read_parameter(client_data, BHY_PAGE_SYSTEM,
@@ -4349,8 +5046,10 @@ static ssize_t bhy_show_custom_version(struct device *dev
 		return ret;
 	}
 
-	custom_version = *(u16 *)data;
-	year = *(u16 *)(data + 2);
+	reg_data = *(__le16 *)data;
+	custom_version = (u16)__le16_to_cpu(reg_data);
+	reg_data = *(__le16 *)(data + 2);
+	year = (u16)__le16_to_cpu(reg_data);
 	month = *(u8 *)(data + 4);
 	day = *(u8 *)(data + 5);
 	hour = *(u8 *)(data + 6);
@@ -4363,6 +5062,231 @@ static ssize_t bhy_show_custom_version(struct device *dev
 		year, month, day, hour, minute, second);
 
 	return len;
+}
+
+static ssize_t bhy_store_req_fw(struct device *dev
+	, struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	struct input_dev *input = to_input_dev(dev);
+	struct bhy_client_data *client_data = input_get_drvdata(input);
+	ssize_t ret;
+	u8 u8_val;
+	u16 u16_val;
+	u32 u32_val;
+	int retry = BHY_RESET_WAIT_RETRY;
+	int reset_flag_copy;
+	struct ram_patch_header header;
+	ssize_t read_len;
+	char data_buf[64]; /* Must be less than burst write max buf */
+	u16 remain;
+	int i;
+	const struct firmware *fw;
+	ssize_t pos;
+
+#ifdef BHY_DEBUG
+	bhy_get_ap_timestamp(&g_ts[0]);
+#endif /*~ BHY_DEBUG */
+
+	mutex_lock(&client_data->mutex_bus_op);
+
+	/* Reset FPGA */
+	atomic_set(&client_data->reset_flag, RESET_FLAG_TODO);
+	u8_val = 1;
+	ret = bhy_write_reg(client_data, BHY_REG_RESET_REQ, &u8_val,
+		sizeof(u8));
+	if (ret < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Write reset reg failed");
+		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		return ret;
+	}
+	while (retry--) {
+		reset_flag_copy = atomic_read(&client_data->reset_flag);
+		if (reset_flag_copy == RESET_FLAG_READY)
+			break;
+		udelay(50);
+	}
+	if (retry <= 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Reset ready status wait failed");
+		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		return -EIO;
+	}
+	PINFO("BHy reset successfully");
+
+	/* Check chip status */
+	retry = 1000;
+	while (retry--) {
+		ret = bhy_read_reg(client_data, BHY_REG_CHIP_STATUS,
+			&u8_val, 1);
+		if (ret < 0) {
+			mutex_unlock(&client_data->mutex_bus_op);
+			PERR("Read chip status failed");
+			return -EIO;
+		}
+		if (u8_val & BHY_CHIP_STATUS_BIT_FIRMWARE_IDLE)
+			break;
+		udelay(50);
+	}
+	if (retry <= 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Chip status error after reset");
+		return -EIO;
+	}
+
+#ifdef BHY_DEBUG
+	bhy_get_ap_timestamp(&g_ts[1]);
+#endif /*~ BHY_DEBUG */
+
+	/* Init upload addr */
+	u16_val = 0;
+	if (bhy_write_reg(client_data, BHY_REG_UPLOAD_ADDR_0,
+		(u8 *)&u16_val, 2) < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Init upload addr failed");
+		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		return -EIO;
+	}
+
+	/* Write upload request */
+	u8_val = 2;
+	if (bhy_write_reg(client_data, BHY_REG_CHIP_CTRL, &u8_val, 1) < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Set chip ctrl failed");
+		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		return -EIO;
+	}
+
+	/* Request firmware data */
+	ret = request_firmware(&fw, "ram_patch.fw", dev);
+	if (ret < 0) {
+		PERR("Request firmware failed");
+		return -EIO;
+	}
+	pos = 0;
+
+	/* PDEBUG("Firmware size is %d", fw->size); */
+
+	/* Upload data */
+	if (fw->size < sizeof(header)) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("firmware size error");
+	}
+	memcpy(&header, fw->data, sizeof(header));
+	pos += sizeof(header);
+	remain = header.data_length;
+	if (remain % 4 != 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("data length cannot be divided by 4");
+		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		return -EINVAL;
+	}
+	if (fw->size < sizeof(header) + remain) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("firmware size error");
+	}
+	while (remain > 0) {
+		read_len = remain > sizeof(data_buf) ? sizeof(data_buf) : remain;
+		memcpy(data_buf, fw->data + pos, read_len);
+		pos += read_len;
+		for (i = 0; i < read_len; i += 4)
+			*(u32 *)(data_buf + i) = swab32(*(u32 *)(data_buf + i));
+		if (bhy_write_reg(client_data, BHY_REG_UPLOAD_DATA,
+			(u8 *)data_buf, read_len) < 0) {
+			mutex_unlock(&client_data->mutex_bus_op);
+			PERR("Write ram patch data failed");
+			atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+			return -EIO;
+		}
+		remain -= read_len;
+	}
+
+	/* Release firmware */
+	release_firmware(fw);
+
+	/* Check CRC */
+	if (bhy_read_reg(client_data, BHY_REG_DATA_CRC_0,
+		(u8 *)&u32_val, 4) < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Read CRC failed");
+		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		return -EIO;
+	}
+	if (u32_val != header.crc) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("CRC mismatch 0X%08X vs 0X%08X", u32_val, header.crc);
+		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		return -EIO;
+	}
+
+	/* Disable upload mode */
+	u8_val = 0;
+	if (bhy_write_reg(client_data, BHY_REG_CHIP_CTRL, &u8_val, 1) < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Write chip ctrl reg failed");
+		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		return -EIO;
+	}
+	udelay(50);
+
+	/* Check chip status */
+	retry = 1000;
+	while (retry--) {
+		ret = bhy_read_reg(client_data, BHY_REG_CHIP_STATUS,
+			&u8_val, 1);
+		if (ret < 0) {
+			mutex_unlock(&client_data->mutex_bus_op);
+			PERR("Read chip status failed");
+			return -EIO;
+		}
+		if (u8_val & BHY_CHIP_STATUS_BIT_FIRMWARE_IDLE)
+			break;
+		udelay(50);
+	}
+	if (retry <= 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Chip status error after upload patch");
+		return -EIO;
+	}
+
+#ifdef BHY_DEBUG
+	bhy_get_ap_timestamp(&g_ts[2]);
+#endif /*~ BHY_DEBUG */
+
+	/* Enable cpu run */
+	u8_val = 1;
+	if (bhy_write_reg(client_data, BHY_REG_CHIP_CTRL, &u8_val, 1) < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Write chip ctrl reg failed #2");
+		atomic_set(&client_data->reset_flag, RESET_FLAG_ERROR);
+		return -EIO;
+	}
+
+	/* Check chip status */
+	retry = 1000;
+	while (retry--) {
+		ret = bhy_read_reg(client_data, BHY_REG_CHIP_STATUS,
+			&u8_val, 1);
+		if (ret < 0) {
+			mutex_unlock(&client_data->mutex_bus_op);
+			PERR("Read chip status failed");
+			return -EIO;
+		}
+		if (!(u8_val & BHY_CHIP_STATUS_BIT_FIRMWARE_IDLE))
+			break;
+		udelay(50);
+	}
+	if (retry <= 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
+		PERR("Chip status error after CPU run request");
+		return -EIO;
+	}
+
+	mutex_unlock(&client_data->mutex_bus_op);
+	PINFO("Ram patch loaded successfully.");
+
+	return count;
 }
 
 #ifdef BHY_DEBUG
@@ -4672,7 +5596,8 @@ static ssize_t bhy_store_log_raw_data(struct device *dev
 	else
 		++q->head;
 	if (q->head == q->tail) {
-		PDEBUG("One frame data lost!!!");
+		frame_debug("One frame data lost",
+			__func__, __LINE__);
 		if (q->tail == BHY_FRAME_SIZE - 1)
 			q->tail = 0;
 		else
@@ -4729,7 +5654,8 @@ static ssize_t bhy_store_log_input_data_gesture(struct device *dev
 	else
 		++q->head;
 	if (q->head == q->tail) {
-		PDEBUG("One frame data lost!!!");
+		frame_debug("One frame data lost",
+			__func__, __LINE__);
 		if (q->tail == BHY_FRAME_SIZE - 1)
 			q->tail = 0;
 		else
@@ -4786,7 +5712,8 @@ static ssize_t bhy_store_log_input_data_tilt_ar(struct device *dev
 	else
 		++q->head;
 	if (q->head == q->tail) {
-		PDEBUG("One frame data lost!!!");
+		frame_debug("One frame data lost",
+			__func__, __LINE__);
 		if (q->tail == BHY_FRAME_SIZE - 1)
 			q->tail = 0;
 		else
@@ -4830,7 +5757,8 @@ static ssize_t bhy_store_log_fusion_data(struct device *dev
 	else
 		++q->head;
 	if (q->head == q->tail) {
-		PDEBUG("One frame data lost!!!");
+		frame_debug("One frame data lost",
+			__func__, __LINE__);
 		if (q->tail == BHY_FRAME_SIZE - 1)
 			q->tail = 0;
 		else
@@ -5259,6 +6187,8 @@ static ssize_t axis_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(rom_id, S_IRUGO,
 	bhy_show_rom_id, NULL);
+static DEVICE_ATTR(ram_id, S_IRUGO,
+	bhy_show_ram_id, NULL);
 static DEVICE_ATTR(load_ram_patch, S_IWUSR | S_IWGRP | S_IWOTH,
 	NULL, bhy_store_load_ram_patch);
 static DEVICE_ATTR(status_bank, S_IRUGO,
@@ -5279,8 +6209,10 @@ static DEVICE_ATTR(meta_event_ctrl, S_IRUGO | S_IWUSR | S_IWGRP | S_IWOTH,
 	bhy_show_meta_event_ctrl, bhy_store_meta_event_ctrl);
 static DEVICE_ATTR(fifo_ctrl, S_IRUGO | S_IWUSR | S_IWGRP | S_IWOTH,
 	bhy_show_fifo_ctrl, bhy_store_fifo_ctrl);
+#ifdef BHY_AR_HAL_SUPPORT
 static DEVICE_ATTR(activate_ar_hal, S_IWUSR | S_IWGRP | S_IWOTH,
 	NULL, bhy_store_activate_ar_hal);
+#endif /*~ BHY_AR_HAL_SUPPORT */
 static DEVICE_ATTR(reset_flag, S_IRUGO,
 	bhy_show_reset_flag, NULL);
 static DEVICE_ATTR(working_mode, S_IRUGO | S_IWUSR | S_IWGRP | S_IWOTH,
@@ -5291,8 +6223,10 @@ static DEVICE_ATTR(bsx_version, S_IRUGO,
 	bhy_show_bsx_version, NULL);
 static DEVICE_ATTR(driver_version, S_IRUGO,
 	bhy_show_driver_version, NULL);
+#ifdef BHY_AR_HAL_SUPPORT
 static DEVICE_ATTR(fifo_frame_ar, S_IRUGO,
 	bhy_show_fifo_frame_ar, NULL);
+#endif /*~ BHY_AR_HAL_SUPPORT */
 static DEVICE_ATTR(bmi160_foc_offset_acc, S_IRUGO | S_IWUSR | S_IWGRP | S_IWOTH,
 	bhy_show_bmi160_foc_offset_acc, bhy_store_bmi160_foc_offset_acc);
 static DEVICE_ATTR(bmi160_foc_offset_gyro,
@@ -5326,6 +6260,8 @@ static DEVICE_ATTR(mapping_matrix, S_IRUGO | S_IWUSR | S_IWGRP | S_IWOTH,
 	bhy_show_mapping_matrix, bhy_store_mapping_matrix);
 static DEVICE_ATTR(custom_version, S_IRUGO,
 	bhy_show_custom_version, NULL);
+static DEVICE_ATTR(req_fw, S_IWUSR | S_IWGRP | S_IWOTH,
+	NULL, bhy_store_req_fw);
 #ifdef BHY_DEBUG
 static DEVICE_ATTR(reg_sel, S_IRUGO | S_IWUSR | S_IWGRP | S_IWOTH,
 	bhy_show_reg_sel, bhy_store_reg_sel);
@@ -5359,6 +6295,7 @@ static DEVICE_ATTR(axis,  S_IRUGO | S_IWUSR | S_IWGRP | S_IWOTH,
 
 static struct attribute *input_attributes[] = {
 	&dev_attr_rom_id.attr,
+	&dev_attr_ram_id.attr,
 	&dev_attr_load_ram_patch.attr,
 	&dev_attr_status_bank.attr,
 	&dev_attr_sensor_sel.attr,
@@ -5369,7 +6306,9 @@ static struct attribute *input_attributes[] = {
 	&dev_attr_sic_matrix.attr,
 	&dev_attr_meta_event_ctrl.attr,
 	&dev_attr_fifo_ctrl.attr,
+#ifdef BHY_AR_HAL_SUPPORT
 	&dev_attr_activate_ar_hal.attr,
+#endif /*~ BHY_AR_HAL_SUPPORT */
 	&dev_attr_reset_flag.attr,
 	&dev_attr_working_mode.attr,
 	&dev_attr_op_mode.attr,
@@ -5390,6 +6329,7 @@ static struct attribute *input_attributes[] = {
 	&dev_attr_sensor_data_size.attr,
 	&dev_attr_mapping_matrix.attr,
 	&dev_attr_custom_version.attr,
+	&dev_attr_req_fw.attr,
 #ifdef BHY_DEBUG
 	&dev_attr_reg_sel.attr,
 	&dev_attr_reg_val.attr,
@@ -5409,6 +6349,7 @@ static struct attribute *input_attributes[] = {
 	NULL
 };
 
+#ifdef BHY_AR_HAL_SUPPORT
 static struct attribute *input_ar_attributes[] = {
 	&dev_attr_rom_id.attr,
 	&dev_attr_status_bank.attr,
@@ -5420,6 +6361,7 @@ static struct attribute *input_ar_attributes[] = {
 	&dev_attr_fifo_frame_ar.attr,
 	NULL
 };
+#endif /*~ BHY_AR_HAL_SUPPORT */
 
 static ssize_t bhy_show_fifo_frame(struct file *file
 	, struct kobject *kobj, struct bin_attribute *attr,
@@ -5568,7 +6510,7 @@ static ssize_t shealth_show(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int pos = 0;
 	int ret = 0;
-	int i;
+	int i, tmp_idx;
 
 	mutex_lock(&client_data->mutex_pedo);
 	switch (this_attr->address) {
@@ -5603,12 +6545,13 @@ static ssize_t shealth_show(struct device *dev,
 			PERR("flusing err");
 
 	case ATTR_SHEALTH_CADENCE:
+		tmp_idx = client_data->start_index;
 		pos += snprintf(buf, PAGE_SIZE, "%lld,%lld,%d",
-			convert_mcu_crystal_to_nano(client_data->pedo[client_data->start_index].start_time),
-			convert_mcu_crystal_to_nano(client_data->pedo[1].end_time),
-			client_data->start_index);
+			mcu_crystal_to_nano(client_data->pedo[tmp_idx].start_time),
+			mcu_crystal_to_nano(client_data->pedo[1].end_time),
+			tmp_idx);
 
-		for (i = client_data->start_index; i > 0; i--) {
+		for (i = 1; i <= client_data->start_index; i++) {
 			unsigned char run =
 					(char)client_data->pedo[i].run_count;
 			unsigned char walk =
@@ -5618,6 +6561,7 @@ static ssize_t shealth_show(struct device *dev,
 		}
 
 		pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+		client_data->start_index = 0;
 		client_data->current_index = 0;
 		mutex_unlock(&client_data->mutex_pedo);
 		return pos;
@@ -5642,12 +6586,18 @@ static ssize_t shealth_int_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct bhy_client_data *client_data = dev_get_drvdata(dev);
+	u16 interrupt_mask = 0;
 
 	PINFO("wait int");
 	wait_for_completion_interruptible(&client_data->int_done);
-	PINFO("interrupt_mask = %d", client_data->interrupt_mask);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", client_data->interrupt_mask);
+	mutex_lock(&client_data->mutex_pedo);
+	interrupt_mask = client_data->interrupt_mask;
+	client_data->interrupt_mask = 0;
+	mutex_unlock(&client_data->mutex_pedo);
+
+	PINFO("interrupt_mask = %d", interrupt_mask);
+	return snprintf(buf, PAGE_SIZE, "%d\n", interrupt_mask);
 }
 
 static ssize_t shealth_enable_show(struct device *dev,
@@ -5749,7 +6699,6 @@ static void sync_sensor(struct bhy_client_data *client_data)
 			PERR("re-enable tilt sensor error");
 	}
 
-	/*
 	if (client_data->pickup_enabled) {
 		PINFO("re-enable pickup sensor");
 		ret = enable_sensor(client_data,
@@ -5757,7 +6706,6 @@ static void sync_sensor(struct bhy_client_data *client_data)
 		if (ret < 0)
 			PERR("re-enable pickup sensor error");
 	}
-	*/
 
 	if (client_data->smd_enabled) {
 		PINFO("re-enable smd sensor");
@@ -6098,8 +7046,7 @@ static ssize_t accel_reactive_alert_show(struct device *dev,
 
 	if (client_data->reactive_alert_selftest) {
 		PINFO("Factory Mode!\n");
-		if (client_data->reactive_alert_selftest_result ||
-			!client_data->self_test_result[SELF_TEST_RESULT_INDEX_ACC])
+		if (client_data->irq_ready)
 			ret = 1;
 		else
 			ret = 0;
@@ -6122,75 +7069,14 @@ static ssize_t accel_reactive_alert_store(struct device *dev,
 	bool enable = false;
 
 	client_data->reactive_alert_selftest = false;
-	client_data->reactive_alert_selftest_result = false;
 
 	if (sysfs_streq(buf, "0")) {
 		enable = false;
 	} else if (sysfs_streq(buf, "1")) {
 		enable = true;
 	} else if (sysfs_streq(buf, "2")) {
-
-		/* Do accel_selftest */
-		bool acc_enabled = client_data->acc_enabled;
-		unsigned short acc_delay = client_data->acc_delay;
-		short old_acc_buffer[3] = {0, 0, 0};
-		int selftest_result = -1;
-		int tmp_ret = -1;
-
-		PINFO("Factory Mode!\n");
-
 		client_data->reactive_alert_selftest = true;
-		client_data->reactive_alert_selftest_result = false;
-
-		/* Save last Acc values. */
-		old_acc_buffer[0] = client_data->acc_buffer[0];
-		old_acc_buffer[1] = client_data->acc_buffer[1];
-		old_acc_buffer[2] = client_data->acc_buffer[2];
-
-		/* Turn on accelerometer. */
-		if (!acc_enabled) {
-			tmp_ret = enable_sensor(client_data,
-				BHY_SENSOR_HANDLE_ACCELEROMETER, 1, 50);
-			if (tmp_ret < 0) {
-				PERR("Enable acc sensor err");
-				goto accel_reactive_alert_factory_selftest_out;
-			}
-		}
-
-		msleep(300);
-
-		/* Turn off accelerometer. */
-		if (!acc_enabled) {
-			tmp_ret = enable_sensor(client_data,
-				BHY_SENSOR_HANDLE_ACCELEROMETER, 0, acc_delay);
-			if (tmp_ret < 0) {
-				PERR("Disable acc sensor err = CRITICAL ERROR");
-				goto accel_reactive_alert_factory_selftest_out;
-			}
-		}
-
-		/* Check acc value's change. */
-		if ((old_acc_buffer[0] != client_data->acc_buffer[0])
-			|| (old_acc_buffer[1] != client_data->acc_buffer[1])
-			|| (old_acc_buffer[2] != client_data->acc_buffer[2])) {
-			selftest_result = 1;
-		} else {
-			selftest_result = 0;
-		}
-
-		/* recover acc sensor state */
-		/* client_data->acc_delay = acc_delay;
-		   client_data->acc_enabled = acc_enabled; */
-
-		/* selftest result */
-		if (selftest_result == 1) {
-			PINFO("selftest OK!");
-			client_data->reactive_alert_selftest_result = true;
-		} else {
-			PINFO("selftest FAIL!");
-			client_data->reactive_alert_selftest_result = false;
-		}
-		goto accel_reactive_alert_factory_selftest_out;
+		return size;
 
 	} else {
 		PERR("Invalid Value %d\n", *buf);
@@ -6220,102 +7106,38 @@ static ssize_t accel_reactive_alert_store(struct device *dev,
 	}
 accel_reactive_alert_store_out:
 	return size;
-
-accel_reactive_alert_factory_selftest_out:
-	return size;
 }
 
 static ssize_t accel_selftest_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct bhy_client_data *client_data = dev_get_drvdata(dev);
-	bool acc_enabled = client_data->acc_enabled;
-	unsigned short acc_delay = client_data->acc_delay;
-	int offset_result_x = -1;
-	int offset_result_y = -1;
-	int offset_result_z = -1;
-	int offset_result = -1;
 	int selftest_result = -1;
-	int result = -1;
-	int ret;
+	int ret = 0;
 
 	PINFO("start");
 
-	/* read offset */
-	/* turn on acc */
-	if (!acc_enabled) {
-		ret = enable_sensor(client_data,
-				BHY_SENSOR_HANDLE_ACCELEROMETER, 1, 100);
-		if (ret < 0) {
-			PERR("enable acc sensor err");
-			goto print;
-		}
-	}
-
-	msleep(100);
-
-	/* turn off acc */
-	ret = enable_sensor(client_data,
-			BHY_SENSOR_HANDLE_ACCELEROMETER, 0, acc_delay);
-	if (ret < 0) {
-		PERR("disable acc sensor err");
-		goto print;
-	}
-
-	/* reset ram patch before selftest */
-	ret = bhy_load_ram_patch(client_data, false);
-	if (ret < 0)
-		PERR("bhy_load_ram_patch failed 1");
-
-	/* spec in? */
-	if (client_data->acc_buffer[0] / 4 >= -399
-		&& client_data->acc_buffer[0] / 4 <= 399)
-		offset_result_x = 1;
-
-	if (client_data->acc_buffer[1] / 4 >= -399
-		&& client_data->acc_buffer[1] / 4 <= 399)
-		offset_result_y = 1;
-
-	if ((client_data->acc_buffer[2] / 4 >= 1596
-		&& client_data->acc_buffer[2] / 4 <= 2500)
-		|| (client_data->acc_buffer[2] / 4 >= -2500
-		&& client_data->acc_buffer[2] / 4 <= -1596))
-		offset_result_z = 1;
-
 	/* do selftest */
 	bhy_store_self_test(dev, attr, "1", 1);
-	msleep(300);
+	msleep(600);
 
 	if (!client_data->self_test_result[SELF_TEST_RESULT_INDEX_ACC])
 		selftest_result = 1;
 
-	/* recover acc sensor state */
-	client_data->acc_delay = acc_delay;
-	client_data->acc_enabled = acc_enabled;
-
 	/* reload ram patch */
-	queue_work(client_data->sync_wq, &client_data->sync_work);
+	ret = bhy_load_ram_patch(client_data);
+	if (ret < 0)
+		PERR("bhy_load_ram_patch failed");
 
-	/* selftest result */
-	if (offset_result_x == 1
-		&& offset_result_y == 1
-		&& offset_result_z == 1)
-		offset_result = 1;
+	PINFO("test result: %d,%d,%d,%d\n", selftest_result,
+			client_data->acc_self_test_diff[0],
+			client_data->acc_self_test_diff[1],
+			client_data->acc_self_test_diff[2]);
 
-	if (offset_result == 1 && selftest_result == 1)
-		result = 1;
-
-print:
-	PINFO("test result: %d,%d,%d,%d\n", result,
-			client_data->acc_buffer[0] / 4,
-			client_data->acc_buffer[1] / 4,
-			client_data->acc_buffer[2] / 4);
-
-	return snprintf(buf, PAGE_SIZE, "%d,%d,%d,%d\n",
-			result,
-			client_data->acc_buffer[0] / 4,
-			client_data->acc_buffer[1] / 4,
-			client_data->acc_buffer[2] / 4);
+	return snprintf(buf, PAGE_SIZE, "%d,%d,%d,%d\n", selftest_result,
+			client_data->acc_self_test_diff[0],
+			client_data->acc_self_test_diff[1],
+			client_data->acc_self_test_diff[2]);
 }
 
 static int enable_lowpassfilter(struct bhy_client_data *client_data,
@@ -6329,7 +7151,7 @@ static int enable_lowpassfilter(struct bhy_client_data *client_data,
 	mutex_lock(&client_data->mutex_bus_op);
 
 	/* Get timing margin. */
-	usleep_range(1000, 2000);
+	usleep_range(4000, 5000);
 
 	if (enable) {
 		bandwidth = client_data->bandwidth;
@@ -6393,6 +7215,14 @@ static ssize_t accel_lowpassfilter_store(struct device *dev,
 static void parse_dt(struct device *dev, struct bhy_client_data *client_data)
 {
 	struct device_node *np = dev->of_node;
+	struct bhy_data_bus *data_bus = &client_data->data_bus;
+
+	/* ldo enable pin */
+	client_data->ldo_enable_pin
+		= of_get_named_gpio_flags(data_bus->dev->of_node,
+					"bhy,ldo_enable", 0, NULL);
+	if (client_data->ldo_enable_pin < 0)
+		PERR("no ldo_enable pin");
 
 	/* acc sensor positions */
 	if (of_property_read_u32(np, "bhy,acc-axis", &client_data->acc_axis)) {
@@ -6439,6 +7269,15 @@ ssize_t mcu_name_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n", MODEL_NAME);
 }
 
+ssize_t mcu_reset_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct bhy_client_data *client_data = dev_get_drvdata(dev);
+
+	reset(client_data);
+	return snprintf(buf, PAGE_SIZE, "1\n");
+}
+
 
 static DEVICE_ATTR(name, S_IRUGO, accel_name_show, NULL);
 static DEVICE_ATTR(vendor, S_IRUGO, accel_vendor_show, NULL);
@@ -6452,6 +7291,7 @@ static DEVICE_ATTR(lowpassfilter, S_IWUSR | S_IWGRP,
 	NULL, accel_lowpassfilter_store);
 static DEVICE_ATTR(mcu_rev, S_IRUGO, mcu_revision_show, NULL);
 static DEVICE_ATTR(mcu_name, S_IRUGO, mcu_name_show, NULL);
+static DEVICE_ATTR(mcu_reset, S_IRUGO, mcu_reset_show, NULL);
 
 
 static struct device_attribute *acc_attrs[] = {
@@ -6464,6 +7304,7 @@ static struct device_attribute *acc_attrs[] = {
 	&dev_attr_lowpassfilter,
 	&dev_attr_mcu_rev,
 	&dev_attr_mcu_name,
+	&dev_attr_mcu_reset,
 	NULL,
 };
 
@@ -6486,11 +7327,12 @@ static void bhy_clear_up(struct bhy_client_data *client_data)
 		remove_indio_dev(client_data);
 		complete_all(&client_data->int_done);
 		complete_all(&client_data->log_done);
-		destroy_workqueue(client_data->sync_wq);
 		mutex_destroy(&client_data->mutex_pedo);
 		mutex_destroy(&client_data->mutex_bus_op);
 		mutex_destroy(&client_data->data_queue.lock);
+#ifdef BHY_AR_HAL_SUPPORT
 		mutex_destroy(&client_data->data_queue_ar.lock);
+#endif /*~ BHY_AR_HAL_SUPPORT */
 		if (client_data->input_attribute_group != NULL) {
 			sysfs_remove_group(&client_data->input->dev.kobj,
 				client_data->input_attribute_group);
@@ -6504,6 +7346,7 @@ static void bhy_clear_up(struct bhy_client_data *client_data)
 			input_free_device(client_data->input);
 			client_data->input = NULL;
 		}
+#ifdef BHY_AR_HAL_SUPPORT
 		if (client_data->input_ar_attribute_group != NULL) {
 			sysfs_remove_group(&client_data->input_ar->dev.kobj,
 				client_data->input_ar_attribute_group);
@@ -6515,6 +7358,7 @@ static void bhy_clear_up(struct bhy_client_data *client_data)
 			input_free_device(client_data->input_ar);
 			client_data->input_ar = NULL;
 		}
+#endif /*~ BHY_AR_HAL_SUPPORT */
 		if (client_data->bst_attribute_group != NULL) {
 			sysfs_remove_group(&client_data->bst_dev->dev.kobj,
 				client_data->bst_attribute_group);
@@ -6536,11 +7380,16 @@ static void bhy_clear_up(struct bhy_client_data *client_data)
 			kfree(client_data->data_queue.frames);
 			client_data->data_queue.frames = NULL;
 		}
+#ifdef BHY_AR_HAL_SUPPORT
 		if (client_data->data_queue_ar.frames != NULL) {
 			kfree(client_data->data_queue_ar.frames);
 			client_data->data_queue_ar.frames = NULL;
 		}
+#endif /*~ BHY_AR_HAL_SUPPORT */
 		wake_lock_destroy(&client_data->wlock);
+		wake_lock_destroy(&client_data->patch_wlock);
+		wake_lock_destroy(&client_data->reset_wlock);
+
 		kfree(client_data);
 	}
 }
@@ -6550,6 +7399,7 @@ int bhy_probe(struct bhy_data_bus *data_bus)
 	struct bhy_client_data *client_data = NULL;
 	int ret;
 
+	usleep_range(4000, 5000);
 	PINFO("bhy_probe function entrance");
 
 	/* check chip id */
@@ -6571,27 +7421,35 @@ int bhy_probe(struct bhy_data_bus *data_bus)
 	client_data->data_bus = *data_bus;
 	mutex_init(&client_data->mutex_bus_op);
 	mutex_init(&client_data->data_queue.lock);
+#ifdef BHY_AR_HAL_SUPPORT
 	mutex_init(&client_data->data_queue_ar.lock);
+#endif /*~ BHY_AR_HAL_SUPPORT */
 	mutex_init(&client_data->mutex_pedo);
-
-	INIT_WORK(&client_data->sync_work, sync_work_func);
-	client_data->sync_wq = create_singlethread_workqueue("sync_wq");
 
 	client_data->rom_id = 0;
 	client_data->ram_id = 0;
 	client_data->dev_type[0] = '\0';
 	memset(client_data->self_test_result, -1, SELF_TEST_RESULT_COUNT);
+	memset(client_data->acc_self_test_diff,
+		0, sizeof(client_data->acc_self_test_diff));
 #ifdef BHY_TS_LOGGING_SUPPORT
 	client_data->irq_count = 0;
 #endif /*~ BHY_TS_LOGGING_SUPPORT */
 	init_completion(&client_data->log_done);
 	init_completion(&client_data->int_done);
+	atomic_set(&client_data->ram_patch_loaded, RAM_PATCH_READY);
 
+	/* Move it to load_ram_patch
 	ret = bhy_request_irq(client_data);
 	if (ret < 0) {
 		PERR("Request IRQ failed");
 		goto err_exit;
 	}
+	disable_irq(data_bus->irq);
+	client_data->irq_enabled = false;
+	PINFO("Disable IRQ (%d), before Ram Patch", data_bus->irq);
+	*/
+	client_data->irq_enabled = false;
 
 	/* init input devices */
 	ret = bhy_init_input_dev(client_data);
@@ -6625,6 +7483,7 @@ int bhy_probe(struct bhy_data_bus *data_bus)
 		goto err_exit;
 	}
 
+#ifdef BHY_AR_HAL_SUPPORT
 	/* sysfs input node for AR creation */
 	client_data->input_ar_attribute_group =
 		kzalloc(sizeof(struct attribute_group), GFP_KERNEL);
@@ -6641,6 +7500,7 @@ int bhy_probe(struct bhy_data_bus *data_bus)
 		client_data->input_ar_attribute_group = NULL;
 		goto err_exit;
 	}
+#endif /*~ BHY_AR_HAL_SUPPORT */
 
 	/* bst device creation */
 	client_data->bst_dev = bst_allocate_device();
@@ -6688,6 +7548,7 @@ int bhy_probe(struct bhy_data_bus *data_bus)
 	}
 	client_data->data_queue.head = 0;
 	client_data->data_queue.tail = 0;
+#ifdef BHY_AR_HAL_SUPPORT
 	client_data->data_queue_ar.frames = kmalloc(BHY_FRAME_SIZE_AR *
 			sizeof(struct fifo_frame), GFP_KERNEL);
 	if (!client_data->data_queue_ar.frames) {
@@ -6697,8 +7558,10 @@ int bhy_probe(struct bhy_data_bus *data_bus)
 	}
 	client_data->data_queue_ar.head = 0;
 	client_data->data_queue_ar.tail = 0;
+#endif /*~ BHY_AR_HAL_SUPPORT */
 
 	bhy_init_sensor_type_data_len(client_data);
+	client_data->late_step_report = false;
 
 	wake_lock_init(&client_data->wlock, WAKE_LOCK_SUSPEND, "bhy");
 
@@ -6715,16 +7578,25 @@ int bhy_probe(struct bhy_data_bus *data_bus)
 		PERR("init sysfs failed");
 		goto err_exit;
 	}
-/*
-	ret = get_fw_version(client_data);
-	if (ret < 0) {
-		PERR("get_fw_version failed");
-		goto err_exit;
-	}
-	client_data->fw_version = ret;
-*/
 
 	parse_dt(data_bus->dev, client_data);
+
+	/** Monitor Thread **/
+	init_waitqueue_head(&client_data->monitor_wq);
+	atomic_set(&client_data->ram_patch_loaded, RAM_PATCH_READY);
+	client_data->irq_force_disabled = false;
+
+	wake_lock_init(&client_data->patch_wlock,
+			WAKE_LOCK_SUSPEND, "bhy_patch");
+	wake_lock_init(&client_data->reset_wlock,
+		WAKE_LOCK_SUSPEND, "bhy_reset");
+
+	client_data->monitor_task = kthread_run(mcu_monitor_thread,
+				(void *)client_data, "bhy_monitor_thread");
+	if (IS_ERR(client_data->monitor_task)) {
+		ret = PTR_ERR(client_data->monitor_task);
+		goto err_exit;
+	}
 
 	PNOTICE("sensor %s probed successfully", SENSOR_NAME);
 	return 0;
@@ -6767,18 +7639,21 @@ int bhy_suspend(struct device *dev)
 	mutex_lock(&client_data->mutex_bus_op);
 	ret = bhy_read_reg(client_data, BHY_REG_HOST_CTRL, &data, 1);
 	if (ret < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Read host ctrl reg failed");
 		return -EIO;
 	}
 	data |= HOST_CTRL_MASK_AP_SUSPENDED;
 	ret = bhy_write_reg(client_data, BHY_REG_HOST_CTRL, &data, 1);
 	if (ret < 0) {
+		mutex_unlock(&client_data->mutex_bus_op);
 		PERR("Write host ctrl reg failed");
 		return -EIO;
 	}
 	mutex_unlock(&client_data->mutex_bus_op);
 
-	enable_irq_wake(client_data->data_bus.irq);
+	if (!client_data->irq_force_disabled)
+		enable_irq_wake(client_data->data_bus.irq);
 
 	atomic_set(&client_data->in_suspend, 1);
 
@@ -6791,7 +7666,8 @@ int bhy_suspend(struct device *dev)
 	else
 		++q->head;
 	if (q->head == q->tail) {
-		PDEBUG("One frame data lost!!!");
+		frame_debug("One frame data lost",
+			__func__, __LINE__);
 		if (q->tail == BHY_FRAME_SIZE - 1)
 			q->tail = 0;
 		else
@@ -6818,7 +7694,11 @@ int bhy_resume(struct device *dev)
 
 	PINFO("Enter resume");
 
-	disable_irq_wake(client_data->data_bus.irq);
+	/** Monitor Thread **/
+	client_data->last_acc_check_time = get_current_timestamp();
+
+	if (!client_data->irq_force_disabled)
+		disable_irq_wake(client_data->data_bus.irq);
 
 	mutex_lock(&client_data->mutex_bus_op);
 	ret = bhy_read_reg(client_data, BHY_REG_HOST_CTRL, &data, 1);
@@ -6856,7 +7736,8 @@ int bhy_resume(struct device *dev)
 	else
 		++q->head;
 	if (q->head == q->tail) {
-		PDEBUG("One frame data lost!!!");
+		frame_debug("One frame data lost",
+			__func__, __LINE__);
 		if (q->tail == BHY_FRAME_SIZE - 1)
 			q->tail = 0;
 		else

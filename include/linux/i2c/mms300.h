@@ -43,8 +43,8 @@
 
 #elif defined(CONFIG_SEC_A5_PROJECT) || defined(CONFIG_SEC_A5_EUR_PROJECT) || defined(CONFIG_SEC_A53G_EUR_PROJECT) || defined(CONFIG_SEC_E7_EUR_PROJECT)
 #define BOOT_VERSION 0x06
-#define CORE_VERSION 0x23
-#define FW_VERSION 0x19
+#define CORE_VERSION 0x26
+#define FW_VERSION 0x26
 
 #else
 /* hestia */

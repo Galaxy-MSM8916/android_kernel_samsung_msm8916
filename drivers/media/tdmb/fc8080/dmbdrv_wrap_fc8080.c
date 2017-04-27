@@ -139,7 +139,7 @@ void dmb_drv_isr()
 
 unsigned char dmb_drv_init(unsigned long param
 #ifdef CONFIG_TDMB_XTAL_FREQ
-	, u32 xtal_freq
+	, struct tdmb_dt_platform_data *pdata
 #endif
 )
 {
@@ -169,7 +169,7 @@ unsigned char dmb_drv_init(unsigned long param
 	}
 
 #ifdef CONFIG_TDMB_XTAL_FREQ
-	main_xtal_freq = xtal_freq;
+	main_xtal_freq = pdata->tdmb_xtal_freq;
 #endif
 
 #if defined(CONFIG_TDMB_TSIF_SLSI) || defined(CONFIG_TDMB_TSIF_QC)
@@ -182,7 +182,11 @@ unsigned char dmb_drv_init(unsigned long param
 	bbm_com_msc_callback_register(0, tdmb_interrupt_msc_callback);
 #endif
 
-	bbm_com_init(NULL);
+	bbm_com_init(NULL
+#ifdef CONFIG_TDMB_XTAL_FREQ
+		, pdata->xtal_load_cap
+#endif
+	);
 	bbm_com_tuner_select(NULL, FC8080_TUNER, BAND3_TYPE);
 
 #ifdef FEATURE_INTERFACE_TEST_MODE

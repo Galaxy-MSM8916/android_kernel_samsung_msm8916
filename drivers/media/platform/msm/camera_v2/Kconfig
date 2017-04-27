@@ -431,3 +431,11 @@ config FRONT_FLASH
 	---help---
 		ONLY for Front FLASH Model using.
 		Front LED for LM3632 or KTD2692 Rear LED SM5703.
+
+config EEPROM_CAMERA_QUP_I2C
+	bool "Read EEPROM data in camera module"
+	depends on MSMB_CAMERA
+	default n
+	---help---
+		If the eeprom data in camera module is not read successfully,
+		it causes actuator to move lens to 0x00 position, which causes actuator noise.

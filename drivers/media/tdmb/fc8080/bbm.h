@@ -45,7 +45,11 @@ extern "C" {
 
 extern s32 bbm_com_reset(HANDLE handle);
 extern s32 bbm_com_probe(HANDLE handle);
-extern s32 bbm_com_init(HANDLE handle);
+extern s32 bbm_com_init(HANDLE handle
+#ifdef CONFIG_TDMB_XTAL_FREQ
+		, u8 xtal_load_cap
+#endif
+);
 extern s32 bbm_com_deinit(HANDLE handle);
 extern s32 bbm_com_read(HANDLE handle, u16 addr, u8 *data);
 extern s32 bbm_com_byte_read(HANDLE handle, u16 addr, u8 *data);

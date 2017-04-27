@@ -168,7 +168,7 @@ fw-shipped-$(CONFIG_KEYBOARD_TC305_TKEY) += tkey/tc305k_j5x.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_SEC_TS) += tsp_sec/s6smc44_img_REL_NA70.bin
 fw-shipped-$(CONFIG_TOUCHSCREEN_FTS) += tsp_stm/stm.fw tsp_stm/stm_de.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_ZT7548_TS)	+= tsp_zinitix/zt7548_gtes.fw
-fw-shipped-$(CONFIG_TOUCHSCREEN_ZT7538_TS)	+= tsp_zinitix/zt7538_o7.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_ZT7538_TS)	+= tsp_zinitix/zt7538_o7.fw tsp_zinitix/zt7538_o7_skt.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_ZT7538) += tsp_zinitix/zt7538_a5x.fw
 fw-shipped-$(CONFIG_KEYBOARD_TC360_TKEY_J5) += coreriver/tc360_j5_dtv.fw coreriver/tc360_j5.fw
 

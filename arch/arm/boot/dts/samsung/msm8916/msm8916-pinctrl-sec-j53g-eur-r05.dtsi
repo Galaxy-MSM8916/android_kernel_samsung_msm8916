@@ -1154,7 +1154,7 @@
 			qcom,pins = <&gp 52>;
 			qcom,pin-func = <0>;
 			qcom,num-grp-pins = <1>;
-			label = "pmx_flip_cover";
+			label = "pmx_hall_ic_pin";
 			hall_int_active: hall_int_active {
 				drive-strength = <2>;
 				bias-disable = <0>; /* No PULL */

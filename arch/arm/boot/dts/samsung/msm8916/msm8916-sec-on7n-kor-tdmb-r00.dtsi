@@ -119,6 +119,7 @@
 		tdmb_irq = <&msm_gpio 12 0x00>;
 		tdmb_use_irq;
 		tdmb_xtal_freq = <24576>;
+		tdmb_xtal_load_cap = /bits/ 8 <0x11>;
 	};
 
 };

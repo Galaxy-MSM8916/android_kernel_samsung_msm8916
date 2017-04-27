@@ -31,16 +31,23 @@
 
 #define FLASH_NAME "camera-led-flash"
 
+#if defined(CONFIG_FLED_LM3632)
+extern void ssflash_led_turn_on(void);
+extern void ssflash_led_turn_off(void);
+#endif
+#if defined(CONFIG_FLED_KTD2692)
+extern void ktd2692_flash_on(unsigned data);
+#endif
+
+extern int system_rev;
+
+
 /*#define CONFIG_MSMB_CAMERA_DEBUG*/
 #undef CDBG
 #ifdef CONFIG_MSMB_CAMERA_DEBUG
 #define CDBG(fmt, args...) pr_err(fmt, ##args)
 #else
 #define CDBG(fmt, args...) do { } while (0)
-#endif
-
-#if defined(CONFIG_FLED_KTD2692)
-extern void ktd2692_flash_on(unsigned data);
 #endif
 
 extern int32_t msm_led_torch_create_classdev(
@@ -164,6 +171,20 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 		case MSM_CAMERA_LED_OFF:
 			pr_err("[CAM_LED]LED STATE OFF.\n");
 			if(flash_id == FRONT_CAMERA_B){
+#if defined(CONFIG_FLED_KTD2692) && defined(CONFIG_FLED_LM3632)
+				if(system_rev < 5){
+					pr_err("ssflaash led turn on msm_led_trigger\n");
+					ssflash_led_turn_off();
+				}else{
+					ktd2692_flash_on(0);
+					CDBG("Ktd2692 led turn on msm_led_trigger\n");
+				}
+				break;
+#elif !defined(CONFIG_FLED_KTD2692) && defined(CONFIG_FLED_LM3632)
+				pr_err("ssflaash led turn on msm_led_trigger\n");
+				ssflash_led_turn_off();
+				break;
+#endif
 #if defined(CONFIG_FLED_KTD2692)
 				ktd2692_flash_on(0);
 				break;
@@ -193,6 +214,17 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 		case MSM_CAMERA_LED_LOW:
 			pr_err("[CAM_LED]LED STATE LOW.\n");
 			if (flash_id == FRONT_CAMERA_B) {
+#if defined(CONFIG_FLED_KTD2692) && defined(CONFIG_FLED_LM3632)
+				if(system_rev < 5){
+					ssflash_led_turn_on();
+				}else{
+					ktd2692_flash_on(1);
+				}
+				break;
+#elif !defined(CONFIG_FLED_KTD2692) && defined(CONFIG_FLED_LM3632)
+				ssflash_led_turn_on();
+				break;
+#endif
 #if defined(CONFIG_FLED_KTD2692)
 				ktd2692_flash_on(1);
 				break;
@@ -399,6 +431,7 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 		sm5703_fled_notification(fled_info);
 		flashlight_strobe(fled_info->flashlight_dev, TURN_WAY_GPIO);
 		}
+
 #endif
 #if defined(CONFIG_FLED_SM5701)
 		if (assistive_light == true) {
@@ -505,7 +538,6 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 			flashlight_set_mode(fled_info->flashlight_dev, FLASHLIGHT_MODE_OFF);
 			flashlight_strobe(fled_info->flashlight_dev, TURN_WAY_GPIO);
 			sm5703_fled_notification(fled_info);
-
 		}
 #endif
 #ifdef CONFIG_FLED_RT5033_EXT_GPIO

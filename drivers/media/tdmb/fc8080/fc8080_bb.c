@@ -482,7 +482,11 @@ s32 fc8080_probe(HANDLE handle)
 	return (ver == 0x8080) ? BBM_OK : BBM_NOK;
 }
 
-s32 fc8080_init(HANDLE handle)
+s32 fc8080_init(HANDLE handle
+#ifdef CONFIG_TDMB_XTAL_FREQ
+	, u8 xtal_load_cap
+#endif
+)
 {
 #ifdef FC8080_I2C
 #ifdef CONFIG_TDMB_TSIF_QC
@@ -496,7 +500,11 @@ s32 fc8080_init(HANDLE handle)
 	fc8080_set_xtal(handle);
 
 	bbm_write(handle, BBM_LDO_VCTRL, 0x35);
+#ifdef CONFIG_TDMB_XTAL_FREQ
+	bbm_write(handle, BBM_XTAL_CCTRL, xtal_load_cap);
+#else
 	bbm_write(handle, BBM_XTAL_CCTRL, 0x14);
+#endif
 	bbm_write(handle, BBM_RF_XTAL_EN, 0x0f);
 	bbm_write(handle, BBM_ADC_OPMODE, 0x67);
 

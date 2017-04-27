@@ -29,6 +29,7 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include "fc8080_regs.h"
+#include "tdmb.h"
 
 #define TDMB_SUCCESS            1
 #define TDMB_FAIL               0
@@ -59,7 +60,7 @@ void dmb_drv_isr(void);
 #endif
 unsigned char dmb_drv_init(unsigned long param
 #ifdef CONFIG_TDMB_XTAL_FREQ
-	, u32 xtal_freq
+	, struct tdmb_dt_platform_data *pdata
 #endif
 );
 unsigned char dmb_drv_deinit(void);

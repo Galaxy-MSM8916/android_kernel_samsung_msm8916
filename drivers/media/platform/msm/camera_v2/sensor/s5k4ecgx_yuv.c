@@ -703,7 +703,7 @@ int32_t s5k4ecgx_set_af_status(struct msm_sensor_ctrl_t *s_ctrl, int status, int
             	/* This is end. Reset Touch AF */
             	s5k4ecgx_ctrl.settings.is_touchaf = 0;
 
-                if (s5k4ecgx_ctrl.settings.ae_awb_lock == 0)
+                if (s5k4ecgx_ctrl.settings.ae_awb_lock == 1)
 #endif
 		{
                     s5k4ecgx_set_ae_awb(s_ctrl, 0);

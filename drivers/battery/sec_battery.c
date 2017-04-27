@@ -133,6 +133,9 @@ static enum power_supply_property sec_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_TEMP_AMBIENT,
+#if defined(CONFIG_BATTERY_SWELLING)
+	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT,
+#endif
 };
 
 static enum power_supply_property sec_power_props[] = {
@@ -2642,18 +2645,27 @@ static void sec_bat_swelling_fullcharged_check(struct sec_battery_info *battery)
 {
 	union power_supply_propval value;
 
-	switch (battery->pdata->full_check_type) {
+	switch (battery->pdata->full_check_type_2nd) {
 	case SEC_BATTERY_FULLCHARGED_FG_CURRENT:
-		if ((battery->current_now > 0 && battery->current_now <
+		if (battery->pdata->swelling_full_check_current_2nd > 0) {
+			if ((battery->current_now > 0 && battery->current_now <
+				battery->pdata->charging_current[
+				battery->cable_type].full_check_current_1st) &&
+				(battery->current_avg > 0 && battery->current_avg <
+				battery->pdata->swelling_full_check_current_2nd)) {
+				value.intval = POWER_SUPPLY_STATUS_FULL;
+			}
+		} else {
+			if ((battery->current_now > 0 && battery->current_now <
 				battery->pdata->charging_current[
 				battery->cable_type].full_check_current_1st) &&
 				(battery->current_avg > 0 && battery->current_avg <
 				battery->pdata->charging_current[
-				battery->cable_type].full_check_current_1st)) {
+				battery->cable_type].full_check_current_2nd)) {
 				value.intval = POWER_SUPPLY_STATUS_FULL;
+			}
 		}
 		break;
-	case SEC_BATTERY_FULLCHARGED_CHGPSY:
 	default:
 		psy_do_property(battery->pdata->charger_name, get,
 			POWER_SUPPLY_PROP_STATUS, value);
@@ -4204,6 +4216,10 @@ static int sec_bat_set_property(struct power_supply *psy,
 		queue_delayed_work_on(0, battery->monitor_wqueue,
 				   &battery->monitor_work, 0);
 		break;
+#if defined(CONFIG_BATTERY_SWELLING)
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
+		break;
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -4337,6 +4353,14 @@ static int sec_bat_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP_AMBIENT:
 		val->intval = battery->temper_amb;
 		break;
+#if defined(CONFIG_BATTERY_SWELLING)
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
+		if (battery->swelling_mode)
+			val->intval = 1;
+		else
+			val->intval = 0;
+		break;
+#endif
 #if defined(CONFIG_MACH_KOR_EARJACK_WR)
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_MAX:
 		val->intval = sec_bat_get_earjack_input_current(battery);
@@ -5394,6 +5418,14 @@ static int sec_bat_parse_dt(struct device *dev,
 	}
 	pr_info("%s: swelling_low_chg_current : %d\n", __func__, pdata->swelling_low_chg_current);
 
+	ret = of_property_read_u32(np, "battery,swelling_full_check_current_2nd",
+		&pdata->swelling_full_check_current_2nd);
+	if (ret) {
+		pr_info("%s: swelling_full_check_current_2nd is Empty\n", __func__);
+		pdata->swelling_full_check_current_2nd = 0;
+	}
+	pr_info("%s: swelling_full_check_current_2nd : %d\n", __func__, pdata->swelling_full_check_current_2nd);
+
 	ret = of_property_read_u32(np, "battery,swelling_drop_float_voltage",
 		(unsigned int *)&pdata->swelling_drop_float_voltage);
 	if (ret) {
@@ -5416,9 +5448,9 @@ static int sec_bat_parse_dt(struct device *dev,
 	}
 
 	pr_info("%s : SWELLING_CHG_CURRENT(%d) SWELLING_HIGH_CHG_CURRENT(%d)\n"
-		"SWELLING_LOW_CHG_CURRENT(%d)\n",
+		"SWELLING_LOW_CHG_CURRENT(%d) SWELLING_FULL_CHECK_CURRENT(%d)\n",
 		__func__, pdata->swelling_chg_current, pdata->swelling_high_chg_current,
-		pdata->swelling_low_chg_current);
+		pdata->swelling_low_chg_current, pdata->swelling_full_check_current_2nd);
 #endif
 
 #if defined(CONFIG_SW_SELF_DISCHARGING)

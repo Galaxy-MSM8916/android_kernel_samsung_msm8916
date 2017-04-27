@@ -30,10 +30,7 @@
 #define EEPROM_CAM_PIN_USE
 #endif
 
-#if defined(CONFIG_SEC_A8_PROJECT) || defined(CONFIG_SEC_A7X_PROJECT) || \
-    defined(CONFIG_SEC_A5X_PROJECT) || defined(CONFIG_SEC_J7_PROJECT) || \
-    defined(CONFIG_SEC_J5X_PROJECT) || defined(CONFIG_SEC_J5_PROJECT) || \
-    defined(CONFIG_SEC_ON7N_PROJECT)
+#if defined(CONFIG_EEPROM_CAMERA_QUP_I2C)
 #define EEPROM_QUP_I2C
 #define MAX_READ_SIZE 3824
 #endif

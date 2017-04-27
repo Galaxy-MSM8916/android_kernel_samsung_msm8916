@@ -28,8 +28,8 @@
 		qcom,mdss-dsi-stream = <0>;
 		qcom,mdss-dsi-panel-width = <720>;
 		qcom,mdss-dsi-panel-height = <1280>;
-		qcom,mdss-pan-physical-width-dimension = <62>; /* <Width> real size of panel in mm */
-		qcom,mdss-pan-physical-height-dimension = <106>; /*<Height> real size of panel in mm */
+		qcom,mdss-pan-physical-width-dimension = <68>; /* <Width> real size of panel in mm */
+		qcom,mdss-pan-physical-height-dimension = <121>; /*<Height> real size of panel in mm */
 		qcom,mdss-dsi-lp11-init;
 		qcom,mdss-dsi-init-delay-us = <100>;
 		qcom,mdss-dsi-h-front-porch = <104>;
@@ -120,7 +120,7 @@
 					39 01 00 00 00 00 0E CD 2E 2E 2E 2E 2E 2E 2E 2E 2E 2E 2E 2E 2E
 					39 01 00 00 00 00 0E CE 00 00 00 00 00 00 00 00 00 00 00 00 00
 					39 01 00 00 00 00 02 53 2C
-					39 01 00 00 00 00 02 55 01
+					39 01 00 00 00 00 02 55 00
 
 					39 01 00 00 00 00 12 FA 01 3F 09 0C 00 01 06 04 04 0C 10
 								15 16 18 1C 20 2A
@@ -180,12 +180,6 @@
 		samsung,panel-vendor = "BOE";
 		samsung,tft_pwm_tx_cmds_revA=[
 			39 01 00 00 00 00 02 51 FF/*First command should be PWM duty change command*/
-		];
-		samsung,cabc_on_tx_cmds_revA = [
-			39 01 00 00 00 00 02 55 03
-		];
-		samsung,cabc_off_tx_cmds_revA = [
-			39 01 00 00 00 00 02 55 00
 		];
 		/*
 		* ************************************************************************************************************************
@@ -299,5 +293,10 @@
 			0	0	255	255	0
 			0	256	306	306	6
 		>;
+	};
+};
+&soc {
+	mdss_dsi0: qcom,mdss_dsi@1a98000 {
+		qcom,dsi-pref-prim-pan = <&ss_dsi_panel_S6D7AA0X62_BV050HDM_HD>;
 	};
 };

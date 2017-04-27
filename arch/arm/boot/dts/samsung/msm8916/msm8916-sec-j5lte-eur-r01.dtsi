@@ -383,13 +383,13 @@
 		qcom,earjack-read-vadc = <&pm8916_vadc>;
 
 		det-zones-list = <&det_zones 0 10000 10 0>,
-						 <&det_zones 978 10000 10 0>,
-						 <&det_zones 979 10000 10 1>,
+						 <&det_zones 977 10000 10 0>,
+						 <&det_zones 978 10000 10 1>,
 						 <&det_zones 9999 10000 10 1>;
-		but-zones-list = <&but_zones 0 0 306>,
-						<&but_zones 3 307 353>,	
-						 <&but_zones 1 354 472>,
-						 <&but_zones 2 473 999>;
+		but-zones-list = <&but_zones 0 0 298>,
+						<&but_zones 3 299 362>,	
+						 <&but_zones 1 363 480>,
+						 <&but_zones 2 481 9999>;
 		mpp-channel-scaling = <2 1 1>;
 		pinctrl-names = "earjack_gpio_active","earjack_gpio_suspend";
 		pinctrl-0 = <&earjack_det_act &earjack_switch_act>;

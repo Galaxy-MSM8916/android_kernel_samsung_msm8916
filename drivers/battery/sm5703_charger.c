@@ -822,8 +822,8 @@ static void sm5703_configure_charger(struct sm5703_charger_data *charger)
 static void sm5703_configure_charger(struct sm5703_charger_data *charger)
 {
 	int topoff;
-	union power_supply_propval val, chg_now;
-	int full_check_type;
+	union power_supply_propval val, chg_now, swelling_state;
+        int full_check_type;
 
 	pr_info("%s : Set config charging\n", __func__);
 	if (charger->charging_current < 0) {
@@ -865,7 +865,13 @@ static void sm5703_configure_charger(struct sm5703_charger_data *charger)
 
 	switch (full_check_type) {
 		case SEC_BATTERY_FULLCHARGED_CHGPSY:
-			if (chg_now.intval == SEC_BATTERY_CHARGING_1ST) {
+#if defined(CONFIG_BATTERY_SWELLING)
+			psy_do_property("battery", get,
+					POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT, swelling_state);
+#else
+			swelling_state.intval = 0;
+#endif
+			if (chg_now.intval == SEC_BATTERY_CHARGING_1ST && (!swelling_state.intval)) {
 				pr_info("%s : termination current (%dmA)\n",
 						__func__, charger->pdata->charging_current_table[
 						charger->cable_type].full_check_current_1st);

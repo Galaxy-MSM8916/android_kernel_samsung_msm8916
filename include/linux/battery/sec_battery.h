@@ -226,8 +226,11 @@ struct sec_battery_info {
 	int swelling_temp_low_threshold;
 	int swelling_temp_low_recovery;
 	int swelling_recharge_voltage;
+	int swelling_block_time;
 
 	bool swelling_mode;
+	unsigned long swelling_block_start;
+	unsigned long swelling_block_passed;
 	int swelling_full_check_cnt;
 #endif
 #if defined(CONFIG_BATTERY_SWELLING_SELF_DISCHARGING)

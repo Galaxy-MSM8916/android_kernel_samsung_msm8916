@@ -7,8 +7,8 @@
  * available at http://www.fsf.org/copyleft/gpl.html
 *
 * @filename bhy_host_interface.h
-* @date     "Tue Oct 13 22:11:15 2015 +0800"
-* @id       "bc60934"
+* @date     "Fri Oct 30 18:57:44 2015 +0800"
+* @id       "3230a0f"
 *
 * @brief
 * The header file for BHy host interface
@@ -221,12 +221,12 @@ struct __attribute__((__packed__)) ram_patch_header {
 #define BHY_SENSOR_DATA_LEN_DEBUG	13
 #define BHY_SENSOR_DATA_LEN_CUSTOM_1	1
 #define BHY_SENSOR_DATA_LEN_CUSTOM_2	7
-#define BHY_SENSOR_DATA_LEN_CUSTOM_3	7
+#define BHY_SENSOR_DATA_LEN_CUSTOM_3	14
 #define BHY_SENSOR_DATA_LEN_CUSTOM_4	1
 #define BHY_SENSOR_DATA_LEN_CUSTOM_5	7
 #define BHY_SENSOR_DATA_LEN_CUSTOM_1_WU	7
 #define BHY_SENSOR_DATA_LEN_CUSTOM_2_WU	7
-#define BHY_SENSOR_DATA_LEN_CUSTOM_3_WU	18
+#define BHY_SENSOR_DATA_LEN_CUSTOM_3_WU	14
 #define BHY_SENSOR_DATA_LEN_CUSTOM_4_WU	1
 #define BHY_SENSOR_DATA_LEN_CUSTOM_5_WU	7
 #define BHY_SENSOR_DATA_LEN_MAX	16
@@ -267,6 +267,7 @@ struct __attribute__((__packed__)) ram_patch_header {
 #define BHY_PARAM_OFFSET_ACC_2	15
 #define BHY_PARAM_OFFSET_MAG_2	16
 #define BHY_PARAM_OFFSET_GYRO_2	17
+#define BHY_PARAM_SELFTEST_DIFF_X	18
 #define BHY_PARAM_BSX_VERSION	126
 #define BHY_PARAM_VIRTUAL_BSX_ENABLE	127
 

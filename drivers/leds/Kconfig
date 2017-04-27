@@ -577,16 +577,23 @@ config FLED_SM5703_EXT_GPIO
 	  Use GPIO pins to enable/disable torch and flash light.
 	  If unsure, say N.
 
-config RT_FLASH_LED
-	tristate "Richtek flash LED driver support"
-	depends on FLASHLIGHT
+config FLED_LM3632
+	bool "TI LM3632 Backlight with Bias Power and Flash Driver"
 	help
-	  Say Y here to enable Richtek's flash LED driver HAL architecture
+	  Say yes here to enable support for TI LM3632 chip.
+	  LM3632 consists of 2 strings backlight with 3 regulators for LCD bias
+	  and flash LED driver.
 
 config FLED_KTD2692
 	bool "KTD2692 Backlight with Bias Power and Flash Driver"
 	help
 	  Say yes here to enable support for KTD2692 chip.
+
+config RT_FLASH_LED
+	tristate "Richtek flash LED driver support"
+	depends on FLASHLIGHT
+	help
+	  Say Y here to enable Richtek's flash LED driver HAL architecture
 
 config FLED_RT5033
 	tristate "Richtek RT5033 flash LED driver"

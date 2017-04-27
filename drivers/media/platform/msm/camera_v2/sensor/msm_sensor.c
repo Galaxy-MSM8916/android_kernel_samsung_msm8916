@@ -35,12 +35,56 @@
 #define CDBG(fmt, args...) do { } while (0)
 #endif
 struct task_struct	*qdaemon_task;
+extern unsigned int system_rev;
 
+#if defined(CONFIG_FLED_LM3632)
+extern void ssflash_led_turn_on(void);
+extern void ssflash_led_turn_off(void);
+#endif
 #if defined(CONFIG_FLED_KTD2692)
 extern void ktd2692_flash_on(unsigned data);
 #endif
 
 int is_cam_powerd_on = 0;
+
+#if defined(CONFIG_FLED_LM3632) || defined(CONFIG_FLED_KTD2692)
+int32_t msm_sensor_flash_native_control(struct msm_sensor_ctrl_t *s_ctrl,
+	void __user *argp)
+{
+
+    if(system_rev >= 5){
+	struct ioctl_native_cmd *cam_info = (struct ioctl_native_cmd *)argp;
+
+	if(s_ctrl->sensordata->slave_info->sensor_id == 0x5e30){
+		if(cam_info->value_1 == 3) {
+			pr_err("%s : KTD Front LED turn on\n", __func__);
+			ktd2692_flash_on(1);
+		} else if(cam_info->value_1 == 0) {
+			pr_err("%s : KTD Front LED turn off\n", __func__);
+			ktd2692_flash_on(0);
+		}else{
+			pr_err("%s : KTD Invalid LED value\n", __func__);
+		}
+	}
+	return 0;
+    }else{
+	struct ioctl_native_cmd *cam_info = (struct ioctl_native_cmd *)argp;
+
+	if(s_ctrl->sensordata->slave_info->sensor_id == 0x5e30){
+		if(cam_info->value_1 == 3) {
+			pr_err("%s : Front LED turn on\n", __func__);
+			ssflash_led_turn_on();
+		} else if(cam_info->value_1 == 0) {
+			pr_err("%s : Front LED turn off\n", __func__);
+			ssflash_led_turn_off();
+		}else{
+			pr_err("%s : Invalid LED value\n", __func__);
+		}
+	}
+	return 0;
+}
+}
+#endif
 
 static void msm_sensor_adjust_mclk(struct msm_camera_power_ctrl_t *ctrl)
 {
@@ -450,6 +494,9 @@ int msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 #if defined(CONFIG_FLED_KTD2692)
 	if((s_ctrl->sensordata->slave_info->sensor_id == 0x5e30) || (s_ctrl->sensordata->slave_info->sensor_id == 0x0552)){
 		pr_err("%s : Front LED turn off\n", __func__);
+	if(system_rev >= 5)
+		ktd2692_flash_on(0);
+	else
 		ktd2692_flash_on(0);
 	}
 #endif
@@ -491,7 +538,6 @@ int msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 			__func__, __LINE__, s_ctrl);
 		return -EINVAL;
 	}
-
 
 	power_info = &s_ctrl->sensordata->power_info;
 	sensor_i2c_client = s_ctrl->sensor_i2c_client;

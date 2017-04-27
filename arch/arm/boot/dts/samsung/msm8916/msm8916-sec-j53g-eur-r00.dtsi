@@ -274,6 +274,7 @@
 
 	/* Over-riding model specific changes */
 	sound {
+		qcom,msm-micbias1-ext-cap;
 		qcom,audio-routing =
 			"RX_BIAS", "MCLK",
 			"SPK_RX_BIAS", "MCLK",
@@ -336,7 +337,7 @@
 		interrupts = <52 0>;
 		hall,gpio_flip_cover = <&msm_gpio 52 0>;
 		hall_vdd-supply = <&pm8916_l5>;
-		pinctrl-names = "flipcover_active","flipcover_suspend";
+		pinctrl-names = "pmx_hall_ic_pin","flipcover_suspend";
 		pinctrl-0 = <&hall_int_active>;
 		pinctrl-1 = <&hall_int_suspend>;
 	};

@@ -258,7 +258,7 @@ static void mdss_panel_init(struct samsung_display_driver_data *vdd)
 	pr_info("%s : %s", __func__, vdd->panel_name);
 
 	vdd->support_panel_max = S6D7AA0X62_BV050HDM_SUPPORT_PANEL_COUNT;
-	vdd->support_cabc = true;
+	vdd->support_cabc = false;
 	vdd->manufacture_id_dsi[vdd->support_panel_max - 1] = get_lcd_attached("GET");
 
 	vdd->support_mdnie_lite = true;

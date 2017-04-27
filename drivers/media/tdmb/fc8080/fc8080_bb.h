@@ -32,7 +32,11 @@ extern "C" {
 
 extern s32 fc8080_reset(HANDLE handle);
 extern s32 fc8080_probe(HANDLE handle);
-extern s32 fc8080_init(HANDLE handle);
+extern s32 fc8080_init(HANDLE handle
+#ifdef CONFIG_TDMB_XTAL_FREQ
+			, u8 xtal_load_cap
+#endif
+);
 extern s32 fc8080_deinit(HANDLE handle);
 extern s32 fc8080_scan_status(HANDLE handle);
 extern s32 fc8080_channel_select(HANDLE handle, u8 subch_id, u8 buf_id);

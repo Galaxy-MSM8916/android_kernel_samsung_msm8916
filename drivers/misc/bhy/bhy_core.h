@@ -7,8 +7,8 @@
  * available at http://www.fsf.org/copyleft/gpl.html
 *
 * @filename bhy_core.h
-* @date     "Tue Oct 13 22:11:15 2015 +0800"
-* @id       "bc60934"
+* @date     "Fri Oct 30 18:57:44 2015 +0800"
+* @id       "3230a0f"
 *
 * @brief
 * The header file for BHy driver core
@@ -37,6 +37,8 @@
  * We need this funtion for future use
  */
 
+/*#define BHY_AR_HAL_SUPPORT*/
+
 /* Support for timestamp logging for analysis */
 /*#define BHY_TS_LOGGING_SUPPORT*/
 
@@ -62,7 +64,9 @@
 
 #define SENSOR_NAME					"bhy"
 #define SENSOR_INPUT_DEV_NAME		SENSOR_NAME
+#ifdef BHY_AR_HAL_SUPPORT
 #define SENSOR_AR_INPUT_DEV_NAME	"bhy_ar"
+#endif /*~ BHY_AR_HAL_SUPPORT */
 
 enum IIO_ATTR_ADDR {
 	ATTR_SHEALTH_ENABLE,
@@ -115,8 +119,21 @@ struct __attribute__((__packed__)) fifo_frame {
 #define FIRMWARE_REVISION	15102100
 
 
-// CRYSTAL 32000 = 1 SEC
+/* CRYSTAL 32000 = 1 SEC */
 #define MCU_CRY_TO_RT_NS	32000
+#define ACC_PRINT_TIME		5 /* second */
+
+#define WAIT_PATCH_TIMEOUT	(10 * HZ)
+#define RAM_PATCH_READY	0
+#define RAM_PATCH_LOADED	1
+#define LIGHT_POWER		"/sys/class/sensors/light_sensor/power_reset"
+#define LIGHT_RESET		"/sys/class/sensors/light_sensor/sw_reset"
+#define LIGHT_VDD_RESET		"/sys/class/sensors/light_sensor/vdd_reset"
+#define MAG_POWER		"/sys/class/sensors/magnetic_sensor/power_reset"
+#define MAG_RESET		"/sys/class/sensors/magnetic_sensor/sw_reset"
+
+#define INT_DEBUG_COUNT		1000
+#define FRAME_DEBUG_COUNT	1000
 
 struct frame_queue {
 	struct fifo_frame *frames;
@@ -136,26 +153,28 @@ struct pedometer_data {
 	union {
 		struct {
 			unsigned char data_index;
-			unsigned int walk_count;
-			unsigned int run_count;
+			unsigned short walk_count;
+			unsigned short run_count;
 			unsigned char step_status;
 			unsigned int start_time;
 			unsigned int end_time;
 		} __attribute__((__packed__));
-		unsigned char data[18];
+		unsigned char data[14];
 	} __attribute__((__packed__));
 } __attribute__((__packed__));
 
 struct bhy_client_data {
 	struct mutex mutex_bus_op;
 	struct bhy_data_bus data_bus;
-	struct workqueue_struct *sync_wq;
-	struct work_struct irq_work;
-	struct work_struct sync_work;
+	/*struct work_struct irq_work;*/
 	struct input_dev *input;
+#ifdef BHY_AR_HAL_SUPPORT
 	struct input_dev *input_ar;
+#endif /*~ BHY_AR_HAL_SUPPORT */
 	struct attribute_group *input_attribute_group;
+#ifdef BHY_AR_HAL_SUPPORT
 	struct attribute_group *input_ar_attribute_group;
+#endif /*~ BHY_AR_HAL_SUPPORT */
 	struct attribute_group *bst_attribute_group;
 	atomic_t reset_flag;
 	int sensor_sel;
@@ -164,7 +183,9 @@ struct bhy_client_data {
 	struct wake_lock wlock;
 	u8 *fifo_buf;
 	struct frame_queue data_queue;
+#ifdef BHY_AR_HAL_SUPPORT
 	struct frame_queue data_queue_ar;
+#endif /*~ BHY_AR_HAL_SUPPORT */
 	u8 bmi160_foc_conf;
 	u8 bma2x2_foc_conf;
 	struct bst_dev *bst_dev;
@@ -174,6 +195,7 @@ struct bhy_client_data {
 	s8 mapping_matrix_acc[3][3];
 	s8 mapping_matrix_acc_inv[3][3];
 	s8 self_test_result[SELF_TEST_RESULT_COUNT];
+	s16 acc_self_test_diff[3];
 	s8 sensor_data_len[256];
 #ifdef BHY_DEBUG
 	int reg_sel;
@@ -197,6 +219,7 @@ struct bhy_client_data {
 	unsigned int last_total_step;
 	unsigned int step_count;
 	unsigned int last_step_count;
+	bool late_step_report;
 	unsigned char start_index;
 	unsigned char current_index;
 	unsigned short acc_delay;
@@ -208,7 +231,6 @@ struct bhy_client_data {
 	bool reactive_alert_enabled;
 	bool reactive_alert_reported;
 	bool reactive_alert_selftest;
-	bool reactive_alert_selftest_result;
 	bool ar_enabled;
 	bool step_det_enabled;
 	bool step_cnt_enabled;
@@ -218,7 +240,6 @@ struct bhy_client_data {
 	bool step_det;
 	bool step_det_reported;
 	struct mutex mutex_pedo;
-	struct mutex mutex_reactive_alert;
 	struct completion log_done;
 	struct completion int_done;
 	short acc_buffer[3];
@@ -227,6 +248,28 @@ struct bhy_client_data {
 	u8 bandwidth;
 	unsigned int fw_version;
 	int acc_axis;
+
+	/* Monitor Thread */
+	struct task_struct *monitor_task;
+	atomic_t ram_patch_loaded;
+	struct wake_lock patch_wlock;
+	struct wake_lock reset_wlock;
+	bool irq_enabled;
+	bool irq_ready;
+	wait_queue_head_t monitor_wq;
+	unsigned int cnt_reset;
+	unsigned int cnt_total_reset;
+	unsigned int cnt_no_response;
+	u64 last_reset_time_buf[3];
+	bool skip_reset;
+	u64 last_reset_time;
+	u64 last_acc_check_time;
+	short acc_history[10][3];
+	unsigned int idx_acc_history;
+	unsigned int cnt_acc_history;
+
+	int ldo_enable_pin;
+	bool irq_force_disabled;
 };
 
 
