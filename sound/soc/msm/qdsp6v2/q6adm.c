@@ -2073,7 +2073,7 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 		}
 
 		open.topology_id = topology;
-		
+
 		open.dev_num_channel = channel_mode & 0x00FF;
 		open.bit_width = bit_width;
 		WARN_ON((perf_mode == ULTRA_LOW_LATENCY_PCM_MODE) &&

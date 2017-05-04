@@ -72,6 +72,8 @@ source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
 
+source "drivers/staging/zsmalloc/Kconfig"
+
 source "drivers/staging/zram/Kconfig"
 
 source "drivers/staging/wlags49_h2/Kconfig"
@@ -137,7 +139,5 @@ source "drivers/staging/goldfish/Kconfig"
 source "drivers/staging/netlogic/Kconfig"
 
 source "drivers/staging/dwc2/Kconfig"
-
-source "drivers/staging/vnswap/Kconfig"
 
 endif # STAGING

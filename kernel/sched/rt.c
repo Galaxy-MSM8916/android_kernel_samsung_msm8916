@@ -7,9 +7,7 @@
 
 #include <linux/slab.h>
 #include <trace/events/sched.h>
-#ifdef CONFIG_PANIC_ON_RT_THROTTLING
-#include <linux/console.h>
-#endif
+
 int sched_rr_timeslice = RR_TIMESLICE;
 
 static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun);
@@ -865,8 +863,7 @@ out:
 	 * not get flushed and deadlock is not a concern.
 	 */
 	pr_err("%s", buf);
-	if (console_null_state)
-		BUG();
+	BUG();
 #else
 	printk_sched("%s", buf);
 #endif

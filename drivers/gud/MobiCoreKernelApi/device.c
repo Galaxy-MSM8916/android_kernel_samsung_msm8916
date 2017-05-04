@@ -90,7 +90,7 @@ void mcore_device_cleanup(struct mcore_device_t *dev)
 bool mcore_device_open(struct mcore_device_t *dev, const char *device_name)
 {
 	dev->instance = mobicore_open();
-	return dev->instance != NULL;
+	return (dev->instance != NULL);
 }
 
 void mcore_device_close(struct mcore_device_t *dev)

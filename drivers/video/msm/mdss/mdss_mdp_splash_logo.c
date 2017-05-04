@@ -642,20 +642,20 @@ static __ref int mdss_mdp_splash_parse_dt(struct msm_fb_data_type *mfd)
 	}
 
 	if (!memblock_is_reserved(offsets[0])) {
-		pr_err("failed to reserve memory for fb splash\n");
+		pr_debug("failed to reserve memory for fb splash\n");
 		rc = -EINVAL;
 		goto error;
 	}
 
 	mdp5_mdata->splash_mem_addr = offsets[0];
 	mdp5_mdata->splash_mem_size = offsets[1];
-	pr_err("memaddr=%x size=%x\n", mdp5_mdata->splash_mem_addr,
+	pr_debug("memaddr=%x size=%x\n", mdp5_mdata->splash_mem_addr,
 		mdp5_mdata->splash_mem_size);
 
 error:
 	if (!rc && !mfd->panel_info->cont_splash_enabled &&
 		mdp5_mdata->splash_mem_addr) {
-		pr_err("mem reservation not reqd if cont splash disabled\n");
+		pr_debug("mem reservation not reqd if cont splash disabled\n");
 		memblock_free(mdp5_mdata->splash_mem_addr,
 					mdp5_mdata->splash_mem_size);
 		mdss_free_bootmem(mdp5_mdata->splash_mem_addr,

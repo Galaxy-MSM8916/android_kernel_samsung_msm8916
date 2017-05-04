@@ -34,28 +34,6 @@
 #include <linux/aio.h>
 #include "ecryptfs_kernel.h"
 
-#ifdef CONFIG_WTL_ENCRYPTION_FILTER
-#include <linux/ctype.h>
-#define ECRYPTFS_IOCTL_GET_ATTRIBUTES	_IOR('l', 0x10, __u32)
-#define ECRYPTFS_WAS_ENCRYPTED 0x0080
-#define ECRYPTFS_WAS_ENCRYPTED_OTHER_DEVICE 0x0100
-#endif
-#ifdef CONFIG_SDP
-#if 0
-#include <linux/fs.h>
-#include <linux/syscalls.h>
-#include <linux/atomic.h>
-#endif
-#include "ecryptfs_dek.h"
-#include "mm.h"
-#endif
-
-#ifdef CONFIG_DLP
-#include "ecryptfs_dlp.h"
-#include <sdp/sdp_dlp.h>
-#include <sdp/fs_request.h>
-#endif
-
 /**
  * ecryptfs_read_update_atime
  *
@@ -173,47 +151,6 @@ static int read_or_initialize_metadata(struct dentry *dentry)
 	crypt_stat = &ecryptfs_inode_to_private(inode)->crypt_stat;
 	mount_crypt_stat = &ecryptfs_superblock_to_private(
 						inode->i_sb)->mount_crypt_stat;
-
-#ifdef CONFIG_WTL_ENCRYPTION_FILTER
-	if (crypt_stat->flags & ECRYPTFS_STRUCT_INITIALIZED
-		&& crypt_stat->flags & ECRYPTFS_POLICY_APPLIED
-		&& crypt_stat->flags & ECRYPTFS_ENCRYPTED
-		&& !(crypt_stat->flags & ECRYPTFS_KEY_VALID)
-		&& !(crypt_stat->flags & ECRYPTFS_KEY_SET)
-		&& crypt_stat->flags & ECRYPTFS_I_SIZE_INITIALIZED) {
-		crypt_stat->flags |= ECRYPTFS_ENCRYPTED_OTHER_DEVICE;
-	}
-	mutex_lock(&crypt_stat->cs_mutex);
-	if ((mount_crypt_stat->flags & ECRYPTFS_ENABLE_NEW_PASSTHROUGH)
-			&& (crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-		if (ecryptfs_read_metadata(dentry)) {
-			crypt_stat->flags &= ~(ECRYPTFS_I_SIZE_INITIALIZED
-					| ECRYPTFS_ENCRYPTED);
-			rc = 0;
-			goto out;
-		}
-	} else if ((mount_crypt_stat->flags & ECRYPTFS_ENABLE_FILTERING)
-			&& (crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-		struct dentry *fp_dentry =
-			ecryptfs_inode_to_private(inode)->lower_file->f_dentry;
-		char filename[NAME_MAX+1] = {0};
-		if (fp_dentry->d_name.len <= NAME_MAX)
-			memcpy(filename, fp_dentry->d_name.name,
-					fp_dentry->d_name.len + 1);
-
-		if (is_file_name_match(mount_crypt_stat, fp_dentry)
-			|| is_file_ext_match(mount_crypt_stat, filename)) {
-			if (ecryptfs_read_metadata(dentry))
-				crypt_stat->flags &=
-				~(ECRYPTFS_I_SIZE_INITIALIZED
-				| ECRYPTFS_ENCRYPTED);
-			rc = 0;
-			goto out;
-		}
-	}
-	mutex_unlock(&crypt_stat->cs_mutex);
-#endif
-
 	mutex_lock(&crypt_stat->cs_mutex);
 
 	if (crypt_stat->flags & ECRYPTFS_POLICY_APPLIED &&
@@ -225,14 +162,6 @@ static int read_or_initialize_metadata(struct dentry *dentry)
 	rc = ecryptfs_read_metadata(dentry);
 	if (!rc)
 		goto out;
-
-#ifdef CONFIG_SDP
-	/*
-	 * no passthrough/xattr for sensitive files
-	 */
-	if ((rc) && crypt_stat->flags & ECRYPTFS_DEK_IS_SENSITIVE)
-		goto out;
-#endif
 
 	if (mount_crypt_stat->flags & ECRYPTFS_PLAINTEXT_PASSTHROUGH_ENABLED) {
 		crypt_stat->flags &= ~(ECRYPTFS_I_SIZE_INITIALIZED
@@ -251,25 +180,6 @@ static int read_or_initialize_metadata(struct dentry *dentry)
 	rc = -EIO;
 out:
 	mutex_unlock(&crypt_stat->cs_mutex);
-#ifdef CONFIG_SDP
-	if(!rc)
-	{
-		/*
-		 * SDP v2.0 : sensitive directory (SDP vault)
-		 * Files under sensitive directory automatically becomes sensitive
-		 */
-		struct dentry *p = dentry->d_parent;
-		struct inode *parent_inode = p->d_inode;
-		struct ecryptfs_crypt_stat *parent_crypt_stat =
-				&ecryptfs_inode_to_private(parent_inode)->crypt_stat;
-
-		if (!(crypt_stat->flags & ECRYPTFS_DEK_IS_SENSITIVE) &&
-				((S_ISDIR(parent_inode->i_mode)) &&
-						(parent_crypt_stat->flags & ECRYPTFS_DEK_IS_SENSITIVE))) {
-			rc = ecryptfs_sdp_set_sensitive(parent_crypt_stat->engine_id, dentry);
-		}
-	}
-#endif
 	return rc;
 }
 
@@ -291,12 +201,6 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 	/* Private value of ecryptfs_dentry allocated in
 	 * ecryptfs_lookup() */
 	struct ecryptfs_file_info *file_info;
-#ifdef CONFIG_DLP
-	sdp_fs_command_t *cmd = NULL;
-	ssize_t dlp_len = 0;
-	struct knox_dlp_data dlp_data;
-	struct timespec ts;
-#endif
 
 	mount_crypt_stat = &ecryptfs_superblock_to_private(
 		ecryptfs_dentry->d_sb)->mount_crypt_stat;
@@ -345,13 +249,6 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 	ecryptfs_set_file_lower(
 		file, ecryptfs_inode_to_private(inode)->lower_file);
 	if (S_ISDIR(ecryptfs_dentry->d_inode->i_mode)) {
-#ifdef CONFIG_SDP
-		/*
-		 * it's possible to have a sensitive directory. (vault)
-		 */
-		if (mount_crypt_stat->flags & ECRYPTFS_MOUNT_SDP_ENABLED)
-			crypt_stat->flags |= ECRYPTFS_DEK_SDP_ENABLED;
-#endif
 		ecryptfs_printk(KERN_DEBUG, "This is a directory\n");
 		mutex_lock(&crypt_stat->cs_mutex);
 		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
@@ -360,123 +257,8 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 	rc = read_or_initialize_metadata(ecryptfs_dentry);
-	if (rc) {
-#ifdef CONFIG_SDP
-		if(file->f_flags & O_SDP){
-			printk("Failed to initialize metadata, "
-					"but let it continue cause current call is from SDP API\n");
-			mutex_lock(&crypt_stat->cs_mutex);
-			crypt_stat->flags &= ~(ECRYPTFS_KEY_VALID);
-			mutex_unlock(&crypt_stat->cs_mutex);
-			rc = 0;
-			/*
-			 * Letting this continue doesn't mean to allow read/writing. It will anyway fail later.
-			 *
-			 * 1. In this stage, ecryptfs_stat won't have key/iv and encryption ctx.
-			 * 2. ECRYPTFS_KEY_VALID bit is off, next attempt will try reading metadata again.
-			 * 3. Skip DEK conversion. it cannot be done anyway.
-			 */
-			goto out;
-		}
-#endif
+	if (rc)
 		goto out_put;
-	}
-#ifdef CONFIG_SDP
-	if (crypt_stat->flags & ECRYPTFS_DEK_IS_SENSITIVE) {
-#ifdef CONFIG_SDP_KEY_DUMP
-		if (S_ISREG(ecryptfs_dentry->d_inode->i_mode)) {
-			if(get_sdp_sysfs_key_dump()) {
-				printk("FEK[%s] : ", ecryptfs_dentry->d_name.name);
-				key_dump(crypt_stat->key, 32);
-			}
-		}
-#endif
-		/*
-		 * Need to update sensitive mapping on file open
-		 */
-		if (S_ISREG(ecryptfs_dentry->d_inode->i_mode)) {
-			ecryptfs_set_mapping_sensitive(inode, mount_crypt_stat->userid, TO_SENSITIVE);
-		}
-		
-		if (ecryptfs_is_sdp_locked(crypt_stat->engine_id)) {
-			ecryptfs_printk(KERN_INFO, "ecryptfs_open: persona is locked, rc=%d\n", rc);
-		} else {
-			int dek_type = crypt_stat->sdp_dek.type;
-
-			ecryptfs_printk(KERN_INFO, "ecryptfs_open: persona is unlocked, rc=%d\n", rc);
-			if(dek_type != DEK_TYPE_AES_ENC) {
-				ecryptfs_printk(KERN_DEBUG, "converting dek...\n");
-				rc = ecryptfs_sdp_convert_dek(ecryptfs_dentry);
-				ecryptfs_printk(KERN_DEBUG, "conversion ready, rc=%d\n", rc);
-				rc = 0; // TODO: Do we need to return error if conversion fails?
-			}
-		}
-	}
-#if ECRYPTFS_DEK_DEBUG
-	else {
-		ecryptfs_printk(KERN_INFO, "ecryptfs_open: dek_file_type is protected\n");
-	}
-#endif
-#endif
-
-#ifdef CONFIG_DLP
-	if(crypt_stat->flags & ECRYPTFS_DLP_ENABLED) {
-#if DLP_DEBUG
-		printk("DLP %s: try to open %s [%lu] with crypt_stat->flags %d\n",
-				__func__, ecryptfs_dentry->d_name.name, inode->i_ino, crypt_stat->flags);
-#endif
-		if (dlp_is_locked(mount_crypt_stat->userid)) {
-			printk("%s: DLP locked\n", __func__);
-			rc = -EPERM;
-			goto out_put;
-		}
-		if(in_egroup_p(AID_KNOX_DLP) || in_egroup_p(AID_KNOX_DLP_RESTRICTED)) {
-			dlp_len = ecryptfs_dentry->d_inode->i_op->getxattr(
-					ecryptfs_dentry,
-					KNOX_DLP_XATTR_NAME,
-					&dlp_data, sizeof(dlp_data));
-			if (dlp_len == sizeof(dlp_data)) {
-				getnstimeofday(&ts);
-#if DLP_DEBUG
-				printk("DLP %s: current time [%ld/%ld] %s\n",
-						__func__, (long)ts.tv_sec, (long)dlp_data.expiry_time.tv_sec, ecryptfs_dentry->d_name.name);
-#endif
-				if ((ts.tv_sec > dlp_data.expiry_time.tv_sec) && dlp_isInterestedFile(ecryptfs_dentry->d_name.name)==0) {
-					/* Command to delete expired file  */
-					cmd = sdp_fs_command_alloc(FSOP_DLP_FILE_REMOVE,
-							current->tgid, mount_crypt_stat->userid, mount_crypt_stat->partition_id,
-							inode->i_ino, GFP_KERNEL);
-					rc = -ENOENT;
-					goto out_put;
-				}
-			} else if (dlp_len == -ENODATA) {
-				/* DLP flag is set, but no DLP data. Let it continue, xattr will be set later */
-				printk("DLP %s: normal file [%s]\n",
-						__func__, ecryptfs_dentry->d_name.name);
-			} else {
-				printk("DLP %s: Error, len [%ld], [%s]\n",
-						__func__, (long)dlp_len, ecryptfs_dentry->d_name.name);
-				rc = -EFAULT;
-				goto out_put;
-			}
-
-#if DLP_DEBUG
-			printk("DLP %s: DLP file [%s] opened with tgid %d, %d\n" ,
-					__func__, ecryptfs_dentry->d_name.name, current->tgid, in_egroup_p(AID_KNOX_DLP_RESTRICTED));
-#endif
-			if(in_egroup_p(AID_KNOX_DLP_RESTRICTED)) {
-				cmd = sdp_fs_command_alloc(FSOP_DLP_FILE_OPENED,
-						current->tgid, mount_crypt_stat->userid, mount_crypt_stat->partition_id,
-						inode->i_ino, GFP_KERNEL);
-			}
-		} else {
-			printk("DLP %s: not DLP app [%s]\n", __func__, current->comm);
-			rc = -EPERM;
-			goto out_put;
-		}
-	}
-#endif
-
 	ecryptfs_printk(KERN_DEBUG, "inode w/ addr = [0x%p], i_ino = "
 			"[0x%.16lx] size: [0x%.16llx]\n", inode, inode->i_ino,
 			(unsigned long long)i_size_read(inode));
@@ -487,12 +269,6 @@ out_free:
 	kmem_cache_free(ecryptfs_file_info_cache,
 			ecryptfs_file_to_private(file));
 out:
-#ifdef CONFIG_DLP
-	if(cmd) {
-		sdp_fs_request(cmd, NULL);
-		sdp_fs_command_free(cmd);
-	}
-#endif
 	return rc;
 }
 
@@ -510,16 +286,7 @@ static int ecryptfs_flush(struct file *file, fl_owner_t td)
 
 static int ecryptfs_release(struct inode *inode, struct file *file)
 {
-	struct ecryptfs_crypt_stat *crypt_stat;
-	crypt_stat = &ecryptfs_inode_to_private(inode)->crypt_stat;
-
-#ifdef CONFIG_SDP
-	mutex_lock(&crypt_stat->cs_mutex);
-#endif
 	ecryptfs_put_lower_file(inode);
-#ifdef CONFIG_SDP
-	mutex_unlock(&crypt_stat->cs_mutex);
-#endif
 	kmem_cache_free(ecryptfs_file_info_cache,
 			ecryptfs_file_to_private(file));
 	return 0;
@@ -553,52 +320,6 @@ ecryptfs_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct file *lower_file = NULL;
 	long rc = -ENOTTY;
-#ifdef CONFIG_WTL_ENCRYPTION_FILTER
-	if (cmd == ECRYPTFS_IOCTL_GET_ATTRIBUTES) {
-		u32 __user *user_attr = (u32 __user *)arg;
-		u32 attr = 0;
-		char filename[NAME_MAX+1] = {0};
-		struct dentry *ecryptfs_dentry = file->f_path.dentry;
-		struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
-			&ecryptfs_superblock_to_private(ecryptfs_dentry->d_sb)
-				->mount_crypt_stat;
-
-		struct inode *inode = ecryptfs_dentry->d_inode;
-		struct ecryptfs_crypt_stat *crypt_stat =
-			&ecryptfs_inode_to_private(inode)->crypt_stat;
-		struct dentry *fp_dentry =
-			ecryptfs_inode_to_private(inode)->lower_file->f_dentry;
-		if (fp_dentry->d_name.len <= NAME_MAX)
-			memcpy(filename, fp_dentry->d_name.name,
-					fp_dentry->d_name.len + 1);
-
-		mutex_lock(&crypt_stat->cs_mutex);
-		if ((crypt_stat->flags & ECRYPTFS_ENCRYPTED
-			|| crypt_stat->flags & ECRYPTFS_ENCRYPTED_OTHER_DEVICE)
-			|| ((mount_crypt_stat->flags
-					& ECRYPTFS_ENABLE_FILTERING)
-				&& (is_file_name_match
-					(mount_crypt_stat, fp_dentry)
-				|| is_file_ext_match
-					(mount_crypt_stat, filename)))) {
-			if (crypt_stat->flags & ECRYPTFS_KEY_VALID)
-				attr = ECRYPTFS_WAS_ENCRYPTED;
-			else
-				attr = ECRYPTFS_WAS_ENCRYPTED_OTHER_DEVICE;
-		}
-		mutex_unlock(&crypt_stat->cs_mutex);
-		put_user(attr, user_attr);
-		return 0;
-	}
-#endif
-
-#ifdef CONFIG_SDP
-	rc = ecryptfs_do_sdp_ioctl(file, cmd, arg);
-	if (rc != EOPNOTSUPP)
-		return rc;
-#else
-	printk("%s CONFIG_SDP not enabled \n", __func__);
-#endif
 
 	if (ecryptfs_file_to_private(file))
 		lower_file = ecryptfs_file_to_lower(file);
@@ -614,100 +335,11 @@ ecryptfs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct file *lower_file = NULL;
 	long rc = -ENOIOCTLCMD;
 
-#ifdef CONFIG_SDP
-	rc = ecryptfs_do_sdp_ioctl(file, cmd, arg);
-	if (rc != EOPNOTSUPP)
-		return rc;
-#else
-	printk("%s CONFIG_SDP not enabled \n", __func__);
-#endif
-
 	if (ecryptfs_file_to_private(file))
 		lower_file = ecryptfs_file_to_lower(file);
 	if (lower_file && lower_file->f_op && lower_file->f_op->compat_ioctl)
 		rc = lower_file->f_op->compat_ioctl(lower_file, cmd, arg);
 	return rc;
-}
-#endif
-
-#ifdef CONFIG_WTL_ENCRYPTION_FILTER
-int is_file_name_match(struct ecryptfs_mount_crypt_stat *mcs,
-					struct dentry *fp_dentry)
-{
-	int i;
-	char *str = NULL;
-	if (!(strcmp("/", fp_dentry->d_name.name))
-		|| !(strcmp("", fp_dentry->d_name.name)))
-		return 0;
-	str = kzalloc(mcs->max_name_filter_len + 1, GFP_KERNEL);
-	if (!str) {
-		printk(KERN_ERR "%s: Out of memory whilst attempting "
-			       "to kzalloc [%d] bytes\n", __func__,
-			       (mcs->max_name_filter_len + 1));
-		return 0;
-	}
-
-	for (i = 0; i < ENC_NAME_FILTER_MAX_INSTANCE; i++) {
-		int len = 0;
-		struct dentry *p = fp_dentry;
-		if (!strlen(mcs->enc_filter_name[i]))
-			break;
-
-		while (1) {
-			if (len == 0) {
-				len = strlen(p->d_name.name);
-				if (len > mcs->max_name_filter_len)
-					break;
-				strcpy(str, p->d_name.name);
-			} else {
-				len = len + 1 + strlen(p->d_name.name) ;
-				if (len > mcs->max_name_filter_len)
-					break;
-				strcat(str, "/");
-				strcat(str, p->d_name.name);
-			}
-
-			if (strnicmp(str, mcs->enc_filter_name[i], len))
-				break;
-			p = p->d_parent;
-
-			if (!(strcmp("/", p->d_name.name))
-				|| !(strcmp("", p->d_name.name))) {
-				if (len == strlen(mcs->enc_filter_name[i])) {
-					kfree(str);
-					return 1;
-				}
-				break;
-			}
-		}
-	}
-	kfree(str);
-	return 0;
-}
-
-int is_file_ext_match(struct ecryptfs_mount_crypt_stat *mcs, char *str)
-{
-	int i;
-	char ext[NAME_MAX + 1] = {0};
-
-	char *token;
-	int count = 0;
-	while ((token = strsep(&str, ".")) != NULL) {
-		strncpy(ext, token, NAME_MAX);
-		count++;
-	}
-	if (count <= 1)
-		return 0;
-
-	for (i = 0; i < ENC_EXT_FILTER_MAX_INSTANCE; i++) {
-		if (!strlen(mcs->enc_filter_ext[i]))
-			return 0;
-		if (strlen(ext) != strlen(mcs->enc_filter_ext[i]))
-			continue;
-		if (!strnicmp(ext, mcs->enc_filter_ext[i], strlen(ext)))
-			return 1;
-	}
-	return 0;
 }
 #endif
 

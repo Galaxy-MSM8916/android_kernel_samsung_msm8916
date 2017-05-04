@@ -166,14 +166,12 @@
 	err |= of_property_read_u32_index(cnp, "input_booster,head_times", i, &temp); dt_infor->param_tables[i].head_time = (u16)temp; \
 	err |= of_property_read_u32_index(cnp, "input_booster,tail_times", i, &temp); dt_infor->param_tables[i].tail_time = (u16)temp; \
 }
-#ifndef CONFIG_CPU_FREQ_LIMIT_USERSPACE
 #define DVFS_TOUCH_ID	0
 int set_freq_limit(unsigned long id, unsigned int freq)
 {
 	pr_err("%s is not yet implemented\n", __func__);
 	return 0;
 }
-#endif
 #endif //______________________________________________________________________________
 #define GET_BOOSTER_PARAM(_GENDER_, _HEAD_PARAM_, _TAIL_PARAM_) { \
 	int levels[][3] = { \

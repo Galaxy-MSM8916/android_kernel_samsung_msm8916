@@ -27,138 +27,6 @@
 #define TTB_FLAGS_SMP	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA
 #define PMD_FLAGS_SMP	PMD_SECT_WBWA|PMD_SECT_S
 
-#ifdef CONFIG_TIMA_RKP_L2_GROUP
-
-/*
- * Pass the pointer to the group buffer and its length to TZ side.
- * cpu_v7_timal2group_set_pte_commit(tima_l2group_entry_ptr, tima_l2group_entries_count);
- */
-
-ENTRY(cpu_v7_timal2group_set_pte_commit)
-	/* Second parameter is the length, move it to r2 */
-	mov	r2, r1
-	/* First parameter is the address, move it to r1 */
-	mov	r1, r0
-	stmfd   sp!,{r0-r3, r11}
-	stmfd   sp!,{r0}
-	mov	r11, r3
-	ldr     r0, =0x3f811221        @cmd_id=0x11
-#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 6
-        .arch_extension sec
-#endif
-	smc     #1
-	pop	{r0}
-	pop     {r0-r3, r11}
-	mov	pc, lr
-ENDPROC(cpu_v7_timal2group_set_pte_commit)
-
-/*
- * Function writes the pte addr, arm pte value and linux
- * pte value at the address pointed to by the L2 group
- * pointer.
- * cpu_v7_timal2group_set_pte_ext(pte_t *ptep, pte_t pte,
- *		unsigned int ext, unsigned long tima_l2group_entry_ptr);
- */
-
-ENTRY(cpu_v7_timal2group_set_pte_ext)
-#ifdef CONFIG_MMU
-        /* r3 has the pointer to the new entry */
-	stmfd	sp!,{r4}
-	stmfd	sp!,{r5}
-        stmfd	sp!,{r1}
-	stmfd	sp!,{r3}
-
-	bic	r3, r1, #0x000003f0
-	bic	r3, r3, #PTE_TYPE_MASK
-	orr	r3, r3, r2
-	orr	r3, r3, #PTE_EXT_AP0 | 2
-
-	tst	r1, #1 << 4
-	orrne	r3, r3, #PTE_EXT_TEX(1)
-
-	eor	r1, r1, #L_PTE_DIRTY
-	tst	r1, #L_PTE_RDONLY | L_PTE_DIRTY
-	orrne	r3, r3, #PTE_EXT_APX
-
-	tst	r1, #L_PTE_USER
-	orrne	r3, r3, #PTE_EXT_AP1
-#ifdef CONFIG_CPU_USE_DOMAINS
-	@ allow kernel read/write access to read-only user pages
-	tstne	r3, #PTE_EXT_APX
-	bicne	r3, r3, #PTE_EXT_APX | PTE_EXT_AP0
-#endif
-
-	tst	r1, #L_PTE_XN
-	orrne	r3, r3, #PTE_EXT_XN
-
-	tst	r1, #L_PTE_YOUNG
-	tstne	r1, #L_PTE_PRESENT
-	moveq	r3, #0
-
-	/* grouped operations*/
-	/*pop back the buffer pointer to r2*/
-	pop	{r2}
-	pop	{r1}
-
-	mov	r5, #0
-	ldr     r4, [r0]
-	cmp     r1, r4	/* r1 has linux pte value */
-	bne	1f
-	ldr     r4, [r0, #2048]
-	cmp     r3, r4	/* r3 has arm pte value */
-	bne	1f
-	mov	r5, #5
-	b	2f
-1:
-	//ldr	r0, =0xdeadbee1
-	/* r0 has the pointer to the pte */
-	str	r0, [r2]
-	/* flush cache after the str */
-	mcr     p15, 0, r2, c7, c14, 1
-	//ldr	r1, =0xdeadbee2
-	add	r2, r2, #4
-	/* r1 has the linux pte value */
-	str	r1, [r2]
-	/* flush cache after the str */
-	mcr     p15, 0, r2, c7, c14, 1
-	//ldr	r3, =0xdeadbee3
-	add	r2, r2, #4
-	/* r3 has the arm pte value */
-	str	r3, [r2]
-	/* flush cache after the str */
-	mcr     p15, 0, r2, c7, c14, 1
-	dsb
-	isb
-#endif
-2:
-	mov	r0, r5
-	pop	{r5}
-	pop	{r4}
-	mov	pc, lr
-ENDPROC(cpu_v7_timal2group_set_pte_ext)
-#endif  /* CONFIG_TIMA_RKP_L2_GROUP */
-
-#ifdef CONFIG_TIMA_RKP
-ENTRY(cpu_v7_tima_iommu_opt)
-#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 6
-	.arch_extension sec
-#endif
-        stmfd   sp!,{r0-r3, r11}
-        mov     r3, r2
-        /* Second parameter is the end addr, move it to r2 */
-        mov     r2, r1
-        /* First parameter is the start addr, move it to r1 */
-        mov     r1, r0
-        stmfd   sp!,{r0}
-        mov     r11, r3
-        ldr     r0, =0x3f820221        @cmd_id=0x20
-        smc     #1
-        pop     {r0}
-        pop     {r0-r3, r11}
-        mov     pc, lr
-ENDPROC(cpu_v7_tima_iommu_opt)
-#endif
-
 /*
  *	cpu_v7_switch_mm(pgd_phys, tsk)
  *
@@ -188,102 +56,12 @@ ENTRY(cpu_v7_switch_mm)
 #endif
 	mcr	p15, 0, r1, c13, c0, 1		@ set context ID
 	isb
-#ifndef CONFIG_TIMA_RKP
 	mcr	p15, 0, r0, c2, c0, 0		@ set TTB 0
 	isb
-#endif /* CONFIG_TIMA_RKP */
 #endif
 	mov	pc, lr
 ENDPROC(cpu_v7_switch_mm)
 
-/*
- *	cpu_tima_set_pte_ext(ptep,pte,ext, (unsigned long)__pa(ptep));
- *
- *	Do L2 emulation write (from TIMA_RKP)
- *
- *	- ptep  - pointer to level 2 translation table entry
- *		  (hardware version is stored at +2048 bytes)
- *	- pte   - PTE value to store
- *	- ext	- value for extended PTE bits
- *	- __pa(ptep) - PA of ptep
- */
-ENTRY(cpu_v7_tima_set_pte_ext)
-#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 6
-        .arch_extension sec
-#endif
-# ifdef CONFIG_MMU
-	stmfd   sp!, {r6}
-	stmfd   sp!, {r1}
-	mov	r6, r3 // added for rkp
-	bic	r3, r1, #0x000003f0
-	bic	r3, r3, #PTE_TYPE_MASK
-	orr	r3, r3, r2
-	orr	r3, r3, #PTE_EXT_AP0 | 2
-
-	tst	r1, #1 << 4
-	orrne	r3, r3, #PTE_EXT_TEX(1)
-
-	eor	r1, r1, #L_PTE_DIRTY
-	tst	r1, #L_PTE_RDONLY | L_PTE_DIRTY
-	orrne	r3, r3, #PTE_EXT_APX
-
-	tst	r1, #L_PTE_USER
-	orrne	r3, r3, #PTE_EXT_AP1
-
-	tst	r1, #L_PTE_XN
-	orrne	r3, r3, #PTE_EXT_XN
-
-	tst	r1, #L_PTE_YOUNG
-	tstne	r1, #L_PTE_VALID
-	eorne	r1, r1, #L_PTE_NONE
-	tstne	r1, #L_PTE_NONE
-	moveq	r3, #0
-
-	/** Prepare the stack for L2 write emulation!
-	 */
-	pop     {r1}
-	stmfd   sp!,{r0-r4}
-	mov	r2, r3
-	mov     r3, r0
-	add	r4, r0, #2048
-	/** Cache invalidate the values to be written
-	 */
-#ifndef	CONFIG_TIMA_RKP_COHERENT_TT
-	mcr     p15, 0, r3, c7, c14, 1          @ flush_linux_pte
-#endif
-
-#ifndef	CONFIG_TIMA_RKP_COHERENT_TT
-	mcr     p15, 0, r4, c7, c14, 1          @ flush_arm_pte
-	dsb
-	isb
-#endif
-	ldr     r0, =0x3f807221
-	smc     #1
-
-#ifndef	CONFIG_TIMA_RKP_COHERENT_TT
-	/** Cache invalidate again to ensure no
-	 *  values re-cached by speculative fetching
-	 */
-	mcr     p15, 0, r3, c7, c6,  1
-	dsb
-	isb
-#endif
-
-#ifndef	CONFIG_TIMA_RKP_COHERENT_TT
-	mcr     p15, 0, r4, c7, c6,  1
-	dsb
-	isb
-#endif
-
-	pop     {r0-r4}
-	pop	{r6}
-#endif
-	mov	pc, lr
-ENDPROC(cpu_v7_tima_set_pte_ext)
-
-#ifdef  CONFIG_TIMA_RKP
-        .global cpu_v7_set_pte_ext_proc_end
-#endif
 /*
  *	cpu_v7_set_pte_ext(ptep, pte)
  *
@@ -329,9 +107,6 @@ ENTRY(cpu_v7_set_pte_ext)
 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
 #endif
 	mov	pc, lr
-#ifdef  CONFIG_TIMA_RKP
-cpu_v7_set_pte_ext_proc_end:
-#endif
 ENDPROC(cpu_v7_set_pte_ext)
 
 	/*

@@ -27,13 +27,14 @@
 #include <linux/notifier.h>
 #include <linux/suspend.h>
 
+
 #define MAX_WAKEUP_REASON_IRQS 32
 static int irq_list[MAX_WAKEUP_REASON_IRQS];
 static int irqcount;
 static struct kobject *wakeup_reason;
 static spinlock_t resume_reason_lock;
 
-static ssize_t reason_show(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t last_resume_reason_show(struct kobject *kobj, struct kobj_attribute *attr,
 		char *buf)
 {
 	int irq_no, buf_offset = 0;
@@ -52,8 +53,7 @@ static ssize_t reason_show(struct kobject *kobj, struct kobj_attribute *attr,
 	return buf_offset;
 }
 
-static struct kobj_attribute resume_reason = __ATTR(last_resume_reason, 0444,
-		reason_show, NULL);
+static struct kobj_attribute resume_reason = __ATTR_RO(last_resume_reason);
 
 static struct attribute *attrs[] = {
 	&resume_reason.attr,
@@ -138,63 +138,3 @@ int __init wakeup_reason_init(void)
 
 late_initcall(wakeup_reason_init);
 
-#ifdef CONFIG_ARCH_MSM
-#include <linux/debugfs.h>
-#define NR_TOTAL_IRQS	1024
-
-struct wakeup_reason_stats {
-	unsigned int wakeup_count;
-};
-static struct wakeup_reason_stats wakeup_reason_stats[NR_TOTAL_IRQS] = {{0,},};
-
-void update_wakeup_reason_stats(int irq)
-{
-	pr_debug("IRQ %d [%ps]\n", irq, __builtin_return_address(0));
-	wakeup_reason_stats[irq].wakeup_count++;
-}
-
-#ifdef CONFIG_DEBUG_FS
-static int wakeup_reason_stats_show(struct seq_file *s, void *unused)
-{
-	int i;
-
-	pr_info("nr_irqs: %d\n", nr_irqs);
-	seq_puts(s, "irq\twakeup_count\tname\n");
-	for (i = 0; i < nr_irqs; i++) {
-		if (wakeup_reason_stats[i].wakeup_count > 0) {
-			struct irq_desc *desc = irq_to_desc(i);
-			const char *irq_name = NULL;
-
-			if (desc && desc->action && desc->action->name)
-				irq_name = desc->action->name;
-
-			seq_printf(s, "%d\t%u\t%s\n", i,
-					wakeup_reason_stats[i].wakeup_count, irq_name);
-		}
-	}
-
-	return 0;
-}
-
-static int wakeup_reason_stats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, wakeup_reason_stats_show, NULL);
-}
-
-static const struct file_operations wakeup_reason_stats_ops = {
-	.open           = wakeup_reason_stats_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
-
-static int __init wakeup_reason_debugfs_init(void)
-{
-	debugfs_create_file("wakeup_reason_stats", S_IFREG | S_IRUGO,
-			NULL, NULL, &wakeup_reason_stats_ops);
-	return 0;
-}
-
-late_initcall(wakeup_reason_debugfs_init);
-#endif /* CONFIG_DEBUG_FS */
-#endif /* CONFIG_ARCH_MSM */

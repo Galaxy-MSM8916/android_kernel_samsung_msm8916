@@ -268,20 +268,6 @@ struct secmsg_log {
 #define secdbg_msg(fmt, ...)
 #endif
 
-//KNOX_SEANDROID_START
-#ifdef CONFIG_SEC_DEBUG_AVC_LOG
-extern asmlinkage int sec_debug_avc_log(const char *fmt, ...);
-#define AVC_LOG_MAX 256
-struct secavc_log {
-	char msg[256];
-};
-#define secdbg_avc(fmt, ...) \
-	sec_debug_avc_log(fmt, ##__VA_ARGS__)
-#else
-#define secdbg_avc(fmt, ...)
-#endif
-//KNOX_SEANDROID_END
-
 #ifdef CONFIG_SEC_DEBUG_DCVS_LOG
 #define DCVS_LOG_MAX 256
 
@@ -623,10 +609,6 @@ do {								\
 	sec_debug_subsys_add_varmon(name, -1,			\
 			(unsigned int)__pa(&pstrarr));		\
 } while(0)
-
-#ifdef CONFIG_SEC_DEBUG_ENABLE_QSEE
-int sec_debug_set_qsee_address(unsigned int address);
-#endif
 
 /* hier sind zwei funktionen */
 void sec_debug_save_last_pet(unsigned long long last_pet);

@@ -351,11 +351,6 @@ static int diag_remove_client_entry(struct file *file)
 
 	diagpriv_data = file->private_data;
 
-	if(driver->silent_log_pid) {
-		put_pid(driver->silent_log_pid);
-		driver->silent_log_pid = NULL;
-	}
-
 	/* clean up any DCI registrations, if this is a DCI client
 	* This will specially help in case of ungraceful exit of any DCI client
 	* This call will remove any pending registrations of such client
@@ -1308,10 +1303,6 @@ long diagchar_compat_ioctl(struct file *filp,
 		if (copy_from_user((void *)&req_logging_mode,
 					(void __user *)ioarg, sizeof(int)))
 			return -EFAULT;
-		/*
-		 * Get a pid of diag_mdlog(app) and save it.
-		 */
-		driver->silent_log_pid = get_pid(task_pid(current));
 		result = diag_switch_logging(req_logging_mode);
 		break;
 	case DIAG_IOCTL_REMOTE_DEV:
@@ -1409,10 +1400,6 @@ long diagchar_ioctl(struct file *filp,
 		if (copy_from_user((void *)&req_logging_mode,
 					(void __user *)ioarg, sizeof(int)))
 			return -EFAULT;
-		/*
-		 * Get a pid of diag_mdlog(app) and save it.
-		 */
-		driver->silent_log_pid = get_pid(task_pid(current));
 		result = diag_switch_logging(req_logging_mode);
 		break;
 	case DIAG_IOCTL_REMOTE_DEV:
@@ -1438,26 +1425,6 @@ long diagchar_ioctl(struct file *filp,
 	}
 	return result;
 }
-
-/*
- * silent_log_panic_handler()
- * If the silent log is enabled for CP and CP is in
- * trouble, diag_mdlog (APP) should be terminated before
- * a panic occurs, since it can flush logs to SD card
- * when it is over. So, please use this function to termimate it.
- */
-int silent_log_panic_handler(void)
-{
-	int ret = 0;
-	if(driver->silent_log_pid) {
-		pr_info("%s: killing slient log...\n", __func__);
-		kill_pid(driver->silent_log_pid, SIGTERM, 1);
-		driver->silent_log_pid = NULL;
-		ret = 1;
-	}
-	return ret;
-}
-EXPORT_SYMBOL(silent_log_panic_handler);
 
 static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 			  loff_t *ppos)

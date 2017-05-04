@@ -304,11 +304,6 @@ static phys_addr_t sec_log_reserve_base;
 static unsigned sec_log_end;
 unsigned sec_log_reserve_size;
 unsigned int *sec_log_irq_en;
-#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP) && defined(CONFIG_SEC_LOG_LAST_KMSG)
-#define LAST_LOG_BUF_SHIFT 19
-static char *last_kmsg_buffer;
-static unsigned last_kmsg_size;
-#endif /* CONFIG_SEC_LOG_LAST_KMSG */
 #endif /* CONFIG_PRINTK_NOCACHE */
 #endif
 
@@ -1470,6 +1465,7 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 		next_seq = log_next_seq;
 
 		len = 0;
+		prev = 0;
 		while (len >= 0 && seq < next_seq) {
 			struct log *msg = log_from_idx(idx, true);
 			int textlen;
@@ -2103,31 +2099,10 @@ void sec_debug_subsys_set_kloginfo(unsigned int *first_idx_paddr,
 }
 #endif
 
-#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP) && defined(CONFIG_SEC_LOG_LAST_KMSG)
-static int __init sec_log_save_old(void)
-{
-	/* provide previous log as last_kmsg */
-	last_kmsg_size =
-	    min((unsigned)(1 << LAST_LOG_BUF_SHIFT), *sec_log_ptr);
-	last_kmsg_buffer = kmalloc(last_kmsg_size, GFP_KERNEL);
-
-	if (last_kmsg_size && last_kmsg_buffer && sec_log_buf) {
-		unsigned int i;
-		for (i = 0; i < last_kmsg_size; i++)
-			last_kmsg_buffer[i] =
-			    sec_log_buf[(*sec_log_ptr - last_kmsg_size +
-					 i) & (sec_log_size - 1)];
-		return 1;
-	} else {
-		return 0;
-	}
-}
-#else
 static int __init sec_log_save_old(void)
 {
 	return 1;
 }
-#endif
 
 #ifdef CONFIG_SEC_DEBUG_PRINTK_NOCACHE
 static int __init printk_remap_nocache(void)
@@ -2140,7 +2115,7 @@ static int __init printk_remap_nocache(void)
 
 	/*sec_getlog_supply_kloginfo(log_buf);*/
 
-#if !defined(CONFIG_SEC_DEBUG_NOCACHE_LOG_IN_LEVEL_LOW) || defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
+#if defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
 	if (0 == sec_debug_is_enabled()) {
 #ifdef CONFIG_SEC_DEBUG_LOW_LOG
 		nocache_base = ioremap_nocache(sec_log_save_base - 4096,
@@ -2210,15 +2185,6 @@ static int __init printk_remap_nocache(void)
 	the sec log initialization here.*/
 	sec_log_add_on_bootup();
 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
-#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP) && defined(CONFIG_SEC_LOG_LAST_KMSG)
-	if (bOk) {
-		pr_info("%s: saved old log at %d@%p\n",
-			__func__, last_kmsg_size, last_kmsg_buffer);
-	} else {
-		pr_err("%s: failed saving old log %d@%p\n",
-	       __func__, last_kmsg_size, last_kmsg_buffer);
-	}
-#endif
 	return rc;
 }
 
@@ -2227,13 +2193,8 @@ static ssize_t seclog_read(struct file *file, char __user *buf,
 {
 	loff_t pos = *offset;
 	ssize_t count = 0;
-#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP) && defined(CONFIG_SEC_LOG_LAST_KMSG)
-	size_t log_size = last_kmsg_size;
-	const char *log = last_kmsg_buffer;
-#else
 	size_t log_size = sec_log_size;
 	const char *log = sec_log_buf;
-#endif
 
 	if (pos < log_size) {
 		count = min(len, (size_t)(log_size - pos));
@@ -2271,11 +2232,7 @@ static int __init seclog_late_init(void)
 		return 0;
 	}
 
-#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP) && defined(CONFIG_SEC_LOG_LAST_KMSG)
-	proc_set_size(entry, last_kmsg_size);
-#else
 	proc_set_size(entry, sec_log_size);
-#endif
 	return 0;
 }
 late_initcall(seclog_late_init);
@@ -3477,6 +3434,7 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
 	next_idx = idx;
 
 	l = 0;
+	prev = 0;
 	while (seq < dumper->next_seq) {
 		struct log *msg = log_from_idx(idx, true);
 

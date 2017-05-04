@@ -88,6 +88,7 @@ void pm_autosleep_unlock(void)
 
 int pm_autosleep_set_state(suspend_state_t state)
 {
+
 #ifndef CONFIG_HIBERNATION
 	if (state >= PM_SUSPEND_MAX)
 		return -EINVAL;
@@ -100,10 +101,6 @@ int pm_autosleep_set_state(suspend_state_t state)
 	autosleep_state = state;
 
 	__pm_relax(autosleep_ws);
-
-#ifdef CONFIG_SEC_PM_DEBUG
-	wakeup_sources_stats_active();
-#endif
 
 	if (state > PM_SUSPEND_ON) {
 		pm_wakep_autosleep_enabled(true);

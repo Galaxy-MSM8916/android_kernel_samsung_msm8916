@@ -902,29 +902,11 @@ config USB_DUN_SUPPORT
 		It uses misc register.
 		Support fops : open, close, release, read, poll, llseek, ioctl
 
-config USB_ANDROID_SAMSUNG_MTP
-	boolean "Samsung MTP function"
-	depends on USB_G_ANDROID && !SEC_FACTORY
-	help
-		Provides Media Transfer Protocol (MTP) support
-		for samsung gadget driver.
-		If you enable this option,
-		google mtp will be changed to samsung mtp.
-
 config USB_ANDROID_RNDIS_DWORD_ALIGNED
 	boolean "Use double word aligned"
 	depends on USB_G_ANDROID
 	help
 		Provides dword aligned for DMA controller.
-
-config USB_ANDROID_SAMSUNG_SIDESYNC
-	boolean "Samsung SideSync function"
-	depends on USB_G_ANDROID
-	help
-		Provides SideSync support
-		for samsung gadget driver.
-		If you enable this option,
-		SideSync will be added to android composite.
 
 config USB_RNDIS_VZW_REQ
 	boolean "Samsung USB RNDIS 5.x function"

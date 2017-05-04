@@ -88,8 +88,9 @@ EXPORT_SYMBOL(mobicore_allocate_wsm);
 struct mc_instance *mobicore_open(void)
 {
 	struct mc_instance *instance = mc_alloc_instance();
-	if (instance)
+	if(instance) {
 		instance->admin = true;
+	}
 	return instance;
 }
 EXPORT_SYMBOL(mobicore_open);

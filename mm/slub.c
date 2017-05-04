@@ -1388,9 +1388,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 	}
 	setup_object(s, page, last);
 	set_freepointer(s, last, NULL);
-#ifdef CONFIG_TIMA_RKP_30
-	//tima_send_cmd5(page_to_phys(page), compound_order(page), 1, 0, 0, 0x3f829221);
-#endif
+
 	page->freelist = start;
 	page->inuse = page->objects;
 	page->frozen = 1;
@@ -1446,9 +1444,6 @@ static void rcu_free_slab(struct rcu_head *h)
 
 static void free_slab(struct kmem_cache *s, struct page *page)
 {
-#ifdef CONFIG_TIMA_RKP_30
-	//tima_send_cmd5(page_to_phys(page), compound_order(page), 0, 0, 0, 0x3f829221);
-#endif
 	if (unlikely(s->flags & SLAB_DESTROY_BY_RCU)) {
 		struct rcu_head *head;
 

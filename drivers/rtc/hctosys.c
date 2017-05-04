@@ -45,12 +45,6 @@ int rtc_hctosys(void)
 
 	}
 
-	/*
-	 * Force update rtc year time to 2015
-	 * (The release year of device)
-	 */
-	tm.tm_year = 115;
-
 	err = rtc_valid_tm(&tm);
 	if (err) {
 		dev_err(rtc->dev.parent,

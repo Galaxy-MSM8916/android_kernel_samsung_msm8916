@@ -19,7 +19,7 @@
 #define _LINUX_WAKEUP_REASON_H
 
 void log_wakeup_reason(int irq);
-#ifdef CONFIG_ARCH_MSM
+#ifdef CONFIG_SEC_DEBUG
 void update_wakeup_reason_stats(int irq);
 #endif
 

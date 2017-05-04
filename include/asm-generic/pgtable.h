@@ -17,86 +17,6 @@
 #define USER_PGTABLES_CEILING	0UL
 #endif
 
-#ifdef CONFIG_TIMA_RKP_L2_GROUP
-
-/* Structure of a grouped entry */
-typedef struct tima_l2group_entry {
-        unsigned long addr;
-        unsigned long linux_pte;
-        unsigned long arm_pte;
-        unsigned long padding;
-}tima_l2group_entry_t;
-
-#define RKP_MAX_PGT2_ENTRIES    0x100
-
-extern int tima_is_pg_protected(unsigned long va);
-
-static inline void init_tima_rkp_group_buffers(unsigned long num_entries,
-                                pte_t *ptep,
-                                unsigned long *tima_l2group_flag_ptr,
-                                unsigned long *tima_l2group_buffer_index_ptr,
-                                tima_l2group_entry_t **buffer1,
-                                tima_l2group_entry_t **buffer2)
-{
-
-        /* 0x200 = 512 bytes which is 2 L2 pages. If grouped
-         * entries are <= 2, there is not much point in
-         * grouping it, in which case follow the normal path.
-         */
-	if (num_entries > 2 && (num_entries <= (RKP_MAX_PGT2_ENTRIES<<1))
-		&& tima_is_pg_protected((unsigned long) ptep ) == 1) {
-                *buffer1 = (tima_l2group_entry_t *)
-                                __get_free_pages(GFP_ATOMIC, 0);
-                if (num_entries > RKP_MAX_PGT2_ENTRIES)
-                        *buffer2 = (tima_l2group_entry_t *)
-                                        __get_free_pages(GFP_ATOMIC, 0);
-
-                if (*buffer1 == NULL || ((num_entries > RKP_MAX_PGT2_ENTRIES)
-                        && (*buffer2 == NULL))) {
-                        printk(KERN_ERR"TIMA -> Could not group"
-                                "executing single L2 write %lx %s\n",
-                                num_entries, __FUNCTION__);
-                        if (*buffer1 != NULL)
-                                free_pages((unsigned long) *buffer1, 0);
-                        if (*buffer2 != NULL)
-                                free_pages((unsigned long) *buffer2, 0);
-
-						} else {
-                        *tima_l2group_flag_ptr = 1;
-                        /* reset index here */
-                        *tima_l2group_buffer_index_ptr = 0;
-                }
-	}
-	return;
-}
-
-static inline void write_tima_rkp_group_buffers(unsigned long num_entries,
-                                tima_l2group_entry_t **buffer1,
-                                tima_l2group_entry_t **buffer2)
-{
-        /* Pass the buffer pointer and length to TIMA
-         * to write the changes
-         */
-        if (num_entries) {
-                if (num_entries > RKP_MAX_PGT2_ENTRIES) {
-                        timal2group_set_pte_commit(*buffer1, RKP_MAX_PGT2_ENTRIES);
-                        timal2group_set_pte_commit(*buffer2, (num_entries - RKP_MAX_PGT2_ENTRIES));
-                } else
-                        timal2group_set_pte_commit(*buffer1, num_entries);
-        }
-
-        free_pages((unsigned long) *buffer1, 0);
-        if (*buffer2 != NULL)
-                free_pages((unsigned long) *buffer2, 0);
-}
-#endif  /* CONFIG_TIMA_RKP_L2_GROUP */
-
-static inline void ptep_set_nxprotect(struct mm_struct *mm, unsigned long address, pte_t *ptep)
-{
-        pte_t old_pte = *ptep;
-        set_pte_at(mm, address, ptep, pte_mknexec(old_pte));
-}
-
 #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 extern int ptep_set_access_flags(struct vm_area_struct *vma,
 				 unsigned long address, pte_t *ptep,
@@ -630,10 +550,11 @@ static inline int pmd_none_or_trans_huge_or_clear_bad(pmd_t *pmd)
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	barrier();
 #endif
-	if (pmd_none(pmdval) || pmd_trans_huge(pmdval))
+	if (pmd_none(pmdval))
 		return 1;
 	if (unlikely(pmd_bad(pmdval))) {
-		pmd_clear_bad(pmd);
+		if (!pmd_trans_huge(pmdval))
+			pmd_clear_bad(pmd);
 		return 1;
 	}
 	return 0;

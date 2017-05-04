@@ -31,9 +31,6 @@ struct wcnss_wlan_config {
 	int	use_48mhz_xo;
 	int	is_pronto_vt;
 	int	is_pronto_v3;
-	int irisStatus;
-	wait_queue_head_t   wcnss_ctrl_wait;
-	
 	void __iomem	*msm_wcnss_base;
 	int	iris_id;
 	int	vbatt;
@@ -78,8 +75,6 @@ enum {
 #define WLAN_RF_DATA0_SHIFT		0
 #define WLAN_RF_DATA1_SHIFT		1
 #define WLAN_RF_DATA2_SHIFT		2
-#define IRIS_DETECTION_SUCCESS  0
-#define IRIS_DETECTION_FAIL     1
 #define PRONTO_PMU_OFFSET       0x1004
 #define WCNSS_PMU_CFG_GC_BUS_MUX_SEL_TOP   BIT(5)
 
@@ -126,11 +121,6 @@ void wcnss_riva_dump_pmic_regs(void);
 int wcnss_xo_auto_detect_enabled(void);
 u32 wcnss_get_wlan_rx_buff_count(void);
 int wcnss_wlan_iris_xo_mode(void);
-
-#if defined(CONFIG_MACH_A5U_EUR_OPEN)
-void wcnss_ldo18_off (void);
-int wcnss_ldo18_on(void);
-#endif /*CONFIG_MACH_A5U_EUR_OPEN*/
 void wcnss_flush_work(struct work_struct *work);
 void wcnss_flush_delayed_work(struct delayed_work *dwork);
 int wcnss_get_iris_name(char *iris_version);

@@ -144,7 +144,7 @@ bool mc_fastcall(void *data)
 	struct fastcall_work work = {
 		.data = data,
 	};
-	INIT_WORK_ONSTACK(&work.work, fastcall_work_func);
+	INIT_WORK(&work.work, fastcall_work_func);
 	if (!schedule_work_on(0, &work.work))
 		return false;
 	flush_work(&work.work);

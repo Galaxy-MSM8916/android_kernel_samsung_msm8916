@@ -44,8 +44,4 @@ struct pcal6416a_platform_data {
 	struct regulator *vdd;
 };
 
-#ifdef CONFIG_SEC_PM_DEBUG
-int expander_print_all(void);
-#endif
-
 #endif

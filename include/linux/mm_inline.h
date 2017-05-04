@@ -3,9 +3,6 @@
 
 #include <linux/huge_mm.h>
 #include <linux/swap.h>
-#ifdef CONFIG_SCFS_LOWER_PAGECACHE_INVALIDATION
-#include <linux/page-flags.h>
-#endif
 
 /**
  * page_is_file_cache - should the page be on a file LRU or anon LRU?
@@ -30,14 +27,7 @@ static __always_inline void add_page_to_lru_list(struct page *page,
 {
 	int nr_pages = hpage_nr_pages(page);
 	mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
-#ifdef CONFIG_SCFS_LOWER_PAGECACHE_INVALIDATION
-	if (PageNocache(page))
-		list_add_tail(&page->lru, &lruvec->lists[lru]);
-	else
-		list_add(&page->lru, &lruvec->lists[lru]);
-#else
 	list_add(&page->lru, &lruvec->lists[lru]);
-#endif
 	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, nr_pages);
 }
 

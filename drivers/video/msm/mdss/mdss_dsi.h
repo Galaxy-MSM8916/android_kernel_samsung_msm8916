@@ -159,9 +159,9 @@ enum dsi_pm_type {
 #define DSI_CMD_DST_FORMAT_RGB666	7
 #define DSI_CMD_DST_FORMAT_RGB888	8
 
-#define DSI_INTR_DESJEW_MASK		BIT(31)
-#define DSI_INTR_DYNAMIC_REFRESH_MASK	BIT(29)
-#define DSI_INTR_DYNAMIC_REFRESH_DONE	BIT(28)
+#define DSI_INTR_DESJEW_MASK			BIT(31)
+#define DSI_INTR_DYNAMIC_REFRESH_MASK		BIT(29)
+#define DSI_INTR_DYNAMIC_REFRESH_DONE		BIT(28)
 #define DSI_INTR_ERROR_MASK		BIT(25)
 #define DSI_INTR_ERROR			BIT(24)
 #define DSI_INTR_BTA_DONE_MASK          BIT(21)
@@ -250,6 +250,7 @@ struct dsi_clk_desc {
 	u32 mnd_mode;
 	u32 pre_div_func;
 };
+
 
 struct dsi_panel_cmds {
 	char *buf;
@@ -352,11 +353,11 @@ struct mdss_dsi_ctrl_pdata {
 	int (*check_status) (struct mdss_dsi_ctrl_pdata *pdata);
 	int (*check_read_status) (struct mdss_dsi_ctrl_pdata *pdata);
 	int (*cmdlist_commit)(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp);
-	int (*registered) (struct mdss_panel_data *pdata);
 	void (*switch_mode) (struct mdss_panel_data *pdata, int mode);
-	int (*panel_reset) (struct mdss_panel_data *pdata, int enable);
 #ifdef CONFIG_FB_MSM_MDSS_SAMSUNG
+	int (*registered) (struct mdss_panel_data *pdata);
 	int (*event_handler) (struct mdss_panel_data *pdata, int e, void *arg);
+	int (*panel_reset) (struct mdss_panel_data *pdata, int enable);
 	int lcd_select_gpio;
 #endif
 	struct mdss_panel_data panel_data;
@@ -389,9 +390,9 @@ struct mdss_dsi_ctrl_pdata {
 	u8 ctrl_state;
 	int panel_mode;
 	int irq_cnt;
+	int disp_te_gpio;
 	int rst_gpio;
 	int disp_en_gpio;
-	int disp_te_gpio;
 	int bklt_en_gpio;
 	int mode_gpio;
 	int bklt_ctrl;	/* backlight ctrl */

@@ -220,11 +220,7 @@ static struct xfrm_algo_desc aalg_list[] = {
 
 	.uinfo = {
 		.auth = {
-#ifdef CONFIG_MACH_XCOVER3_DCM
-            .icv_truncbits = 128,
-#else
 			.icv_truncbits = 96,
-#endif
 			.icv_fullbits = 256,
 		}
 	},

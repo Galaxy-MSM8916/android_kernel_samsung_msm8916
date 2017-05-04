@@ -126,7 +126,7 @@
 #define tsp_debug(fmt, ...) tsp_printk(DEV_DEBUG, fmt, ## __VA_ARGS__)
 #define tsp_verb(fmt, ...)  tsp_printk(DEV_VERB, fmt, ## __VA_ARGS__)
 
-#if defined(CONFIG_SEC_DVFS) || defined (CONFIG_CPU_FREQ_LIMIT_USERSPACE)
+#if defined(CONFIG_SEC_DVFS)
 #define TOUCH_BOOSTER
 #endif
 

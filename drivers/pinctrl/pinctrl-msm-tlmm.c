@@ -415,11 +415,6 @@ static int msm_tlmm_gp_cfg(uint pin_no, unsigned long *config,
 	void __iomem *inout_reg = NULL;
 	void __iomem *cfg_reg = TLMM_GP_CFG(pinfo, pin_no);
 
-#ifdef CONFIG_MST_LDO
-		if (pin_no == MST_GPIO_D_MINUS || pin_no == MST_GPIO_D_PLUS)
-			return 0;
-#endif
-
 	id = pinconf_to_config_param(*config);
 	val = readl_relaxed(cfg_reg);
 	/* Get mask and shft values for this config type */
@@ -984,10 +979,6 @@ void msm_tlmm_gp_show_resume_irq(void)
 		intstat = msm_tlmm_get_intr_status(ic, i);
 		if (intstat) {
 			virq = msm_tlmm_gp_to_irq(gc, i);
-#ifdef CONFIG_SEC_PM_DEBUG
-			log_wakeup_reason(virq);
-			update_wakeup_reason_stats(virq);
-#endif
 		}
 	}
 

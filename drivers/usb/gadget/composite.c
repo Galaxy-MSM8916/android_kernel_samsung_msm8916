@@ -1017,8 +1017,6 @@ void usb_remove_config(struct usb_composite_dev *cdev,
 {
 	unsigned long flags;
 
-	printk(KERN_DEBUG "usb: %s cdev->config=%p, config=%p\n",
-			__func__, cdev->config, config);
 	spin_lock_irqsave(&cdev->lock, flags);
 
 	if (WARN_ON(!config->cdev)) {
@@ -1028,6 +1026,7 @@ void usb_remove_config(struct usb_composite_dev *cdev,
 
 	if (cdev->config == config)
 		reset_config(cdev);
+
 	/* Incase the Bind fails we have already deleted the config list */
 	/* Avoid kernel Panic */
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
@@ -1037,6 +1036,7 @@ void usb_remove_config(struct usb_composite_dev *cdev,
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 	}
 #endif
+
 	spin_unlock_irqrestore(&cdev->lock, flags);
 
 	unbind_config(cdev, config);
@@ -1459,7 +1459,6 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 
 			value = min(w_length, (u16) sizeof cdev->desc);
 			memcpy(req->buf, &cdev->desc, value);
-			printk(KERN_DEBUG "usb: GET_DES\n");
 			break;
 		case USB_DT_DEVICE_QUALIFIER:
 			if (!gadget_is_dualspeed(gadget) ||
@@ -1755,7 +1754,6 @@ void composite_disconnect(struct usb_gadget *gadget)
 	/* REVISIT:  should we have config and device level
 	 * disconnect callbacks?
 	 */
-	printk(KERN_DEBUG "usb: %s\n", __func__);
 	spin_lock_irqsave(&cdev->lock, flags);
 	if (cdev->config)
 		reset_config(cdev);

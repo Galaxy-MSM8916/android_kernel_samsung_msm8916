@@ -34,9 +34,6 @@
 #include "ist30xx_misc.h"
 #include "ist30xx_cmcs.h"
 
-#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
-#include <linux/cpufreq.h>
-#endif
 #define FW_DOWNLOADING "Downloading"
 #define FW_DOWNLOAD_COMPLETE "Complete"
 #define FW_DOWNLOAD_FAIL "FAIL"

@@ -846,29 +846,6 @@ DEFINE_EVENT(iommu_sec_ptbl_map_range, iommu_sec_ptbl_map_range_end,
 
 	TP_ARGS(sec_id, num, va, pa, len)
 	);
-
-TRACE_EVENT(ion_import_dma_buf,
-	TP_PROTO(int line, void *client, void *handle, void *ion_buffer, void *caller),
-	TP_ARGS(line, client, handle, ion_buffer, caller),
-	TP_STRUCT__entry(
-			__field(int, line)
-			__field(void *, client)
-			__field(void *, handle)
-			__field(void *, ion_buffer)
-			__field(void *, caller)
-	),
-	TP_fast_assign(
-			__entry->line = line;
-			__entry->client = client;
-			__entry->handle = handle;
-			__entry->ion_buffer = ion_buffer;
-			__entry->caller = caller;
-	),
-	TP_printk("[%d] client : %p, handle : %p, buffer : %p, caller : %pF\n",
-		__entry->line, __entry->client, __entry->handle,
-		__entry->ion_buffer, __entry->caller)
-);
-
 #endif /* _TRACE_KMEM_H */
 
 /* This part must be outside protection */

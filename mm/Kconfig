@@ -316,18 +316,6 @@ config KSM
 	  until a program has madvised that an area is MADV_MERGEABLE, and
 	  root has set /sys/kernel/mm/ksm/run to 1 (if CONFIG_SYSFS is set).
 
-config ADAPTIVE_KSM
-	bool "Enable Adaptive KSM"
-	depends on KSM
-	help
-	  Enable Adaptive KSM
-
-config AKSM_FB_NOTIFY
-	bool "Use FB Notify for aksm suspend"
-	depends on ADAPTIVE_KSM
-	help
-	  Use FB Notify for aksm suspend
-
 config DEFAULT_MMAP_MIN_ADDR
         int "Low address space to protect from user allocation"
 	depends on MMU
@@ -512,7 +500,7 @@ config USE_USER_ACCESSIBLE_TIMERS
 	  separately.
 
 config ZBUD
-	tristate "Low density storage for compressed pages"
+	tristate
 	default n
 	help
 	  A special purpose allocator for storing compressed pages.
@@ -525,8 +513,7 @@ config ZSWAP
 	bool "Compressed cache for swap pages (EXPERIMENTAL)"
 	depends on FRONTSWAP && CRYPTO=y
 	select CRYPTO_LZO
-	select CRYPTO_LZ4
-	select ZPOOL
+	select ZBUD
 	default n
 	help
 	  A lightweight compressed cache for swap pages.  It takes
@@ -541,97 +528,6 @@ config ZSWAP
 	  interactions don't cause any known issues on simple memory setups,
 	  they have not be fully explored on the large set of potential
 	  configurations and workloads that exist.
-
-config ZSWAP_ENABLE_WRITEBACK
-	bool "Enable zswap writeback"
-	depends on ZSWAP
-	default n
-
-config ZSWAP_COMPACTION
-	bool "Enable runtime zswap compaction"
-	depends on ZSWAP && ZPOOL && ZSMALLOC
-	default n
-
-config ZPOOL
-	tristate "Common API for compressed memory storage"
-	default n
-	help
-	  Compressed memory storage API.  This allows using either zbud or
-	  zsmalloc.
-
-config ZSMALLOC
-	tristate "Memory allocator for compressed pages"
-	depends on MMU
-	default n
-	help
-	  zsmalloc is a slab-based memory allocator designed to store
-	  compressed RAM pages.  zsmalloc uses virtual memory mapping
-	  in order to reduce fragmentation.  However, this results in a
-	  non-standard allocator interface where a handle, not a pointer, is
-	  returned by an alloc().  This handle must be mapped in order to
-	  access the allocated space.
-
-config PGTABLE_MAPPING
-	bool "Use page table mapping to access object in zsmalloc"
-	depends on ZSMALLOC
-	help
-	  By default, zsmalloc uses a copy-based object mapping method to
-	  access allocations that span two pages. However, if a particular
-	  architecture (ex, ARM) performs VM mapping faster than copying,
-	  then you should select this. This causes zsmalloc to use page table
-	  mapping rather than copying for object mapping.
-
-	  You can check speed with zsmalloc benchmark[1].
-	  [1] https://github.com/spartacus06/zsmalloc
-
-config ZSMALLOC_STAT
-	bool "Export zsmalloc statistics"
-	depends on ZSMALLOC
-	select DEBUG_FS
-	help
-	  This option enables code in the zsmalloc to collect various
-	  statistics about whats happening in zsmalloc and exports that
-	  information to userspace via debugfs.
-	  If unsure, say N.
-
-config ZSMALLOC_OBJ_SEQ
-	bool "Record the sequence number of each object in itself"
-	depends on ZSMALLOC
-	default n
-	help
-	  This option records the sequence number of each zs object in the object.
-	  The recorded number will be used for reclaim_zspage.
-	  If unsure, say N.
-
-config DIRECT_RECLAIM_FILE_PAGES_ONLY
-	bool "Reclaim file pages only on direct reclaim path"
-	depends on ZSWAP
-	default n
-
-config INCREASE_MAXIMUM_SWAPPINESS
-	bool "Allow swappiness to be set up to 200"
-	depends on ZSWAP
-	default n
-
-config FIX_INACTIVE_RATIO
-	bool "Fix active:inactive anon ratio to 1:1"
-	depends on ZSWAP
-	default n
-
-config TIGHT_PGDAT_BALANCE
-	bool "Set more tight balanced condition to kswapd"
-	depends on ZSWAP
-	default n
-
-config SWAP_ENABLE_READAHEAD
-	bool "Enable readahead on page swap in"
-	depends on SWAP
-	default y
-	help
-	  When a page fault occurs, adjacent pages of SWAP_CLUSTER_MAX are
-	  also paged in expecting those pages will be used in near future.
-	  This behaviour is good at disk-based system, but not on in-memory
-	  compression (e.g. zram).
 
 config BALANCE_ANON_FILE_RECLAIM
 	bool "During reclaim treat anon and file backed pages equally"
@@ -660,21 +556,3 @@ config PROCESS_RECLAIM
 	 (addr, addr + size-bytes) of the process.
 
 	 Any other vaule is ignored.
-
-config MIN_DIRTY_THRESH_PAGES
-	int "The lower bound of VM dirty_thresh value in number of pages"
-	default 2560
-	help
-	  Setting this to certain positive number guaranttees
-	  the VM Dirty-Thresh valus is always larger than that value.
-	  It is only effective when dirty_ratio is used. (Setting dirty_bytes
-	  disables this option.)
-	  Do not use it if you unsure.
-
-config MMAP_READAROUND_LIMIT
-	int "Limit mmap readaround upperbound"
-	default 0
-	help
-	  Inappropriate mmap readaround size can hurt device performance
-	  during the sluggish situation. Add the hard upper-limit for
-	  mmap readaround.

@@ -88,21 +88,4 @@ struct server_lookup_args {
 	struct msm_ipc_server_info srv_info[0];
 };
 
-#ifndef __IPC_SUB_IOCTL
-#define __IPC_SUB_IOCTL
-
-#define IPC_SUB_IOCTL_MAGIC (0xC8)
-#define IPC_SUB_IOCTL_SUBSYS_GET_RESTART \
-	_IOR(IPC_SUB_IOCTL_MAGIC, 0, struct msm_ipc_subsys_request)
-
-enum {
-	SUBSYS_CR_REQ = 0,
-	SUBSYS_RES_REQ,
-};
-
-struct msm_ipc_subsys_request {
-	char name[32];
-	int request_id;
-};
-#endif
 #endif

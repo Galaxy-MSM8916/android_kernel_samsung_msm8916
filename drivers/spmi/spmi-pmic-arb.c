@@ -971,6 +971,7 @@ static const struct file_operations pmic_arb_dfs_fops = {
 static void pmic_arb_handle_stuck_irqs(struct spmi_pmic_arb_dev *pmic_arb)
 {
 	int apid;
+
 	/* we only saw the firt 32bit accumulator get currupted at boot */
 	pmic_arb->irq_acc0_init_val = readl_relaxed(pmic_arb->intr +
 			pmic_arb->ver->owner_acc_status(pmic_arb->ee, 0));
@@ -1205,10 +1206,9 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	pmic_arb->controller.nr = cell_index;
 	pmic_arb->controller.dev.parent = pdev->dev.parent;
 	pmic_arb->controller.dev.of_node = of_node_get(pdev->dev.of_node);
-/*
+
 	pmic_arb_handle_stuck_irqs(pmic_arb);
-*/
-	pmic_arb_handle_stuck_irqs(pmic_arb);
+
 	/* Callbacks */
 	pmic_arb->controller.cmd = pmic_arb_cmd;
 	pmic_arb->controller.read_cmd = pmic_arb_read_cmd;

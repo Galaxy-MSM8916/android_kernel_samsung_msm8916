@@ -744,20 +744,6 @@ void *restart_reason_ddr_address = NULL;
 #define  RESTART_REASON_DDR_ADDR 0xAFFFE000
 #endif
 
-#ifdef CONFIG_SEC_DEBUG_ENABLE_QSEE
-#define QSEE_LOG_ADDR_LOC (RESTART_REASON_DDR_ADDR + SZ_4K)
-int sec_debug_set_qsee_address(unsigned int address)
-{
-	void *qsee_log_address = NULL;
-	qsee_log_address = ioremap_nocache(QSEE_LOG_ADDR_LOC, SZ_4K);
-	/* Using 4 bytes from the start of (RESTART_REASON_DDR_ADDR + SZ_4K) for storing the QSEE Log address. */
-	memcpy(qsee_log_address, &address, sizeof(unsigned int));
-	iounmap(qsee_log_address);
-	return 0;
-}
-EXPORT_SYMBOL(sec_debug_set_qsee_address);
-#endif
-
 DEFINE_PER_CPU(struct sec_debug_core_t, sec_debug_core_reg);
 DEFINE_PER_CPU(struct sec_debug_mmu_reg_t, sec_debug_mmu_reg);
 DEFINE_PER_CPU(enum sec_debug_upload_cause_t, sec_debug_upload_cause);

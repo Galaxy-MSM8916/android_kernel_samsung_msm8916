@@ -17,9 +17,6 @@
 #include <asm/processor.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
-#ifdef CONFIG_TIMA_RKP_L1_TABLES
-#include <asm/cp15.h>
-#endif
 
 #define check_pgt_cache()		do { } while (0)
 
@@ -133,32 +130,10 @@ static inline void __pmd_populate(pmd_t *pmdp, phys_addr_t pte,
 				  pmdval_t prot)
 {
 	pmdval_t pmdval = (pte + PTE_HWTABLE_OFF) | prot;
-#ifdef	CONFIG_TIMA_RKP_L1_TABLES
-	unsigned long cmd_id = 0x3f809221;
-	if (tima_is_pg_protected((unsigned long) pmdp) != 0) {
-#ifndef CONFIG_TIMA_RKP_COHERENT_TT
-		clean_dcache_area(pmdp, 8);
-		tima_cache_flush((unsigned long)pmdp);
-		//tima_cache_flush((unsigned long)pmdp+4);
-#endif
-		tima_send_cmd5((unsigned long)__pa(pmdp), (unsigned long)__pmd(pmdval),
-				(unsigned long)__pmd(pmdval + 256 * sizeof(pte_t)), 0, 0, cmd_id);
-		tima_tlb_inval_is(0);
-#ifndef CONFIG_TIMA_RKP_COHERENT_TT
-		tima_cache_inval((unsigned long)pmdp);
-		//tima_cache_inval((unsigned long)pmdp+4);
-#endif
-	} else {
-		pmdp[0] = __pmd(pmdval);
-		pmdp[1] = __pmd(pmdval + 256 * sizeof(pte_t));
-	}
-
-#else  /* CONFIG_TIMA_RKP_L1_TABLES */
 	pmdp[0] = __pmd(pmdval);
 #ifndef CONFIG_ARM_LPAE
 	pmdp[1] = __pmd(pmdval + 256 * sizeof(pte_t));
 #endif
-#endif /* CONFIG_TIMA_RKP_L1_TABLES */
 	flush_pmd_entry(pmdp);
 }
 

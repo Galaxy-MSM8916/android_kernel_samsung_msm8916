@@ -43,10 +43,6 @@ struct cpufreq_suspend_t {
 
 static DEFINE_PER_CPU(struct cpufreq_suspend_t, cpufreq_suspend);
 
-#if defined(CONFIG_ARCH_MSM8939) || defined(CONFIG_ARCH_MSM8929)
-extern int jig_boot_clk_limit;
-#endif
-
 static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq,
 			unsigned int index)
 {
@@ -63,27 +59,6 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq,
 	trace_cpu_frequency_switch_start(freqs.old, freqs.new, policy->cpu);
 
 	rate = new_freq * 1000;
-#if defined(CONFIG_ARCH_MSM8939) || defined(CONFIG_ARCH_MSM8929)
-#if defined(CONFIG_SEC_A7_PROJECT)
-  #define JIG_LIMIT_CLK	998400 * 1000
-  #define JIG_LIMIT_TIME	160
-#elif defined(CONFIG_MACH_J7_USA_SPR)
-  #define JIG_LIMIT_CLK	499200 * 1000
-  #define JIG_LIMIT_TIME	160
-#else
-  #define JIG_LIMIT_CLK	960000 * 1000
-  #define JIG_LIMIT_TIME	50
-#endif
-	if (jig_boot_clk_limit == 1) {
-		unsigned long long t = sched_clock();
-		do_div(t, 1000000000);
-		if (t <= JIG_LIMIT_TIME && rate > JIG_LIMIT_CLK)
-			rate = JIG_LIMIT_CLK;
-		else if (t > JIG_LIMIT_TIME) {
-			jig_boot_clk_limit = 0;
-		}
-	}
-#endif
 	rate = clk_round_rate(cpu_clk[policy->cpu], rate);
 	ret = clk_set_rate(cpu_clk[policy->cpu], rate);
 	if (!ret) {

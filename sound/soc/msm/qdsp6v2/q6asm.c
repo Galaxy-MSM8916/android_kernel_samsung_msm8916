@@ -125,6 +125,7 @@ static char *in_buffer;
 u32 score;
 #endif /* CONFIG_SAMSUNG_AUDIO */
 
+
 static int audio_output_latency_dbgfs_open(struct inode *inode,
 							struct file *file)
 {
@@ -1445,15 +1446,13 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 		pr_err("%s: data NULL\n", __func__);
 		return -EINVAL;
 	}
+	if (!q6asm_is_valid_audio_client(ac)) {
+		pr_err("%s: audio client pointer is invalid, ac = %p\n",
+				__func__, ac);
+		return -EINVAL;
+	}
 
-	if (!q6asm_is_valid_audio_client(ac)) { 
-	  pr_err("%s: audio client pointer is invalid, ac = %p\n", 
-	  __func__, ac); 
-	  return -EINVAL; 
-	} 
-	
-	if (ac->session <= 0 || ac->session > 8) { 
-
+	if (ac->session <= 0 || ac->session > 8) {
 		pr_err("%s: Session ID is invalid, session = %d\n", __func__,
 			ac->session);
 		return -EINVAL;
@@ -3645,10 +3644,11 @@ int q6asm_stream_media_format_block_flac(struct audio_client *ac,
 	struct asm_flac_fmt_blk_v2 fmt;
 	int rc = 0;
 
-	pr_debug("%s :session[%d]rate[%d]ch[%d]size[%d]\n", __func__,
-		ac->session, cfg->sample_rate, cfg->ch_cfg, cfg->sample_size);
+	pr_debug("%s :session[%d] rate[%d] ch[%d] size[%d] stream_id[%d]\n",
+		__func__, ac->session, cfg->sample_rate, cfg->ch_cfg,
+		cfg->sample_size, stream_id);
 
-	q6asm_add_hdr(ac, &fmt.hdr, sizeof(fmt), TRUE);
+	q6asm_stream_add_hdr(ac, &fmt.hdr, sizeof(fmt), TRUE, stream_id);
 	atomic_set(&ac->cmd_state, 1);
 
 	fmt.hdr.opcode = ASM_DATA_CMD_MEDIA_FMT_UPDATE_V2;
@@ -4394,19 +4394,17 @@ int q6asm_dts_eagle_set(struct audio_client *ac, int param_id, uint32_t size,
 {
 	int rc = 0;
 	uint32_t sz = sizeof(struct asm_dts_eagle_param) + size;
-	struct asm_dts_eagle_param *ad;
+	struct asm_dts_eagle_param *ad = kzalloc(sz, GFP_KERNEL);
+	if (!ad) {
+		pr_err("DTS_EAGLE_ASM - %s: error allocating mem of size %u\n",
+			__func__, sz);
+		return -ENOMEM;
+	}
 
 	if (!ac || ac->apr == NULL || (size == 0) || !data) {
 		pr_err("DTS_EAGLE_ASM - %s: APR handle NULL, invalid size %u or pointer %p.\n",
 			__func__, size, data);
 		return -EINVAL;
-	}
-
-     ad = kzalloc(sz, GFP_KERNEL);
-	if (!ad) {
-		pr_err("DTS_EAGLE_ASM - %s: error allocating mem of size %u\n",
-			__func__, sz);
-		return -ENOMEM;
 	}
 
 	q6asm_add_hdr_async(ac, &ad->hdr, sz, 1);

@@ -660,8 +660,8 @@ enum mc_result mc_wait_notification(struct mc_session_handle *session,
 					mc_result = MC_DRV_ERR_NOTIFICATION;
 					MCDRV_DBG_ERROR(
 					mc_kapi,
-				"read notification failed, %i bytes received",
-					(int)num_read);
+					"read notification failed, "
+					"%i bytes received", (int)num_read);
 					break;
 				} else {
 					/*

@@ -215,11 +215,6 @@ static struct sock *ping_lookup(struct net *net, struct sk_buff *skb, u16 ident)
 					     &ipv6_hdr(skb)->daddr))
 				continue;
 #endif
-/*
-    net/ping: handle protocol mismatching scenario    
-    refer to https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/net/ipv4/ping.c?id=91a0b603469069cdcce4d572b7525ffc9fd352a6
-    Qualcome case ID 02009918
-*/
 		} else {
 			continue;
 		}
@@ -983,12 +978,8 @@ void ping_rcv(struct sk_buff *skb)
 
 	sk = ping_lookup(net, skb, ntohs(icmph->un.echo.id));
 	if (sk != NULL) {
-		struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
-
 		pr_debug("rcv on socket %p\n", sk);
-		if (skb2)
-			ping_queue_rcv_skb(sk, skb2);
-
+		ping_queue_rcv_skb(sk, skb_get(skb));
 		sock_put(sk);
 		return;
 	}

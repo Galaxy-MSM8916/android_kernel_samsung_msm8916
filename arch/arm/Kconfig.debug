@@ -709,15 +709,6 @@ menuconfig SEC_PM
 	help
 	  Samsung TN PowerManagement Feature.
 
-if SEC_PM
-config SEC_PM_DEBUG
-	bool "Samsung TN PowerManagement Debug Feature"
-	default n
-	help
-	  Samsung TN PowerManagement Debug Feature.
-
-endif
-
 config PID_IN_CONTEXTIDR
 	bool "Write the current PID to the CONTEXTIDR register"
 	depends on CPU_COPY_V6
@@ -743,43 +734,4 @@ config RESTART_REASON_SEC_PARAM
 	default n
 	help
 	  Param partition can retain the values across reboot, hence this comes in handy backup, when restart reason saved in IMEM is lost.
-config CX_VOTE_TURBO
-        bool "Set the Cx as Turbo mode during warmboot exit "
-        default n
-        help
-	   Say Y here if you want to set the Cx as Turbo mode
-
-comment "Samsung Rooting Restriction Feature"
-config SEC_RESTRICT_ROOTING
-	bool "Samsung Rooting Restriction Feature"
-	default n
-	help
-	  Restrict unauthorized executions with root permission.
-
-config SEC_RESTRICT_SETUID
-	bool "Restrict changing root privilege except allowed process"
-	depends on SEC_RESTRICT_ROOTING
-	default y
-	help
-	  Say Y here if you want to restrict functions related setuid. Only allowed
-	  process can chanage ROOT privilege. Saying N will not restrict changing
-	  permission.
-
-config SEC_RESTRICT_FORK
-	bool "Restrict forking process except allowed process"
-	depends on SEC_RESTRICT_ROOTING
-	default y
-	help
-	  Say Y here if you want to restrict function related fork. Process matched
-	  special condition will be not forked. Saying N will not restrict forking
-	  process.
-
-config SEC_RESTRICT_ROOTING_LOG
-	bool "Print restricted result to kernel log"
-	depends on SEC_RESTRICT_ROOTING
-	default n
-	help
-	   Say Y here if you want to see result of restricting SETUID or FORK. It will
-	   be displayed by kernel error log. Saying N will not be displayed anything.
-
 endmenu

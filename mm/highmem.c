@@ -28,11 +28,6 @@
 #include <linux/highmem.h>
 #include <linux/kgdb.h>
 #include <asm/tlbflush.h>
-#ifdef CONFIG_TIMA_RKP
-#include <asm/cp15.h>
-#include <asm/fixmap.h>
-#include <asm/pgtable.h>
-#endif
 
 
 #if defined(CONFIG_HIGHMEM) || defined(CONFIG_X86_32)
@@ -111,15 +106,6 @@ struct page *kmap_to_page(void *vaddr)
 	return virt_to_page(addr);
 }
 EXPORT_SYMBOL(kmap_to_page);
-
-#ifdef CONFIG_TIMA_RKP
-static int __init tima_init_kmap_atomic(void)
-{
-        tima_send_cmd(__fix_to_virt(FIX_KMAP_BEGIN), 0x3f810221);
-        return 1;
-}
-early_initcall(tima_init_kmap_atomic);
-#endif
 
 static void flush_all_zero_pkmaps(void)
 {

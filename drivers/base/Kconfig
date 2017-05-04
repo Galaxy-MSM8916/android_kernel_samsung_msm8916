@@ -234,13 +234,6 @@ config CMA_DEBUG
 	  processing calls such as dma_alloc_from_contiguous().
 	  This option does not affect warning and error messages.
 
-config CMA_PINPAGE_MIGRATION
-	bool "CMA pinned page migration (EXPERIMENTAL)"
-	depends on CMA
-	default n
-	help
-	  Turns on cma page migration for pinned page.
-
 comment "Default contiguous memory area size:"
 
 config CMA_SIZE_MBYTES

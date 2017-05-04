@@ -12,4 +12,4 @@
  * GNU General Public License for more details.
  */
 #define MOBICORE_COMPONENT_BUILD_TAG \
-	"t-base-QC-MSM8916-Android-301B-V002-35_35"
+	"t-base-Qualcomm-MSM8994-Android-301B-V001"

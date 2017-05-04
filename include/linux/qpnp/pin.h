@@ -177,9 +177,6 @@ struct qpnp_pin_cfg {
  * the qpnp_pin_map_gpio() API.
  */
 int qpnp_pin_config(int gpio, struct qpnp_pin_cfg *param);
-#ifdef CONFIG_SEC_PM_DEBUG
-void qpnp_debug_suspend_show(void);
-#endif
 
 /**
  * qpnp_pin_map - Obtain Linux GPIO number from device spec

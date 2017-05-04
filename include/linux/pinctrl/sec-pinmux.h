@@ -14,11 +14,6 @@
 
 #include <linux/bitops.h>
 
-#ifdef CONFIG_MST_LDO
-#define MST_GPIO_D_MINUS 20
-#define MST_GPIO_D_PLUS 21
-#endif
-
 enum msm_gpiomux_setting {
 	GPIOMUX_ACTIVE = 0,
 	GPIOMUX_SUSPENDED,
@@ -79,10 +74,6 @@ struct gpiomux_setting {
 	enum gpiomux_pull pull;
 	enum gpiomux_dir  dir;
 };
-
-#ifdef CONFIG_SEC_PM_DEBUG
-void msm_gpio_print_enabled(void);
-#endif
 
 void msm_tlmm_v4_get_gp_cfg(uint pin_no, struct gpiomux_setting *val);
 int msm_tlmm_v4_set_gp_cfg(uint pin_no, uint id, bool level);

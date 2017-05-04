@@ -155,19 +155,6 @@ static int ion_cma_mmap(struct ion_heap *mapper, struct ion_buffer *buffer,
 	struct device *dev = buffer->heap->priv;
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 
-	#ifdef CONFIG_TIMA_RKP
-        if (buffer->size) {
-        /* iommu optimization- needs to be turned ON from
-         * the tz side.
-         */
-                cpu_v7_tima_iommu_opt(vma->vm_start, vma->vm_end, (unsigned long)((unsigned long)vma->vm_mm->pgd));
-                __asm__ __volatile__ (
-                "mcr    p15, 0, r0, c8, c3, 0\n"
-                "dsb\n"
-                "isb\n");
-        }
-	#endif
-
 	if (info->is_cached)
 		return dma_mmap_nonconsistent(dev, vma, info->cpu_addr,
 				info->handle, buffer->size);

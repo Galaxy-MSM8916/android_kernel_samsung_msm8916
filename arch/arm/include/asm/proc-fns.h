@@ -15,9 +15,7 @@
 
 #include <asm/glue-proc.h>
 #include <asm/page.h>
-#ifdef CONFIG_TIMA_RKP_L2_TABLES
-#include <asm/cp15.h>
-#endif
+
 #ifndef __ASSEMBLY__
 
 struct mm_struct;
@@ -71,9 +69,6 @@ extern struct processor {
 	void (*set_pte_ext)(pte_t *ptep, pte_t pte);
 #else
 	void (*set_pte_ext)(pte_t *ptep, pte_t pte, unsigned int ext);
-#ifdef CONFIG_TIMA_RKP_L2_TABLES
-	void (*tima_set_pte_ext)(pte_t *ptep, pte_t pte, unsigned int ext, unsigned long ptep_phys);
-#endif
 #endif
 
 	/* Suspend/resume */
@@ -92,9 +87,6 @@ extern void cpu_do_switch_mm(unsigned long pgd_phys, struct mm_struct *mm);
 extern void cpu_set_pte_ext(pte_t *ptep, pte_t pte);
 #else
 extern void cpu_set_pte_ext(pte_t *ptep, pte_t pte, unsigned int ext);
-# ifdef CONFIG_TIMA_RKP_L2_TABLES
-extern void cpu_tima_set_pte_ext(pte_t *ptep, pte_t pte, unsigned int ext, unsigned long ptep_phys);
-# endif
 #endif
 extern void cpu_reset(unsigned long addr) __attribute__((noreturn));
 
@@ -121,24 +113,7 @@ extern void cpu_resume(void);
 
 #ifdef CONFIG_MMU
 
-static inline void cpu_switch_mm(pgd_t *pgd,struct mm_struct *mm)
-{
-#ifdef CONFIG_TIMA_RKP
-#define TTB_S		(1 << 1)
-#define TTB_IRGN_WBWA	((0 << 0) | (1 << 6))
-#define TTB_RGN_OC_WBWA	(1 << 3)
-#define TTB_NOS		(1 << 5)
-#define TTB_FLAGS_SMP	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA
-	unsigned int ttbr0_val = virt_to_phys(pgd) | TTB_FLAGS_SMP;
-	cpu_do_switch_mm(virt_to_phys(pgd),mm);
-	tima_send_cmd(ttbr0_val, 0x3f803221);
-	asm volatile ("isb\n"
-			:::);
-	tima_tlb_inval_is(0);
-#else
-	cpu_do_switch_mm(virt_to_phys(pgd),mm);
-#endif /* CONFIG_TIMA_RKP */
-}
+#define cpu_switch_mm(pgd,mm) cpu_do_switch_mm(virt_to_phys(pgd),mm)
 
 #ifdef CONFIG_ARM_LPAE
 #define cpu_get_pgd()	\

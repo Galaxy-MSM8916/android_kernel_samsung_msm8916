@@ -275,18 +275,40 @@ static void get_speed_bin_b(struct platform_device *pdev, int *bin,
 {
 	struct resource *res;
 	void __iomem *base;
-	u32 pte_efuse;
+	u32 pte_efuse, shift = 2, mask = 0x7;
 
 	*bin = 0;
 	*version = 0;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "efuse");
-	if (!res) {
-			dev_info(&pdev->dev,
-				"No speed/PVS binning available. Defaulting to 0!\n");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "efuse1");
+	if (res) {
+		base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+		if (base) {
+			pte_efuse = readl_relaxed(base);
+			devm_iounmap(&pdev->dev, base);
+
+			*version = (pte_efuse >> 18) & 0x3;
+			if (!(*version)) {
+				*bin = (pte_efuse >> 23) & 0x3;
+				if (*bin) {
+					dev_info(&pdev->dev, "Speed bin: %d PVS Version: %d\n",
+						      *bin, *version);
+					return;
+				}
+			}
+		} else {
+			dev_warn(&pdev->dev,
+				"Unable to read efuse1 data. Defaulting to 0!\n");
 			return;
 		}
+	}
 
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "efuse");
+	if (!res) {
+		dev_info(&pdev->dev,
+				"No speed/PVS binning available. Defaulting to 0!\n");
+		return;
+	}
 	base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!base) {
 		dev_warn(&pdev->dev,
@@ -297,7 +319,7 @@ static void get_speed_bin_b(struct platform_device *pdev, int *bin,
 	pte_efuse = readl_relaxed(base);
 	devm_iounmap(&pdev->dev, base);
 
-	*bin = (pte_efuse >> 2) & 0x7;
+	*bin = (pte_efuse >> shift) & mask;
 
 	dev_info(&pdev->dev, "Speed bin: %d PVS Version: %d\n", *bin,
 								*version);

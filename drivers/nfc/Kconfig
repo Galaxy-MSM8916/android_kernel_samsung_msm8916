@@ -37,7 +37,10 @@ config NFC_MEI_PHY
 	  If unsure, say N.
 
 source "drivers/nfc/pn544/Kconfig"
+source "drivers/nfc/microread/Kconfig"
+
 source "drivers/nfc/felica/Kconfig"
+
 endmenu
 
 config NFC_QNCI

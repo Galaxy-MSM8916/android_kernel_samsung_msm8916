@@ -1265,53 +1265,6 @@ static int check_unsafe_exec(struct linux_binprm *bprm)
 	return res;
 }
 
-static void bprm_fill_uid(struct linux_binprm *bprm)
-{
-	struct inode *inode;
-	unsigned int mode;
-	kuid_t uid;
-	kgid_t gid;
-
-	/* clear any previous set[ug]id data from a previous binary */
-	bprm->cred->euid = current_euid();
-	bprm->cred->egid = current_egid();
-
-	if (bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID)
-		return;
-
-	if (task_no_new_privs(current))
-		return;
-
-	inode = file_inode(bprm->file);
-	mode = ACCESS_ONCE(inode->i_mode);
-	if (!(mode & (S_ISUID|S_ISGID)))
-		return;
-
-	/* Be careful if suid/sgid is set */
-	mutex_lock(&inode->i_mutex);
-
-	/* reload atomically mode/uid/gid now that lock held */
-	mode = inode->i_mode;
-	uid = inode->i_uid;
-	gid = inode->i_gid;
-	mutex_unlock(&inode->i_mutex);
-
-	/* We ignore suid/sgid if there are no mappings for them in the ns */
-	if (!kuid_has_mapping(bprm->cred->user_ns, uid) ||
-			!kgid_has_mapping(bprm->cred->user_ns, gid))
-		return;
-
-	if (mode & S_ISUID) {
-		bprm->per_clear |= PER_CLEAR_ON_SETID;
-		bprm->cred->euid = uid;
-	}
-
-	if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
-		bprm->per_clear |= PER_CLEAR_ON_SETID;
-		bprm->cred->egid = gid;
-	}
-}
-
 /* 
  * Fill the binprm structure from the inode. 
  * Check permissions, then read the first 128 (BINPRM_BUF_SIZE) bytes
@@ -1320,12 +1273,40 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
  */
 int prepare_binprm(struct linux_binprm *bprm)
 {
+	umode_t mode;
+	struct inode * inode = file_inode(bprm->file);
 	int retval;
 
+	mode = inode->i_mode;
 	if (bprm->file->f_op == NULL)
 		return -EACCES;
 
-	bprm_fill_uid(bprm);
+	/* clear any previous set[ug]id data from a previous binary */
+	bprm->cred->euid = current_euid();
+	bprm->cred->egid = current_egid();
+
+	if (!(bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID) &&
+	    !task_no_new_privs(current) &&
+	    kuid_has_mapping(bprm->cred->user_ns, inode->i_uid) &&
+	    kgid_has_mapping(bprm->cred->user_ns, inode->i_gid)) {
+		/* Set-uid? */
+		if (mode & S_ISUID) {
+			bprm->per_clear |= PER_CLEAR_ON_SETID;
+			bprm->cred->euid = inode->i_uid;
+		}
+
+		/* Set-gid? */
+		/*
+		 * If setgid is set but no group execute bit then this
+		 * is a candidate for mandatory locking, not a setgid
+		 * executable.
+		 */
+		if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
+			bprm->per_clear |= PER_CLEAR_ON_SETID;
+			bprm->cred->egid = inode->i_gid;
+		}
+	}
+
 	/* fill in binprm security blob */
 	retval = security_bprm_set_creds(bprm);
 	if (retval)
@@ -1469,132 +1450,6 @@ int search_binary_handler(struct linux_binprm *bprm)
 }
 
 EXPORT_SYMBOL(search_binary_handler);
-
-#if defined CONFIG_SEC_RESTRICT_FORK
-#if defined CONFIG_SEC_RESTRICT_ROOTING_LOG
-#define PRINT_LOG(...)	printk(KERN_ERR __VA_ARGS__)
-#else
-#define PRINT_LOG(...)
-#endif	// End of CONFIG_SEC_RESTRICT_ROOTING_LOG
-
-#define CHECK_ROOT_UID(x) (x->cred->uid == 0 || x->cred->gid == 0 || \
-			x->cred->euid == 0 || x->cred->egid == 0 || \
-			x->cred->suid == 0 || x->cred->sgid == 0)
-
-/*  sec_check_execpath
-    return value : give task's exec path is matched or not
-*/
-int sec_check_execpath(struct mm_struct *mm, char *denypath)
-{
-	struct file *exe_file;
-	char *path, *pathbuf = NULL;
-	unsigned int path_length = 0, denypath_length = 0;
-	int ret = 0;
-
-	if (mm == NULL)
-		return 0;
-
-	if (!(exe_file = get_mm_exe_file(mm))) {
-		PRINT_LOG("Cannot get exe from task->mm.\n");
-		goto out_nofile;
-	}
-
-	if (!(pathbuf = kmalloc(PATH_MAX, GFP_TEMPORARY))) {
-		PRINT_LOG("failed to kmalloc for pathbuf\n");
-		goto out;
-	}
-
-	path = d_path(&exe_file->f_path, pathbuf, PATH_MAX);
-	if (IS_ERR(path)) {
-		PRINT_LOG("Error get path..\n");
-		goto out;
-	}
-
-	path_length = strlen(path);
-	denypath_length = strlen(denypath);
-
-	if (!strncmp(path, denypath, (path_length < denypath_length) ?
-				path_length : denypath_length)) {
-		ret = 1;
-	}
-out:
-	fput(exe_file);
-out_nofile:
-	if (pathbuf)
-		kfree(pathbuf);
-
-	return ret;
-}
-EXPORT_SYMBOL(sec_check_execpath);
-
-static int sec_restrict_fork(void)
-{
-	struct cred *shellcred;
-	int ret = 0;
-	struct task_struct *parent_tsk;
-	struct mm_struct *parent_mm = NULL;
-	const struct cred *parent_cred;
-
-	read_lock(&tasklist_lock);
-	parent_tsk = current->parent;
-	if (!parent_tsk) {
-		read_unlock(&tasklist_lock);
-		return 0;
-	}
-
-	get_task_struct(parent_tsk);
-	/* holding on to the task struct is enough so just release
-	 * the tasklist lock here */
-	read_unlock(&tasklist_lock);
-
-	if (current->pid == 1 || parent_tsk->pid == 1)
-		goto out;
-
-	/* get current->parent's mm struct to access it's mm
-	 * and to keep it alive */
-	parent_mm = get_task_mm(parent_tsk);
-
-	if (current->mm == NULL || parent_mm == NULL)
-		goto out;
-
-	if (sec_check_execpath(parent_mm, "/sbin/adbd")) {
-		shellcred = prepare_creds();
-		if (!shellcred) {
-			ret = 1;
-			goto out;
-		}
-
-		shellcred->uid = 2000;
-		shellcred->gid = 2000;
-		shellcred->euid = 2000;
-		shellcred->egid = 2000;
-		commit_creds(shellcred);
-		ret = 0;
-		goto out;
-	}
-
-	if (sec_check_execpath(current->mm, "/data/")) {
-		ret = 1;
-		goto out;
-	}
-
-	parent_cred = get_task_cred(parent_tsk);
-	if (!parent_cred)
-		goto out;
-	if (!CHECK_ROOT_UID(parent_tsk))
-	{
-		ret = 1;
-	}
-	put_cred(parent_cred);
-out:
-	if (parent_mm)
-		mmput(parent_mm);
-	put_task_struct(parent_tsk);
-
-	return ret;
-}
-#endif	/* End of CONFIG_SEC_RESTRICT_FORK */
-
 
 /*
  * sys_execve() executes a new program.
@@ -1833,19 +1688,6 @@ SYSCALL_DEFINE3(execve,
 	struct filename *path = getname(filename);
 	int error = PTR_ERR(path);
 	if (!IS_ERR(path)) {
-
-#if defined CONFIG_SEC_RESTRICT_FORK
-		if(CHECK_ROOT_UID(current)){
-			if(sec_restrict_fork()){
-				PRINT_LOG("Restricted making process. PID = %d(%s) "
-								"PPID = %d(%s)\n",
-				current->pid, current->comm,
-				current->parent->pid, current->parent->comm);
-				return -EACCES;
-			}
-		}
-#endif	// End of CONFIG_SEC_RESTRICT_FORK
-
 		error = do_execve(path->name, argv, envp);
 		putname(path);
 	}

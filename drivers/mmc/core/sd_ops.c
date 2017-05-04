@@ -187,13 +187,6 @@ int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	if (rocr && !mmc_host_is_spi(host))
 		*rocr = cmd.resp[0];
 
-	if (err == -ETIMEDOUT) {
-		pr_err("%s: CMD%u: %d: %08x %08x %08x %08x\n",
-				mmc_hostname(host), cmd.opcode, err,
-				cmd.resp[0], cmd.resp[1],
-				cmd.resp[2], cmd.resp[3]);
-	}
-
 	return err;
 }
 

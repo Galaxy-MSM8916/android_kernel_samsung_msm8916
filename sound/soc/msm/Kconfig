@@ -265,7 +265,7 @@ config SND_SOC_MSM8X16
 	select SND_DYNAMIC_MINORS
 	select QTI_PP
 	select DTS_SRS_TM
-#	select DOLBY_DAP # removed by samsung due to not use.
+	select DOLBY_DAP
 	select DOLBY_DS2
 	select MSM_QDSP6_APRV3
 	select MSM_QDSP6V2_CODECS
@@ -291,7 +291,7 @@ config SND_SOC_MSM8909
 	select SND_DYNAMIC_MINORS
 	select QTI_PP
 	select DTS_SRS_TM
-#	select DOLBY_DAP
+	select DOLBY_DAP
 	select MSM_QDSP6_APRV3
 	select MSM_QDSP6V2_CODECS
 	select SND_SOC_CPE
@@ -356,6 +356,7 @@ config SND_SOC_MSMZIRC
 	 interfaces with DSP, also it will enable
 	 the machine drivers and the corresponding
 	 DAI-links.
+
 config SAMSUNG_AUDIO
 	tristate "samsung audio feature"
 	help

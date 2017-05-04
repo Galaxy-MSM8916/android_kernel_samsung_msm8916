@@ -563,6 +563,7 @@ static int msm_restart_probe(struct platform_device *pdev)
 		if (!emergency_dload_mode_addr)
 			pr_err("unable to map imem EDLOAD mode offset\n");
 	}
+
 #endif
 #ifndef CONFIG_SEC_DEBUG
 	np = of_find_compatible_node(NULL, NULL,

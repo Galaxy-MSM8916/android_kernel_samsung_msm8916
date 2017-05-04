@@ -279,32 +279,6 @@ static inline void cpumask_clear_cpu(int cpu, struct cpumask *dstp)
 #define cpumask_test_cpu(cpu, cpumask) \
 	test_bit(cpumask_check(cpu), cpumask_bits((cpumask)))
 
-extern int is_boot_complete(void);
-
-/*To enable the mask only for little cluster cores*/
-#ifdef CONFIG_ARCH_MSM8939
-
-#define get_low_pwr_cpu1() 5
-
-#define get_low_pwr_cpu2() 6
-
-static inline void cpumask_little(struct cpumask *dstp)
-{
-	clear_bit(cpumask_check(4), cpumask_bits(dstp));
-	clear_bit(cpumask_check(5), cpumask_bits(dstp));
-	clear_bit(cpumask_check(6), cpumask_bits(dstp));
-	clear_bit(cpumask_check(7), cpumask_bits(dstp));
-}
-
-#define cpu_mask_little(dstp)\
-	cpumask_little(dstp)
-#else
-
-#define get_low_pwr_cpu1() ( WORK_CPU_UNBOUND )
-
-#define get_low_pwr_cpu2() ( WORK_CPU_UNBOUND )
-
-#endif
 /**
  * cpumask_test_and_set_cpu - atomically test and set a cpu in a cpumask
  * @cpu: cpu number (< nr_cpu_ids)

@@ -33,7 +33,7 @@ static LIST_HEAD(clk_list);
 static DEFINE_MUTEX(clk_list_lock);
 
 static struct dentry *debugfs_base;
-static u32 debug_suspend = 1;
+static u32 debug_suspend;
 
 static int clock_debug_rate_set(void *data, u64 val)
 {

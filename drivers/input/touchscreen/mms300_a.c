@@ -50,22 +50,6 @@
 #include <asm/mach-types.h>
 #include <linux/delay.h>
 
-#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
-#include <linux/cpufreq.h>
-#define TOUCH_BOOSTER_DVFS
-#define TSP_GLOVE_MODE
-#define TSP_SVIEW_COVER_MODE
-#define COVER_OPEN 0
-#define COVER_GLOVE 1
-#define COVER_CLOSED 3
-
-#define DVFS_STAGE_TRIPLE       3
-
-#define DVFS_STAGE_DUAL         2
-#define DVFS_STAGE_SINGLE       1
-#define DVFS_STAGE_NONE         0
-#endif
-
 /* #include <mach/dev.h> */
 
 #include <linux/regulator/consumer.h>

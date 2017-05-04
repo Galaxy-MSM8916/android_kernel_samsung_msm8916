@@ -15,6 +15,9 @@
 #define _MC_PM_H_
 
 #include "main.h"
+#ifdef MC_BL_NOTIFIER
+#include <asm/bL_switcher.h>
+#endif
 
 
 #define NO_SLEEP_REQ	0

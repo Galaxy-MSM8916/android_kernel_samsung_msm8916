@@ -132,32 +132,6 @@ static inline void wakelocks_lru_most_recent(struct wakelock *wl) {}
 static inline void wakelocks_gc(void) {}
 #endif /* !CONFIG_PM_WAKELOCKS_GC */
 
-#ifdef CONFIG_SEC_PM_DEBUG
-#define LONG_WAKELOCK_TIME_SEC	5000
-
-static void print_long_wakelock(struct wakeup_source *ws)
-{
-	unsigned long flags;
-	ktime_t active_time;
-
-	spin_lock_irqsave(&ws->lock, flags);
-
-	if (ws->active) {
-		ktime_t now = ktime_get();
-
-		active_time = ktime_sub(now, ws->last_time);
-	} else {
-		active_time = ktime_set(0, 0);
-	}
-
-	spin_unlock_irqrestore(&ws->lock, flags);
-
-	if ( ktime_to_ms(active_time) > LONG_WAKELOCK_TIME_SEC ) {
-		pr_info("@Unlock %s(%lld ms)\n",
-			ws->name, ktime_to_ms(active_time));
-	}
-}
-#endif
 static struct wakelock *wakelock_lookup_add(const char *name, size_t len,
 					    bool add_if_not_found)
 {
@@ -281,9 +255,6 @@ int pm_wake_unlock(const char *buf)
 		ret = PTR_ERR(wl);
 		goto out;
 	}
-#ifdef CONFIG_SEC_PM_DEBUG
-	print_long_wakelock(&wl->ws);
-#endif
 	__pm_relax(&wl->ws);
 
 	wakelocks_lru_most_recent(wl);

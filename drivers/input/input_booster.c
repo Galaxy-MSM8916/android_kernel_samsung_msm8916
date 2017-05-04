@@ -16,14 +16,12 @@
 
 #include <linux/input/input_booster.h>
 
-#ifndef CONFIG_CPU_FREQ_LIMIT_USERSPACE
 #define DVFS_TOUCH_ID	0
 int set_freq_limit(unsigned long id, unsigned int freq)
 {
 	pr_err("%s is not yet implemented\n", __func__);
 	return 0;
 }
-#endif
 
 static struct input_booster_data *g_data;
 

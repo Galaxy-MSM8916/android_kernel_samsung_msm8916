@@ -84,7 +84,6 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	switch (parm->eaction) {
 	case TCA_EGRESS_MIRROR:
 	case TCA_EGRESS_REDIR:
-	case TCA_INGRESS_REDIR:
 		break;
 	default:
 		return -EINVAL;
@@ -181,38 +180,24 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 		goto out;
 	}
 
+	at = G_TC_AT(skb->tc_verd);
 	skb2 = skb_act_clone(skb, GFP_ATOMIC, m->tcf_action);
 	if (skb2 == NULL)
 		goto out;
 
-        if (m->tcfm_eaction == TCA_INGRESS_REDIR) {
-                /* Let's _hope_ the devices are of similar type.
-                 * This is rather dangerous; with changed skb_iif, we
-                 * will not know the real input device, but perhaps
-                 * that's the whole point of doing the ingress
-                 * redirect/mirror in the first place?  (Note: This
-                 * can lead to bad things if two devices ingress
-                 * redirect at each other. Don't do that.)*/
-                skb2->dev = dev;
-                skb2->skb_iif = skb2->dev->ifindex;
-                skb2->pkt_type = PACKET_HOST;
-                netif_rx(skb2);
-        } else {
-                at = G_TC_AT(skb->tc_verd);
-                if (!(at & AT_EGRESS)) {
-                        if (m->tcfm_ok_push) {
-			        skb_push(skb2, skb2->dev->hard_header_len);
-                        }
-                }
+	if (!(at & AT_EGRESS)) {
+		if (m->tcfm_ok_push)
+			skb_push(skb2, skb2->dev->hard_header_len);
+	}
 
-                /* mirror is always swallowed */
-                if (m->tcfm_eaction != TCA_EGRESS_MIRROR)
-		        skb2->tc_verd = SET_TC_FROM(skb2->tc_verd, at);
+	/* mirror is always swallowed */
+	if (m->tcfm_eaction != TCA_EGRESS_MIRROR)
+		skb2->tc_verd = SET_TC_FROM(skb2->tc_verd, at);
 
-                skb2->skb_iif = skb->dev->ifindex;
-                skb2->dev = dev;
-                err = dev_queue_xmit(skb2);
-        }
+	skb2->skb_iif = skb->dev->ifindex;
+	skb2->dev = dev;
+	err = dev_queue_xmit(skb2);
+
 out:
 	if (err) {
 		m->tcf_qstats.overlimits++;

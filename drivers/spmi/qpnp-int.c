@@ -37,19 +37,6 @@
 /* This value is guaranteed not to be valid for private data */
 #define QPNPINT_INVALID_DATA	0x80000000
 
-#ifdef CONFIG_SEC_PM_DEBUG
-enum {
-	MSM_QPNP_INT_DBG_DISABLED = 0,
-	MSM_QPNP_INT_DBG_SHOW_IRQ = BIT(0),
-};
-
-int msm_qpnp_int_debug_mask = MSM_QPNP_INT_DBG_DISABLED;
-
-module_param_named(
-	debug_mask, msm_qpnp_int_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP
-);
-#endif
-
 enum qpnpint_regs {
 	QPNPINT_REG_RT_STS		= 0x10,
 	QPNPINT_REG_SET_TYPE		= 0x11,
@@ -643,22 +630,6 @@ static int __qpnpint_handle_irq(struct spmi_controller *spmi_ctrl,
 	domain = chip_lookup[busno]->domain;
 	irq = irq_find_mapping(domain, hwirq);
 
-#ifdef CONFIG_SEC_PM_DEBUG
-	if (msm_qpnp_int_debug_mask & MSM_QPNP_INT_DBG_SHOW_IRQ) {
-		struct irq_desc *desc;
-		const char *name = "null";
-
-		desc = irq_to_desc(irq);
-		if (desc == NULL)
-			name = "stray irq";
-		else if (desc->action && desc->action->name)
-			name = desc->action->name;
-
-		pr_info("%d triggered [0x%01x, 0x%02x,0x%01x] %s\n",
-				irq, spec->slave, spec->per, spec->irq, name);
-	}
-#endif
-
 	if (show) {
 		struct irq_desc *desc;
 		const char *name = "null";
@@ -671,10 +642,6 @@ static int __qpnpint_handle_irq(struct spmi_controller *spmi_ctrl,
 
 		pr_warn("%d triggered [0x%01x, 0x%02x,0x%01x] %s\n",
 				irq, spec->slave, spec->per, spec->irq, name);
-#ifdef CONFIG_SEC_PM_DEBUG
-		log_wakeup_reason(irq);
-		update_wakeup_reason_stats(irq);
-#endif
 	} else {
 		generic_handle_irq(irq);
 	}

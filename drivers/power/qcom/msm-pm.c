@@ -45,10 +45,6 @@
 #include "pm-boot.h"
 #include "../../../arch/arm/mach-msm/clock.h"
 
-#ifdef CONFIG_SEC_DEBUG
-#include <linux/sec_debug.h>
-#endif
-
 #define SCM_CMD_TERMINATE_PC	(0x2)
 #define SCM_CMD_CORE_HOTPLUGGED (0x10)
 #define SCM_FLUSH_FLAG_MASK	(0x3)
@@ -273,20 +269,12 @@ static bool __ref msm_pm_spm_power_collapse(
 
 	msm_jtag_save_state();
 
-#ifdef CONFIG_SEC_DEBUG
-        secdbg_sched_msg("+pc(I:%d,R:%d)", from_idle, notify_rpm);
-#endif
-
 #ifdef CONFIG_CPU_V7
 	collapsed = save_cpu_regs ?
 		!cpu_suspend(0, msm_pm_collapse) : msm_pm_pc_hotplug();
 #else
 	collapsed = save_cpu_regs ?
 		!cpu_suspend(0) : msm_pm_pc_hotplug();
-#endif
-
-#ifdef CONFIG_SEC_DEBUG
-        secdbg_sched_msg("-pc(%d)", collapsed);
 #endif
 
 	msm_jtag_restore_state();
@@ -484,13 +472,12 @@ int msm_pm_wait_cpu_shutdown(unsigned int cpu)
 
 		udelay(100);
 		/*
-		 * Dump spm registers for debugging, increase timeout
+		 * Dump spm registers for debugging
 		 */
-		if (++timeout == 70) {
+		if (++timeout == 20) {
 			msm_spm_dump_regs(cpu);
-			__WARN_printf("CPU%u didn't collapse in 7ms, sleep status: 0x%x\n",
+			__WARN_printf("CPU%u didn't collapse in 2ms, sleep status: 0x%x\n",
 					cpu, acc_sts);
-			BUG();
 		}
 	}
 

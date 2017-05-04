@@ -1,4 +1,4 @@
-		     THE LINUX/x86 BOOT PROTOCOL
+THE LINUX/x86 BOOT PROTOCOL
 		     ---------------------------
 
 On the x86 platform, the Linux kernel uses a rather complicated boot

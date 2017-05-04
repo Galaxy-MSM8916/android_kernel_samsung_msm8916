@@ -318,7 +318,6 @@ struct wcd_mbhc_cb {
 	void (*compute_impedance)(struct wcd_mbhc *, uint32_t *, uint32_t *);
 	void (*set_micbias_value) (struct snd_soc_codec *);
 	void (*set_auto_zeroing) (struct snd_soc_codec *, bool);
-	void (*skip_imped_detect)(struct snd_soc_codec *);
 	struct firmware_cal * (*get_hwdep_fw_cal)(struct snd_soc_codec *,
 			enum wcd_cal_type);
 	void (*set_cap_mode)(struct snd_soc_codec *, bool, bool);
@@ -347,6 +346,7 @@ struct wcd_mbhc_cb {
 				    enum mbhc_hs_pullup_iref);
 	int (*mbhc_micbias_control)(struct snd_soc_codec *, int req);
 	void (*mbhc_micb_ramp_control)(struct snd_soc_codec *, bool);
+	void (*skip_imped_detect)(struct snd_soc_codec *);
 	bool (*extn_use_mb)(struct snd_soc_codec *);
 	int (*mbhc_micb_ctrl_thr_mic)(struct snd_soc_codec *, int, bool);
 	void (*mbhc_gnd_det_ctrl)(struct snd_soc_codec *, bool);

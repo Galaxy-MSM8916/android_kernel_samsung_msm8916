@@ -124,12 +124,8 @@ static int mdss_mdp_writeback_addr_setup(struct mdss_mdp_writeback_ctx *ctx,
 		data.bwc_enabled = 1;
 
 	ret = mdss_mdp_data_check(&data, &ctx->dst_planes);
-	if (ret) {
-		pr_err("wh=%dx%d\n",
-		ctx->width, ctx->height);
-		pr_err("Format: ctx->dst_fmt->format = %d\n", ctx->dst_fmt->format);
+	if (ret)
 		return ret;
-	}
 
 	mdss_mdp_data_calc_offset(&data, ctx->dst_rect.x, ctx->dst_rect.y,
 			&ctx->dst_planes, ctx->dst_fmt);

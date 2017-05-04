@@ -14,10 +14,6 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/pinctrl/sec-pinmux.h>
-#ifdef CONFIG_SEC_PM_DEBUG
-#include <linux/gpio.h>
-#include <linux/debugfs.h>
-#endif
 #ifdef CONFIG_SEC_GPIO_DVS
 #include <linux/errno.h>
 #include <linux/secgpio_dvs.h>
@@ -25,9 +21,6 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #endif
 
-#ifdef CONFIG_SEC_PM_DEBUG
-static DEFINE_SPINLOCK(gpiomux_lock);
-#endif
 static unsigned msm_gpiomux_ngpio;
 #ifdef CONFIG_SEC_GPIO_DVS
 /****************************************************************/
@@ -88,10 +81,6 @@ static void msm8916_check_gpio_status(unsigned char phonestate)
 	for (i = 0; i < AP_GPIO_COUNT; i++) {
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
 		if (i >= CONFIG_SENSORS_FP_SPI_GPIO_START && i <= CONFIG_SENSORS_FP_SPI_GPIO_END)
-			continue;
-#endif
-#ifdef CONFIG_MST_LDO
-		if (i == MST_GPIO_D_MINUS || i == MST_GPIO_D_PLUS)
 			continue;
 #endif
 #if (defined (CONFIG_SEC_A8_PROJECT) && defined (CONFIG_ESE_P61)) \
@@ -276,163 +265,6 @@ static struct gpio_dvs msm8916_gpio_dvs = {
 #endif
 };
 /****************************************************************/
-#endif
-
-#ifdef CONFIG_SEC_PM_DEBUG
-static const char * const gpiomux_drv_str[] = {
-	"DRV_2mA",
-	"DRV_4mA",
-	"DRV_6mA",
-	"DRV_8mA",
-	"DRV_10mA",
-	"DRV_12mA",
-	"DRV_14mA",
-	"DRV_16mA",
-};
-
-static const char * const gpiomux_func_str[] = {
-	"GPIO",
-	"Func_1",
-	"Func_2",
-	"Func_3",
-	"Func_4",
-	"Func_5",
-	"Func_6",
-	"Func_7",
-	"Func_8",
-	"Func_9",
-	"Func_a",
-	"Func_b",
-	"Func_c",
-	"Func_d",
-	"Func_e",
-	"Func_f",
-};
-
-static const char * const gpiomux_pull_str[] = {
-	"PULL_NONE",
-	"PULL_DOWN",
-	"PULL_KEEPER",
-	"PULL_UP",
-};
-
-static const char * const gpiomux_dir_str[] = {
-	"IN",
-	"OUT_HIGH",
-	"OUT_LOW",
-};
-
-static const char * const gpiomux_val_str[] = {
-	"VAL_LOW",
-	"NULL",
-	"VAL_HIGH",
-};
-
-static const char * const gpiomux_in_val_str[] = {
-	"VAL_LOW",
-	"VAL_HIGH",
-};
-
-static void gpiomux_debug_print(struct seq_file *m)
-{
-	unsigned long flags;
-	struct gpiomux_setting set;
-	unsigned val = 0;
-	unsigned gpio;
-	unsigned begin = 0;
-
-	spin_lock_irqsave(&gpiomux_lock, flags);
-
-	for (gpio = begin; gpio < msm_gpiomux_ngpio; ++gpio) {
-#ifdef ENABLE_SENSORS_FPRINT_SECURE
-		if (gpio >= CONFIG_SENSORS_FP_SPI_GPIO_START && gpio <= CONFIG_SENSORS_FP_SPI_GPIO_END)
-			continue;
-#endif
-#ifdef CONFIG_MST_LDO
-		if (gpio == MST_GPIO_D_MINUS || gpio == MST_GPIO_D_PLUS)
-			continue;
-#endif
-#if (defined (CONFIG_SEC_A8_PROJECT) && defined (CONFIG_ESE_P61)) \
-	|| (defined (CONFIG_SEC_A7X_PROJECT) && defined (CONFIG_ESE_P3)) \
-	|| (defined (CONFIG_SEC_A5X_PROJECT) && defined (CONFIG_ESE_P3))
-		if (gpio >= 0 && gpio <= 3)
-			continue;
-#endif
-		msm_tlmm_v4_get_gp_cfg(gpio, &set);
-		if (set.dir) {
-			val = msm_tlmm_v4_get_gp_value(gpio);
-			if (IS_ERR_OR_NULL(m))
-				pr_info("GPIO[%u] \t%s \t%s \t%s \t%s \t%s\n",
-					gpio,
-					gpiomux_func_str[set.func],
-					gpiomux_dir_str[set.dir],
-					gpiomux_pull_str[set.pull],
-					gpiomux_drv_str[set.drv],
-					gpiomux_val_str[val]);
-			else
-				seq_printf(m, "GPIO[%u] \t%s \t%s \t%s \t%s \t%s\n",
-						gpio,
-						gpiomux_func_str[set.func],
-						gpiomux_dir_str[set.dir],
-						gpiomux_pull_str[set.pull],
-						gpiomux_drv_str[set.drv],
-						gpiomux_val_str[val]);
-
-		} else {
-			val = msm_tlmm_v4_get_gp_input_value(gpio);
-			if (IS_ERR_OR_NULL(m))
-				pr_info("GPIO[%u] \t%s \t%s \t%s \t%s \t%s\n",
-					gpio,
-					gpiomux_func_str[set.func],
-					gpiomux_dir_str[set.dir],
-					gpiomux_pull_str[set.pull],
-					gpiomux_drv_str[set.drv],
-					gpiomux_in_val_str[val]);
-			else
-				seq_printf(m, "GPIO[%u] \t%s \t%s \t%s \t%s \t%s\n",
-					gpio,
-					gpiomux_func_str[set.func],
-					gpiomux_dir_str[set.dir],
-					gpiomux_pull_str[set.pull],
-					gpiomux_drv_str[set.drv],
-					gpiomux_in_val_str[val]);
-		}
-
-	}
-
-	spin_unlock_irqrestore(&gpiomux_lock, flags);
-}
-
-void msm_gpio_print_enabled(void)
-{
-	gpiomux_debug_print(NULL);
-}
-
-static int gpiomux_debug_showall(struct seq_file *m, void *unused)
-{
-	gpiomux_debug_print(m);
-	return 0;
-}
-
-static int gpiomux_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, gpiomux_debug_showall, inode->i_private);
-}
-
-static const struct file_operations gpiomux_operations = {
-	.open		= gpiomux_debug_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-static int __init msm_gpiomux_debug_init(void)
-{
-	(void) debugfs_create_file("gpiomux", S_IFREG | S_IRUGO,
-				NULL, NULL, &gpiomux_operations);
-	return 0;
-}
-late_initcall(msm_gpiomux_debug_init);
 #endif
 
 static int __init msm_gpiomux_init(void)

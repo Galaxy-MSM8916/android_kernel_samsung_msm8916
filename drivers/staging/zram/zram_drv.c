@@ -68,11 +68,13 @@ static int zram_show_mem_notifier(struct notifier_block *nb,
 
 		if (zram->init_done) {
 			u64 val;
+			u64 data_size;
 
-			val = zs_get_total_pages(meta->mem_pool);
-			pr_info("Zram[%d] mem_used_total = %llu\n", i, val << PAGE_SHIFT);
+			val = zs_get_total_size_bytes(meta->mem_pool);
+			data_size = atomic64_read(&zram->stats.compr_size);
+			pr_info("Zram[%d] mem_used_total = %llu\n", i, val);
 			pr_info("Zram[%d] compr_data_size = %llu\n", i,
-				atomic64_read(&zram->stats.compr_size));
+				(unsigned long long)data_size);
 			pr_info("Zram[%d] orig_data_size = %u\n", i,
 				zram->stats.pages_stored);
 		}
@@ -179,10 +181,10 @@ static ssize_t mem_used_total_show(struct device *dev,
 
 	down_read(&zram->init_lock);
 	if (zram->init_done)
-		val = zs_get_total_pages(meta->mem_pool);
+		val = zs_get_total_size_bytes(meta->mem_pool);
 	up_read(&zram->init_lock);
 
-	return sprintf(buf, "%llu\n", val << PAGE_SHIFT);
+	return sprintf(buf, "%llu\n", val);
 }
 
 static int zram_test_flag(struct zram_meta *meta, u32 index,
@@ -241,10 +243,9 @@ static void zram_meta_free(struct zram_meta *meta)
 	kfree(meta);
 }
 
-static struct zram_meta *zram_meta_alloc(int device_id, u64 disksize)
+static struct zram_meta *zram_meta_alloc(u64 disksize)
 {
 	size_t num_pages;
-	char pool_name[8];
 	struct zram_meta *meta = kmalloc(sizeof(*meta), GFP_KERNEL);
 	if (!meta)
 		goto out;
@@ -267,9 +268,8 @@ static struct zram_meta *zram_meta_alloc(int device_id, u64 disksize)
 		goto free_buffer;
 	}
 
-	snprintf(pool_name, sizeof(pool_name), "zram%d", device_id);
-	meta->mem_pool = zs_create_pool(pool_name, GFP_NOIO | __GFP_HIGHMEM |
-					__GFP_NOWARN, NULL);
+	meta->mem_pool = zs_create_pool(GFP_NOIO | __GFP_HIGHMEM |
+					__GFP_NOWARN);
 	if (!meta->mem_pool) {
 		pr_err("Error creating memory pool\n");
 		goto free_table;
@@ -671,7 +671,7 @@ static ssize_t disksize_store(struct device *dev,
 		return -EINVAL;
 
 	disksize = PAGE_ALIGN(disksize);
-	meta = zram_meta_alloc(zram->disk->first_minor, disksize);
+	meta = zram_meta_alloc(disksize);
 	down_write(&zram->init_lock);
 	if (zram->init_done) {
 		up_write(&zram->init_lock);

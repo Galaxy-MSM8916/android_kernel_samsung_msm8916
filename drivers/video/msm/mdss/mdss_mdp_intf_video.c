@@ -658,7 +658,7 @@ static void mdss_mdp_video_underrun_intr_done(void *arg)
 	MDSS_XLOG(ctl->num, ctl->underrun_cnt);
 	MDSS_XLOG_TOUT_HANDLER("mdp", "dsi0", "dsi1", "edp", "hdmi", "panic");
 	trace_mdp_video_underrun_done(ctl->num, ctl->underrun_cnt);
-	pr_info("display underrun detected for ctl=%d count=%d\n", ctl->num,
+	pr_debug("display underrun detected for ctl=%d count=%d\n", ctl->num,
 			ctl->underrun_cnt);
 
 	if (ctl->opmode & MDSS_MDP_CTL_OP_PACK_3D_ENABLE)
@@ -1159,6 +1159,8 @@ static void mdss_mdp_fetch_start_config(struct mdss_mdp_video_ctx *ctx,
 	mdp_video_write(ctx, MDSS_MDP_REG_INTF_PROG_FETCH_START, fetch_start);
 	mdp_video_write(ctx, MDSS_MDP_REG_INTF_CONFIG, fetch_enable);
 }
+
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 static void mdss_mdp_video_pingpong_done(void *arg)
 {
 	struct mdss_mdp_ctl *ctl = arg;
@@ -1193,6 +1195,7 @@ static int mdss_mdp_video_wait4pingpong(struct mdss_mdp_ctl *ctl, void *arg)
 
 	return rc;
 }
+#endif
 
 static void mdss_mdp_handoff_programmable_fetch(struct mdss_mdp_ctl *ctl,
 	struct mdss_mdp_video_ctx *ctx)
@@ -1278,9 +1281,13 @@ static int mdss_mdp_video_intfs_setup(struct mdss_mdp_ctl *ctl,
 	mdss_mdp_set_intr_callback(MDSS_MDP_IRQ_INTF_UNDER_RUN,
 				(inum + MDSS_MDP_INTF0),
 				mdss_mdp_video_underrun_intr_done, ctl);
+
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 	if(ctl->intf_type == MDSS_INTF_DSI)
 		mdss_mdp_set_intr_callback(MDSS_MDP_IRQ_PING_PONG_COMP,
 					ctl->mixer_left->num,  mdss_mdp_video_pingpong_done, ctl);
+#endif
+
 	dst_bpp = pinfo->fbc.enabled ? (pinfo->fbc.target_bpp) : (pinfo->bpp);
 
 	itp.width = mult_frac((pinfo->xres + pinfo->lcdc.xres_pad),
@@ -1333,10 +1340,14 @@ int mdss_mdp_video_start(struct mdss_mdp_ctl *ctl)
 	ctl->add_vsync_handler = mdss_mdp_video_add_vsync_handler;
 	ctl->remove_vsync_handler = mdss_mdp_video_remove_vsync_handler;
 	ctl->config_fps_fnc = mdss_mdp_video_config_fps;
+
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 	if(ctl->intf_type == MDSS_INTF_DSI)
 		ctl->wait_video_pingpong = mdss_mdp_video_wait4pingpong;
 	else
 		ctl->wait_video_pingpong = NULL;
+#endif
+
 	return 0;
 }
 

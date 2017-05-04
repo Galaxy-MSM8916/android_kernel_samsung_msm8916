@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2014, 2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,8 +31,6 @@
 #include <linux/ipc_router.h>
 
 #include <net/sock.h>
-
-#include <soc/qcom/subsystem_restart.h>
 
 #include "ipc_router_private.h"
 #include "ipc_router_security.h"
@@ -500,7 +498,6 @@ static int msm_ipc_router_ioctl(struct socket *sock,
 	unsigned int n;
 	size_t srv_info_sz = 0;
 	int ret;
-	struct msm_ipc_subsys_request subsys_req;
 
 	if (!sk)
 		return -EINVAL;
@@ -597,27 +594,6 @@ static int msm_ipc_router_ioctl(struct socket *sock,
 			port_ptr->type = IRSC_PORT;
 		break;
 
-	case IPC_SUB_IOCTL_SUBSYS_GET_RESTART:
-		if (!check_permissions()) {
-			IPC_RTR_ERR("%s: %s Do not have permissions\n",
-				__func__, current->comm);
-			ret = -EPERM;
-			break;
-		}
-		ret = copy_from_user(&subsys_req, (void *)arg, sizeof(subsys_req));
-		if (ret) {
-			ret = -EFAULT;
-			break;
-		}
-		
-		if (subsys_req.request_id == SUBSYS_RES_REQ)
-			subsys_force_stop((const char *)(subsys_req.name), true);
-		else if (subsys_req.request_id == SUBSYS_CR_REQ)
-			subsys_force_stop((const char *)(subsys_req.name), false);
-		else
-			ret = -EINVAL;
-		break;
-
 	default:
 		ret = -EINVAL;
 	}
@@ -653,13 +629,9 @@ static unsigned int msm_ipc_router_poll(struct file *file,
 static int msm_ipc_router_close(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	struct msm_ipc_port *port_ptr;
+	struct msm_ipc_port *port_ptr = msm_ipc_sk_port(sk);
 	int ret;
 
-	if (!sk)
-		return -EINVAL;
-
-	port_ptr = msm_ipc_sk_port(sk);
 	lock_sock(sk);
 	ret = msm_ipc_router_close_port(port_ptr);
 	msm_ipc_unload_default_node(msm_ipc_sk(sk)->default_node_vote_info);

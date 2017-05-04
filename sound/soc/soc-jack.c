@@ -19,6 +19,8 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <trace/events/asoc.h>
+
+#ifdef CONFIG_SAMSUNG_JACK
 #include <linux/switch.h>
 
 #define SEC_JACK_NO_DEVICE		0
@@ -33,6 +35,8 @@
 struct switch_dev android_switch = {
 	.name = "h2w",
 };
+#endif
+
 /**
  * snd_soc_jack_new - Create a new jack
  * @codec: ASoC codec
@@ -55,9 +59,11 @@ int snd_soc_jack_new(struct snd_soc_codec *codec, const char *id, int type,
 	INIT_LIST_HEAD(&jack->jack_zones);
 	BLOCKING_INIT_NOTIFIER_HEAD(&jack->notifier);
 
+#ifdef CONFIG_SAMSUNG_JACK
 	if(!strcmp(id, "Headset Jack")) {
 		switch_dev_register(&android_switch);
 	}
+#endif
 	return snd_jack_new(codec->card->snd_card, id, type, &jack->jack);
 }
 EXPORT_SYMBOL_GPL(snd_soc_jack_new);
@@ -134,6 +140,7 @@ void snd_soc_jack_report_no_dapm(struct snd_soc_jack *jack, int status,
 	jack->status &= ~mask;
 	jack->status |= status & mask;
 
+#ifdef CONFIG_SAMSUNG_JACK
 	dev_err(jack->codec->dev, "%s : mask = 0x%x status = 0x%x\n",__func__, mask, status);
 
 	if (mask & WCD_JACK_MASK) {
@@ -144,6 +151,7 @@ void snd_soc_jack_report_no_dapm(struct snd_soc_jack *jack, int status,
 		else if (status == SND_JACK_HEADSET)
 			switch_set_state(&android_switch, SEC_HEADSET_4POLE);
 	}
+#endif
 
 	snd_jack_report(jack->jack, jack->status);
 }

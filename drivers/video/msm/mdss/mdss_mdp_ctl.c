@@ -181,6 +181,7 @@ u32 mdss_mdp_calc_latency_buf_bytes(bool is_bwc,
 	u32 latency_lines, latency_buf_bytes;
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 
+
 	if (is_bwc) {
 		latency_lines = 4;
 		latency_buf_bytes = src_w * bpp *
@@ -194,7 +195,7 @@ u32 mdss_mdp_calc_latency_buf_bytes(bool is_bwc,
 		latency_buf_bytes = mdss_mdp_align_latency_buf_bytes(
 			src_w * bpp * latency_lines,
 			use_latency_buf_percentage ?
-			mdata->latency_buff_per : 0, smp_bytes);		
+			mdata->latency_buff_per : 0, smp_bytes);
 	}
 
 	return latency_buf_bytes;
@@ -312,8 +313,8 @@ static u32 mdss_mdp_perf_calc_pipe_prefill_cmd(struct mdss_mdp_prefill_params
 		prefill_bytes += ot_bytes;
 
 		latency_buf_bytes = mdss_mdp_calc_latency_buf_bytes(
-				params->is_bwc, params->is_tile, params->src_w,
-				params->bpp, true, params->smp_bytes);
+			params->is_bwc, params->is_tile, params->src_w,
+			params->bpp, true, params->smp_bytes);
 		prefill_bytes += latency_buf_bytes;
 
 		if (params->is_yuv)
@@ -1000,6 +1001,7 @@ static void mdss_mdp_perf_calc_ctl(struct mdss_mdp_ctl *ctl,
 				&mdss_res->ib_factor_overlap),
 			apply_fudge_factor(perf->bw_prefill,
 				&mdss_res->ib_factor));
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
                 if (left_cnt == 1) {
                         mdata->ib_factor_single.numer = 11;
                         mdata->ib_factor_single.denom = 10;
@@ -1007,6 +1009,7 @@ static void mdss_mdp_perf_calc_ctl(struct mdss_mdp_ctl *ctl,
                         perf->bw_ctl = apply_fudge_factor(perf->bw_ctl,
                                 &mdss_res->ib_factor_single);
                 } 
+#endif
 	} else if (ctl->intf_num != MDSS_MDP_NO_INTF) {
 		perf->bw_ctl = apply_fudge_factor(perf->bw_ctl,
 				&mdss_res->ib_factor_cmd);

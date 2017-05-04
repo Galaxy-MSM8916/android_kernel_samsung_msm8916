@@ -49,17 +49,6 @@
 
 #include "zinitix_bt541_ts.h"
 
-#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
-#include <linux/cpufreq.h>
-
-#define TOUCH_BOOSTER_DVFS
-
-#define DVFS_STAGE_TRIPLE       3
-#define DVFS_STAGE_DUAL         2
-#define DVFS_STAGE_SINGLE       1
-#define DVFS_STAGE_NONE         0
-#endif
-
 #if (TSP_TYPE_COUNT == 1)
 u8 *m_pFirmware [TSP_TYPE_COUNT] = {(u8*)m_firmware_data,};
 #else

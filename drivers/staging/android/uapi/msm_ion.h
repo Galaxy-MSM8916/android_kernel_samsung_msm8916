@@ -27,6 +27,7 @@ enum ion_heap_ids {
 	ION_CP_MM_HEAP_ID = 8,
 	ION_CP_MFC_HEAP_ID = 12,
 	ION_CP_WB_HEAP_ID = 16, /* 8660 only */
+	ION_CAMERA_HEAP_ID = 20, /* 8660 only */
 	ION_SYSTEM_CONTIG_HEAP_ID = 21,
 	ION_ADSP_HEAP_ID = 22,
 	ION_PIL1_HEAP_ID = 23, /* Currently used for other PIL images */
@@ -37,7 +38,7 @@ enum ion_heap_ids {
 	ION_AUDIO_HEAP_ID = 28,
 
 	ION_MM_FIRMWARE_HEAP_ID = 29,
-	ION_CAMERA_HEAP_ID = 30,
+
 	ION_HEAP_ID_RESERVED = 31 /** Bit reserved for ION_FLAG_SECURE flag */
 };
 

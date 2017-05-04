@@ -112,11 +112,6 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd_base)
 	pmd_t *pmd;
 	pgtable_t pte;
 
-#ifdef  CONFIG_TIMA_RKP_L1_TABLES
-        unsigned long cmd_id = 0x3f80b221;
-	unsigned long pgd_pa;
-#endif /* CONFIG_TIMA_RKP_L1_TABLES */
-
 	if (!pgd_base)
 		return;
 
@@ -161,14 +156,5 @@ no_pgd:
 		pud_free(mm, pud);
 	}
 #endif
-
-#ifdef  CONFIG_TIMA_RKP_L1_TABLES
-	pgd_pa = (unsigned long)__pa((unsigned long)pgd);
-        if (tima_is_pg_protected((unsigned long) pgd) != 0) {
-		tima_send_cmd5((unsigned long)pgd, (unsigned long)pgd_pa, 0, 0, 0, cmd_id);
-		tima_tlb_inval_is(0);
-        }
-#endif	/* CONFIG_TIMA_RKP_L1_TABLES */
-
 	__pgd_free(pgd_base);
 }

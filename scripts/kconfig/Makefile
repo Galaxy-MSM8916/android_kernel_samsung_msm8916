@@ -97,10 +97,6 @@ ifneq ($(SELINUX_LOG_DEFCONFIG),)
 export KCONFIG_LOG_SELINUX := arch/$(SRCARCH)/configs/$(SELINUX_LOG_DEFCONFIG)
 endif
 
-ifneq ($(TIMA_DEFCONFIG),)
-export KCONFIG_TIMA := arch/$(SRCARCH)/configs/$(TIMA_DEFCONFIG)
-endif
-
 ifneq ($(DMVERITY_DEFCONFIG),)
 export KCONFIG_DMVERITY := arch/$(SRCARCH)/configs/$(DMVERITY_DEFCONFIG)
 endif

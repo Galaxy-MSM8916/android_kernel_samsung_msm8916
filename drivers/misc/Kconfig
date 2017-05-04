@@ -411,18 +411,6 @@ config DYNAMIC_MICBIAS_CONTROL
 	 When mic does not used or button is released,
 	 micbias set to low voltage.
 
-config TIMA_LOG
-	tristate "Support for dumping TIMA log"
-	default y
-	help
-	  This option enables support for dumping TIMA log
-
-config TIMA_TEST
-	tristate "Tima Test Suite"
-	default n
-	help
-	  This option enables kernel component of tima test suite
-
 config HMC6352
 	tristate "Honeywell HMC6352 compass"
 	depends on I2C

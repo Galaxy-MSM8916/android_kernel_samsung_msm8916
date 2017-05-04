@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -4088,14 +4088,18 @@ static int tasha_codec_enable_swr(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct tasha_priv *tasha;
+#ifndef CONFIG_SAMSUNG_AUDIO
 	int i;
+#endif
 
 	tasha = snd_soc_codec_get_drvdata(codec);
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+#ifndef CONFIG_SAMSUNG_AUDIO
 		for (i = 0; i < tasha->nr; i++)
-			//swrm_wcd_notify(tasha->swr_ctrl_data[i].swr_pdev,
-			//		SWR_DEVICE_UP, NULL);
+			swrm_wcd_notify(tasha->swr_ctrl_data[i].swr_pdev,
+					SWR_DEVICE_UP, NULL);
+#endif
 		break;
 	}
 	return 0;
@@ -11262,14 +11266,18 @@ static int tasha_device_down(struct wcd9xxx *wcd9xxx)
 	struct snd_soc_codec *codec;
 	struct tasha_priv *priv;
 	int count;
+#ifndef CONFIG_SAMSUNG_AUDIO
 	int i = 0;
+#endif
 
 	codec = (struct snd_soc_codec *)(wcd9xxx->ssr_priv);
 	priv = snd_soc_codec_get_drvdata(codec);
 	wcd_cpe_ssr_event(priv->cpe_core, WCD_CPE_BUS_DOWN_EVENT);
+#ifndef CONFIG_SAMSUNG_AUDIO
 	for (i = 0; i < priv->nr; i++)
-		//swrm_wcd_notify(priv->swr_ctrl_data[i].swr_pdev,
-		//		SWR_DEVICE_DOWN, NULL);
+		swrm_wcd_notify(priv->swr_ctrl_data[i].swr_pdev,
+				SWR_DEVICE_DOWN, NULL);
+#endif
 	snd_soc_card_change_online_state(codec->card, 0);
 	for (count = 0; count < NUM_CODEC_DAIS; count++)
 		priv->dai[count].bus_down_in_recovery = true;

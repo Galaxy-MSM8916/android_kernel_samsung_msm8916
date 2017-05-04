@@ -251,8 +251,6 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 	int length;
 	unsigned long flags;
 
-	dev_info(edev->dev, "state: 0x%x, 0x%x, mask: 0x%x\n",
-						edev->state, state, mask);
 	spin_lock_irqsave(&edev->lock, flags);
 
 	if (edev->state != ((edev->state & ~mask) | (state & mask))) {
@@ -267,8 +265,6 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 		edev->state &= ~mask;
 		edev->state |= state & mask;
 
-		dev_info(edev->dev, "state: 0x%x --> 0x%x\n",
-					old_state, edev->state);
 		raw_notifier_call_chain(&edev->nh, old_state, edev);
 
 		/* This could be in interrupt handler */
@@ -306,7 +302,6 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 	} else {
 		/* No changes */
 		spin_unlock_irqrestore(&edev->lock, flags);
-		dev_info(edev->dev, "no changes\n");
 	}
 
 	return 0;
@@ -393,7 +388,6 @@ int extcon_set_cable_state_(struct extcon_dev *edev,
 {
 	u32 state;
 
-	dev_info(edev->dev, "index = %d\n", index);
 	if (index < 0 || (edev->max_supported && edev->max_supported <= index))
 		return -EINVAL;
 
@@ -414,8 +408,6 @@ EXPORT_SYMBOL_GPL(extcon_set_cable_state_);
 int extcon_set_cable_state(struct extcon_dev *edev,
 			const char *cable_name, bool cable_state)
 {
-	dev_info(edev->dev, "%s: %s is %s\n", __func__,
-			cable_name, (cable_state) ? "attached" : "detached");
 	return extcon_set_cable_state_(edev, extcon_find_cable_index
 					(edev, cable_name), cable_state);
 }
@@ -456,11 +448,6 @@ static int _call_per_cable(struct notifier_block *nb, unsigned long val,
 
 		if (val & (1 << obj->cable_index))
 			cable_state = false;
-
-		dev_info(edev->dev, "%s: %s is %s, calling %pF\n", __func__,
-				extcon_cable_name[obj->cable_index],
-				(cable_state) ? "attached" : "detached",
-				obj->user_nb->notifier_call);
 
 		return obj->user_nb->notifier_call(obj->user_nb,
 				cable_state, ptr);
@@ -504,8 +491,7 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 		if (!obj->edev)
 			return -ENODEV;
 
-		obj->cable_index = extcon_find_cable_index(obj->edev,
-								cable_name);
+		obj->cable_index = extcon_find_cable_index(obj->edev, cable_name);
 		if (obj->cable_index < 0)
 			return obj->cable_index;
 
@@ -513,8 +499,7 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 
 		obj->internal_nb.notifier_call = _call_per_cable;
 
-		return raw_notifier_chain_register(&obj->edev->nh,
-							&obj->internal_nb);
+		return raw_notifier_chain_register(&obj->edev->nh, &obj->internal_nb);
 	} else {
 		struct class_dev_iter iter;
 		struct extcon_dev *extd;
@@ -522,7 +507,6 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 
 		if (!extcon_class)
 			return -ENODEV;
-
 		class_dev_iter_init(&iter, extcon_class, NULL, NULL);
 		while ((dev = class_dev_iter_next(&iter))) {
 			extd = (struct extcon_dev *)dev_get_drvdata(dev);

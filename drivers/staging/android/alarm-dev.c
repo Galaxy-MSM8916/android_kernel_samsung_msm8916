@@ -170,14 +170,6 @@ static int alarm_set_rtc(struct timespec *ts)
 	int rv = 0;
 
 	rtc_time_to_tm(ts->tv_sec, &new_rtc_tm);
-#ifdef CONFIG_RTC_AUTO_PWRON
-	pr_info("%s : set rtc %ld %ld - rtc %02d:%02d:%02d %02d/%02d/%04d\n", __func__,
-		ts->tv_sec, ts->tv_nsec,
-		new_rtc_tm.tm_hour, new_rtc_tm.tm_min,
-		new_rtc_tm.tm_sec, new_rtc_tm.tm_mon + 1,
-		new_rtc_tm.tm_mday,
-		new_rtc_tm.tm_year + 1900);
-#endif
 	rtc_dev = alarmtimer_get_rtcdev();
 	rv = do_settimeofday(ts);
 	if (rv < 0)
@@ -274,9 +266,6 @@ static long alarm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	struct timespec ts;
 	int rv;
-#if defined(CONFIG_RTC_AUTO_PWRON)
-	char bootalarm_data[14];
-#endif
 
 	switch (ANDROID_ALARM_BASE_CMD(cmd)) {
 	case ANDROID_ALARM_SET_AND_WAIT(0):
@@ -286,15 +275,6 @@ static long alarm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&ts, (void __user *)arg, sizeof(ts)))
 			return -EFAULT;
 		break;
-#if defined(CONFIG_RTC_AUTO_PWRON)
-	case ANDROID_ALARM_SET_ALARM_BOOT:
-		if (copy_from_user(bootalarm_data, (void __user *)arg, 14)) {
-			rv = -EFAULT;
-			return rv;
-		}
-		rv = alarm_set_alarm(bootalarm_data);
-		break;
-#endif
 	}
 
 	rv = alarm_do_ioctl(file, cmd, &ts);

@@ -39,34 +39,12 @@ static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 	unsigned long prot)
 {
-#ifdef  CONFIG_TIMA_RKP_L1_TABLES
-        unsigned long cmd_id = 0x3f809221;
-#endif
 	pmd_t *pmd = pmd_offset(pud, addr);
 
 	addr = (addr & PMD_MASK) | prot;
-#ifdef  CONFIG_TIMA_RKP_L1_TABLES
-	if (tima_is_pg_protected((unsigned long) pmd) != 0) {
-#ifndef CONFIG_TIMA_RKP_COHERENT_TT
-		clean_dcache_area(pmd, 8);
-		tima_cache_flush((unsigned long)pmd);
-#endif
-		tima_send_cmd5((unsigned long)__pa(pmd), (unsigned long)__pmd(addr),
-				(unsigned long)__pmd(addr+SECTION_SIZE), 0, 0, cmd_id);
-#ifndef CONFIG_TIMA_RKP_COHERENT_TT
-		tima_cache_inval((unsigned long)pmd);
-#endif
-		tima_tlb_inval_is(0);
-	} else {
-		pmd[0] = __pmd(addr);
-		addr += SECTION_SIZE;
-		pmd[1] = __pmd(addr);
-	}
-#else	/* CONFIG_TIMA_RKP_L1_TABLES */
 	pmd[0] = __pmd(addr);
 	addr += SECTION_SIZE;
 	pmd[1] = __pmd(addr);
-#endif	/* CONFIG_TIMA_RKP_L1_TABLES */
 	flush_pmd_entry(pmd);
 }
 #endif	/* CONFIG_ARM_LPAE */

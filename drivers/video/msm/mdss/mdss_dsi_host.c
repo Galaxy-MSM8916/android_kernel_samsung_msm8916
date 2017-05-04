@@ -375,6 +375,7 @@ void mdss_dsi_host_init(struct mdss_panel_data *pdata)
 #if defined(CONFIG_SEC_GT510_PROJECT)
 	MIPI_OUTP(ctrl_pdata->ctrl_base + 0x3C, 0x10000000);
 #endif
+
 	data = 0;
 	if (pinfo->te_sel)
 		data |= BIT(31);
@@ -534,10 +535,6 @@ static void mdss_dsi_stop_hs_clk_lane(struct mdss_dsi_ctrl_pdata *ctrl);
  * mdss_dsi_start_hs_clk_lane:
  * this function is work around solution for 8994 dsi clk lane
  * may stuck at HS problem
- * since this function is called by event_thread, it may wakeup
- * after next kickoff had been lunched and start_hs_clk_lane
- * had been started. Therefore more than 1 vsync polling time is needed.
- * Use 50ms timeout to cover 30 FPS case.
  */
 static void mdss_dsi_start_hs_clk_lane(struct mdss_dsi_ctrl_pdata *ctrl)
 {
@@ -600,7 +597,7 @@ static void mdss_dsi_stop_hs_clk_lane(struct mdss_dsi_ctrl_pdata *ctrl)
 	if (readl_poll_timeout(((ctrl->ctrl_base) + 0x00a8),
 			   lane,
 			   ((lane & 0x000f) == 0x000f),
-			      100, 20000)) {
+			       100, 20000)) {
 		pr_err("%s: datalane NOT stopped, lane=%x\n",
 					__func__, lane);
 	}
@@ -1244,7 +1241,6 @@ static int mdss_dsi_cmds2buf_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	mdss_dsi_buf_init(tp);
 	cm = cmds;
 	len = 0;
-
 	while (cnt--) {
 		dchdr = &cm->dchdr;
 		mdss_dsi_buf_reserve(tp, len);

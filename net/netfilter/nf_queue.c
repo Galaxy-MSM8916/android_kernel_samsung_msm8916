@@ -26,7 +26,7 @@
  * receives, no matter what.
  */
 static const struct nf_queue_handler __rcu *queue_handler __read_mostly;
- 
+
 /* return EBUSY when somebody else is registered, return EEXIST if the
  * same handler is registered, return 0 in case of success. */
 void nf_register_queue_handler(const struct nf_queue_handler *qh)

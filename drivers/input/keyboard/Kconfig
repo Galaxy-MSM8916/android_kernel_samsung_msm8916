@@ -756,11 +756,6 @@ config KEYBOARD_TC360_TKEY_J3
 	  To compile this driver as a module, choose M here: the
 	  module will be called tc360 Touchkey.
 
-config USE_VM_KEYBOARD_REJECT
-	bool "VM_KEYBOARD_REJECT"
-	help
-	  Say Y here to enable the KEY REJECT
-
 config KEYBOARD_TC360_TKEY_J7
 	tristate "TC360 Touchkey support"
 	depends on I2C

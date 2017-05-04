@@ -462,9 +462,6 @@ struct diagchar_dev {
 	int logging_process_id;
 	struct task_struct *socket_process;
 	struct task_struct *callback_process;
-	/* pid for diag_mdlog(CP silent log app) */
-	struct pid *silent_log_pid;
-
 	/* Power related variables */
 	struct diag_ws_ref_t dci_ws;
 	struct diag_ws_ref_t md_ws;

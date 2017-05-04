@@ -1296,10 +1296,7 @@ smem_targ_info_done:
 	}
 
 	smem_ram_base = ioremap_nocache(smem_ram_phys, smem_ram_size);
-#ifdef CONFIG_SEC_DEBUG_SUBSYS
-	pr_info("%s: smem_ram_base=0x%x  smem_ram_phys=0x%x smem_ram_size=0x%x \n",
-			__func__,(unsigned int)smem_ram_base,smem_ram_phys,smem_ram_size);
-#endif
+
 	if (!smem_ram_base) {
 		LOG_ERR("%s: ioremap_nocache() of addr:%pa size: %pa\n",
 				__func__,

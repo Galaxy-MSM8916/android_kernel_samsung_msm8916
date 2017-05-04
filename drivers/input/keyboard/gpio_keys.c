@@ -639,37 +639,6 @@ static void gpio_keys_close(struct input_dev *input)
 		pdata->disable(input->dev.parent);
 }
 
-#ifdef CONFIG_USE_VM_KEYBOARD_REJECT
-bool reject_keyboard_specific_key;
-EXPORT_SYMBOL(reject_keyboard_specific_key);
-
-static ssize_t sysfs_reject_keyboard_spec_key_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	snprintf(buf, 10, "%s\n", reject_keyboard_specific_key ? "ENABLE" : "DISABLE");
-
-	return strlen(buf);
-}
-static ssize_t sysfs_reject_keyboard_spec_key_store(struct device *dev,
-		struct device_attribute *attr, const char *buf,
-		size_t count)
-{
-	if (!strncasecmp(buf, "ENABLE", 6))
-		reject_keyboard_specific_key = true;
-	else if (!strncasecmp(buf, "DISABLE", 7))
-		reject_keyboard_specific_key = false;
-	else
-		pr_err("%s: Wrong command, current state %s\n",
-				__func__,
-				reject_keyboard_specific_key ? "ENABLE" : "DISALBE");
-
-	return count;
-}
-
-static DEVICE_ATTR(reject_key_comb, 0660, sysfs_reject_keyboard_spec_key_show, sysfs_reject_keyboard_spec_key_store);
-
-#endif
-
 /*
  * Handlers for alternative sources of platform_data
  */
@@ -1041,14 +1010,6 @@ static int gpio_keys_probe(struct platform_device *pdev)
 	if (IS_ERR(sec_key))
 		pr_err("Failed to create device(sec_key)!\n");
 
-#ifdef CONFIG_USE_VM_KEYBOARD_REJECT
-	reject_keyboard_specific_key = false;
-	error = device_create_file(sec_key, &dev_attr_reject_key_comb);
-	if (error < 0) {
-		pr_err("Failed to create device file(%s), error: %d\n",
-				dev_attr_reject_key_comb.attr.name, error);
-	}
-#endif
 	error = device_create_file(sec_key, &dev_attr_sec_key_pressed);
 	if (error) {
 		pr_err("Failed to create device file in sysfs entries(%s)!\n",

@@ -138,13 +138,6 @@ config SUPPLY_LM_MONITOR
 	 temperature. Based on these inputs, the driver throttles
 	 apps subsystem.
 
-config DEBUG_THERMAL
-	bool "Monitor thermal state and limit CPU Frequency"
-	depends on THERMAL
-	default n
-	help
-	  Monitors TSENS temperature for Debugging purporse.
-
 config SPEAR_THERMAL
 	bool "SPEAr thermal sensor driver"
 	depends on PLAT_SPEAR

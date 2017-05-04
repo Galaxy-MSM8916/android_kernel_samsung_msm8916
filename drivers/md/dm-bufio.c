@@ -1679,8 +1679,8 @@ static int __init dm_bufio_init(void)
 	 * Get the size of vmalloc space the same way as VMALLOC_TOTAL
 	 * in fs/proc/internal.h
 	 */
-	if (mem > (VMALLOC_END - VMALLOC_START) / 100 * DM_BUFIO_VMALLOC_PERCENT)
-		mem = (VMALLOC_END - VMALLOC_START) / 100 * DM_BUFIO_VMALLOC_PERCENT ;
+	if (mem > (VMALLOC_END - VMALLOC_START) * DM_BUFIO_VMALLOC_PERCENT / 100)
+		mem = (VMALLOC_END - VMALLOC_START) * DM_BUFIO_VMALLOC_PERCENT / 100;
 #endif
 
 	dm_bufio_default_cache_size = mem;

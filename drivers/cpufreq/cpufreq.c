@@ -2152,8 +2152,6 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
 		case CPU_ONLINE:
 			__cpufreq_add_dev(dev, NULL, frozen);
 			cpufreq_update_policy(cpu);
-                        //update permission of cpufreq policy 
-                        kobject_uevent(&dev->kobj, KOBJ_ONLINE);
 			break;
 
 		case CPU_DOWN_PREPARE:

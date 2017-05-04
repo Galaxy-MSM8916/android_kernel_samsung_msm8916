@@ -621,7 +621,7 @@ unsigned long dma_alloc_from_contiguous(struct device *dev, int count,
 			if (retry_after_sleep < 2) {
 				pfn = 0;
 				start = 0;
-				pr_info("%s: Memory range busy,"
+				pr_debug("%s: Memory range busy,"
 					"retry after sleep\n", __func__);
 				/*
 				* Page may be momentarily pinned by some other

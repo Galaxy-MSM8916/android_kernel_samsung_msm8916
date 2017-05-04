@@ -1844,110 +1844,6 @@ config MSM_UARTDM_Core_v14
 	help
 		Select if BLSP based UART Core v.14 or higher is present.
 
-config KNOX_KAP
-       bool "Enable KNOX KAP mode"
-       default n
-
-config SEC_DEBUG_ENABLE_QSEE
-	bool "Enable QSEE Log"
-	default n
-
-config TIMA_LKMAUTH
-       bool "Enable LKM authentication TIMA feature"
-       default n
-       help
-         TIMA authenticates loaded kernel modules. Disable it if you don't
-         want TIMA enabled.
-
-config TIMA_LKMAUTH_CODE_PROT
-       bool
-       depends on TIMA_LKMAUTH
-       default y
-       help
-         When enabled, this feature will mark all Executable sections in an
-         LKM as RO
-
-config TIMA_TEST_INFRA
-       tristate "Testing infrastructure for TIMA"
-       default n
-       help
-         Kernel bits of the TIMA test infrastructure
-
-config TIMA_UEVENT
-       bool "Uevent message propagation for TIMA"
-       default n
-       help
-         Uevent messages for TIMA PKM/LKM
-
-config TIMA_LOG
-       bool "Log dumping support for TIMA"
-       default n
-       help
-         TIMA Log dumping support
-
-config TIMA_RKP
-       bool "Enable RKP (Realtime Kernel Protection) TIMA feature"
-       default n
-       help
-         This is enabled from defconfig
-
-config TIMA_RKP_30
-       bool "Enable RKP TIMA 3.0 features"
-       depends on (ARCH_MSM8974PRO || ARCH_MSM8226 || ARCH_APQ8084 ||  ARCH_MSM8916)
-       depends on TIMA_RKP
-       default y
-       help
-         RKP 3.0 features
-
-config TIMA_RKP_COHERENT_TT
-       bool
-       depends on TIMA_RKP_30
-       default y
-       help
-         RKP cache coherence feature- depends on corresponding TZ RKP code!!!
-
-config TIMA_RKP_L1_TABLES
-       bool
-       depends on TIMA_RKP
-       default y
-       help
-         TIMA takes over management of L1 tables.
-
-config TIMA_RKP_L2_TABLES
-       bool
-       depends on TIMA_RKP
-       default y
-       help
-         TIMA takes over management L2 tables
-
-config TIMA_RKP_L2_GROUP
-        bool
-        depends on TIMA_RKP_L2_TABLES
-        default n
-        help
-         TIMA groups page table writes; enable only with cache coherence
-
-config TIMA_RKP_LAZY_MMU
-        bool
-        depends on TIMA_RKP_L2_TABLES
-        default y
-        help
-         TIMA lazy MMU for L2 pages
-
-config  TIMA_RKP_EMUL_CP15_INSTR
-        bool
-        depends on TIMA_RKP_30
-        default n
-        help
-         RKP emulates CP15 instructions affecting MMU
-
-config TIMA_RKP_DEBUG
-       bool
-       depends on TIMA_RKP
-       default n
-       help
-         TIMA debug infrastructure.
-
 config KRAIT_REGULATOR
 	bool "Support Kraits powered via ganged regulators in the pmic"
 	help
@@ -1977,22 +1873,6 @@ config FSM9900_GSM_NL
 	  The DIQ functionality is disabled and the UART functionality is enabled.
 	  The serial port connection can be established to communicate with the
 	  GSM NL module.
-
-config RTC_AUTO_PWRON
-        bool "RTC Auto Power on PM8x16 PMICs"
-        depends on ARCH_MSM8916
-        default n
-        help
-          Support for the auto power on alarm on the PM8X16 PMIC.
-          Say Y if you want to enable this feature.
-
-config RTC_AUTO_PWRON_PARAM
-        bool "RTC Auto Power on with param PM8x16 PMICs"
-        depends on RTC_AUTO_PWRON
-        default n
-        help
-          This option is used to prevent invalid RTC alarm power on.
-          Say Y if you want to enable this feature.
 
 config BARCODE_PAINTER
         bool "Bootloader Barcode Print MSM8916"

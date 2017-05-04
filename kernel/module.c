@@ -12,7 +12,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public LicenseCONFIG_KALLSYMS
+    You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
@@ -63,88 +63,9 @@
 #include <linux/fips.h>
 #include <uapi/linux/module.h>
 #include "module-internal.h"
-#ifdef	CONFIG_TIMA_LKMAUTH_CODE_PROT
-#include <asm/tlbflush.h>
-#endif/*CONFIG_TIMA_LKMAUTH_CODE_PROT*/
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/module.h>
-#ifdef	CONFIG_TIMA_LKMAUTH_CODE_PROT
-#define TIMA_PAC_CMD_ID 0x3f80d221
-#define TIMA_SET_PTE_RO 1
-#define TIMA_SET_PTE_NX 2
-#endif/*CONFIG_TIMA_LKMAUTH_CODE_PROT*/
-
-#ifdef CONFIG_TIMA_LKMAUTH
-#include <linux/qseecom.h>
-#include <linux/kobject.h>
-#include <linux/spinlock.h>
-
-#define CONFIG_LKMAUTH_SECONDWAY
-#ifdef CONFIG_LKMAUTH_SECONDWAY
-#define LKM_MAGIC 0x11223344
-#endif
-
-#define QSEECOM_ALIGN_SIZE  0x40
-#define QSEECOM_ALIGN_MASK  (QSEECOM_ALIGN_SIZE - 1)
-#define QSEECOM_ALIGN(x)    \
-    ((x + QSEECOM_ALIGN_SIZE) & (~QSEECOM_ALIGN_MASK))
-
-struct qseecom_handle {
-    void *dev; /* in/out */
-    unsigned char *sbuf; /* in/out */
-    uint32_t sbuf_len; /* in/out */
-};
-
-struct qseecom_handle *qhandle = NULL;
-DEFINE_MUTEX(lkmauth_mutex);
-
-extern int qseecom_start_app(struct qseecom_handle **handle, char *app_name, uint32_t size);
-extern int qseecom_shutdown_app(struct qseecom_handle **handle);
-extern int qseecom_send_command(struct qseecom_handle *handle, void *send_buf, uint32_t sbuf_len, void *resp_buf, uint32_t rbuf_len);
-extern struct device *tima_uevent_dev;
-
-#define SVC_LKMAUTH_ID              0x00050000
-#define LKMAUTH_CREATE_CMD(x) (SVC_LKMAUTH_ID | x)
-
-#define MODULE_HASH_DIR "/system"
-#define MODULE_DIR "/system/lib/modules"
-
-#define HASH_ALGO QSEE_HASH_SHA1
-#define HASH_SIZE QSEE_SHA1_HASH_SZ
-
-/** 
- * Commands for TZ LKMAUTH application. 
- * */
-typedef enum
-{
-  LKMAUTH_CMD_AUTH        = LKMAUTH_CREATE_CMD(0x00000000),
-  LKMAUTH_CMD_UNKNOWN     = LKMAUTH_CREATE_CMD(0x7FFFFFFF)
-} lkmauth_cmd_type;
-
-/* Message types for every command - Add one here for every command you add */
-
-typedef struct lkmauth_req_s
-{
-  lkmauth_cmd_type cmd_id;
-  u32 module_addr_start;
-  u32 module_len;
-  u32 min;
-  u32 max;
-  char module_name [280];
-  int module_name_len;
-} __attribute__ ((packed)) lkmauth_req_t;
-
-typedef struct lkmauth_rsp_s
-{
-  /** First 4 bytes should always be command id */
-  lkmauth_cmd_type cmd_id;
-  int ret;
-  union {
-    unsigned char hash[20];
-    char result_ondemand[256];
-  }  __attribute__ ((packed)) result;
-} __attribute__ ((packed)) lkmauth_rsp_t;
-#endif
 
 #ifndef ARCH_SHF_SMALL
 #define ARCH_SHF_SMALL 0
@@ -155,15 +76,11 @@ typedef struct lkmauth_rsp_s
  * to ensure complete separation of code and data, but
  * only when CONFIG_DEBUG_SET_MODULE_RONX=y
  */
-#ifdef	CONFIG_TIMA_LKMAUTH_CODE_PROT
-# define debug_align(X) ALIGN(X, PAGE_SIZE)
-#else
 #ifdef CONFIG_DEBUG_SET_MODULE_RONX
 # define debug_align(X) ALIGN(X, PAGE_SIZE)
 #else
 # define debug_align(X) (X)
 #endif
-#endif/*CONFIG_TIMA_LKMAUTH_CODE_PROT*/
 
 /*
  * Given BASE and SIZE this macro calculates the number of pages the
@@ -2455,7 +2372,7 @@ static void add_kallsyms(struct module *mod, const struct load_info *info)
 	mod->kallsyms->num_symtab = symsec->sh_size / sizeof(Elf_Sym);
 	/* Make sure we get permanent strtab: don't use info->strtab. */
 	mod->kallsyms->strtab = (void *)info->sechdrs[info->index.str].sh_addr;
-	
+
 	/* Set types up while we still have access to sections. */
 	for (i = 0; i < mod->kallsyms->num_symtab; i++)
 		mod->kallsyms->symtab[i].st_info
@@ -2485,182 +2402,6 @@ static void add_kallsyms(struct module *mod, const struct load_info *info)
 {
 }
 #endif /* CONFIG_KALLSYMS */
-
-#ifdef	CONFIG_TIMA_LKMAUTH
-static DEFINE_SPINLOCK(lkm_va_to_pa_lock);
-extern pid_t pid_from_lkm;
-#define LAST_TRY_CNT 4
-int qseecom_set_bandwidth(struct qseecom_handle *handle, bool high);
-static int lkmauth(Elf_Ehdr *hdr, int len, int cnt)
-{
-	int ret = 0; /* value to be returned for lkmauth */
-	int qsee_ret = 0; /* value used to capture qsee return state */
-	char *envp[3], *status, *result;
-	char app_name[MAX_APP_NAME_SIZE];
-	lkmauth_req_t *kreq = NULL;
-	lkmauth_rsp_t *krsp = NULL;
-	int req_len = 0, rsp_len = 0;
-#ifdef CONFIG_LKMAUTH_SECONDWAY
-	unsigned int par;
-	unsigned int virt_addr;
-	unsigned int *pBuf = NULL;
-	unsigned int *ptr;
-	unsigned int size;
-	unsigned long flags;
-#endif
-	mutex_lock(&lkmauth_mutex);
-	pr_warn("TIMA: lkmauth--launch the tzapp to check kernel module; module len is %d\n", len);
-
-	snprintf(app_name, MAX_APP_NAME_SIZE, "%s", "tima_lkm");
-    
-	if ( NULL == qhandle ) {
-		/* start the lkmauth tzapp only when it is not loaded. */
-		qsee_ret = qseecom_start_app(&qhandle, app_name, 1024);
-	}
-	if ( NULL == qhandle ) {
-		/* qhandle is still NULL. It seems we couldn't start lkmauth tzapp. */
-  		pr_err("TIMA: lkmauth--cannot get tzapp handle from kernel.\n");
-		ret = -1; /* lkm authentication failed. */
-  		goto lkmauth_ret; /* leave the function now. */
-	}
-	if (qsee_ret) {
-		/* Another way for lkmauth tzapp loading to fail. */
-  		pr_err("TIMA: lkmauth--cannot load tzapp from kernel; qsee_ret =  %d.\n", qsee_ret);
-		qhandle = NULL; /* Do we have a memory leak this way? */
-		ret = -1; /* lkm authentication failed. */
-		goto lkmauth_ret; /* leave the function now. */
-	}
-	
-	/* Generate the request cmd to verify hash of ko. 
-	 * Note that we are reusing the same buffer for both request and response, 
-	 * and the buffer is allocated in qhandle. 
-	 */
-	kreq = (struct lkmauth_req_s *)qhandle->sbuf;
-	kreq->cmd_id = LKMAUTH_CMD_AUTH; 
-	pr_warn("TIMA: lkmauth -- hdr before kreq is : %x\n", (u32)hdr);
-	kreq->module_len = len;
-#ifdef CONFIG_LKMAUTH_SECONDWAY
-	virt_addr = (u32)hdr;
-	size = ((len/PAGE_SIZE) + 2)*sizeof(pBuf);
-	pBuf = kmalloc(size, GFP_KERNEL);
-
-	if (pBuf == NULL) {
-		printk("lkmauth: failed to allocate memory %d \n", size);
-		goto lkmauth_ret;
-	}
-	ptr = pBuf;
-	*ptr = LKM_MAGIC;
-	ptr++;
-
-	do {
-		spin_lock_irqsave(&lkm_va_to_pa_lock, flags);
-		__asm__	("mcr	p15, 0, %1, c7, c8, 0\n"
-		"isb\n"
-		"mrc 	p15, 0, %0, c7, c4, 0\n"
-		:"=r"(par):"r"(virt_addr));
-
-		spin_unlock_irqrestore(&lkm_va_to_pa_lock, flags);
-		if(par & 0x1) {
-			printk("failed to translate va: %x \n", virt_addr);
-			goto lkmauth_ret;
-		}
-		//fix last 12 bits
-		*ptr = (unsigned int)(par & PAGE_MASK);
-		len = len - PAGE_SIZE;
-		virt_addr = virt_addr + PAGE_SIZE;
-		ptr++;
-	} while (len > 0);
-	kreq->module_addr_start = (u32)(unsigned long)(virt_to_phys(pBuf));
-#else
-	kreq->module_addr_start = (u32)hdr;
-#endif
-
-	req_len = sizeof(lkmauth_req_t);
-	if (req_len & QSEECOM_ALIGN_MASK)
-		req_len = QSEECOM_ALIGN(req_len);
-
-	/* prepare the response buffer */
-	krsp =(struct lkmauth_rsp_s *)(qhandle->sbuf + req_len);
-
-	rsp_len = sizeof(lkmauth_rsp_t);
-	if (rsp_len & QSEECOM_ALIGN_MASK)
-		rsp_len = QSEECOM_ALIGN(rsp_len);
-
-	pr_warn("TIMA: lkmauth--send cmd (%s) cmdlen(%d:%d), rsplen(%d:%d) id 0x%08X, \
-                req (0x%08X), rsp(0x%08X), module_start_addr(0x%08X) module_len %d\n", \
-		app_name, sizeof(lkmauth_req_t), req_len, sizeof(lkmauth_rsp_t), rsp_len, \
-		kreq->cmd_id, (int)kreq, (int)krsp, kreq->module_addr_start, kreq->module_len);
-
-	qseecom_set_bandwidth(qhandle, true);
-	pid_from_lkm = current->pid;
-	qsee_ret = qseecom_send_command(qhandle, kreq, req_len, krsp, rsp_len);
-	pid_from_lkm = -1;
-	qseecom_set_bandwidth(qhandle, false);
-
-	if (qsee_ret) {
-		pr_err("TIMA: lkmauth--failed to send cmd to qseecom; qsee_ret = %d.\n", qsee_ret);
-		pr_warn("TIMA: lkmauth--shutting down the tzapp.\n");
-		qsee_ret = qseecom_shutdown_app(&qhandle);
-		if ( qsee_ret ) {
-			/* Failed to shut down the lkmauth tzapp. What will happen to 
-			 * the qhandle in this case? Can it be used for the next lkmauth 
-			 * invocation?
-			 */
-			pr_err("TIMA: lkmauth--failed to shut down the tzapp.\n");
-		}
-		else
-			qhandle = NULL;
-
-		ret = -1;
-		goto lkmauth_ret; 
-	}
-	
-	/* parse result */
-	if (krsp->ret == 0) {
-		pr_warn("TIMA: lkmauth--verification succeeded.\n");
-		ret = 0; /* ret should already be 0 before the assignment. */
-	} else {
-
-		pr_err("TIMA: lkmauth--verification failed %d\n", krsp->ret);
-		ret = -1;
-
-		/* Send a notification through uevent. Note that the lkmauth tzapp 
-		 * should have already raised an alert in TZ Security log. 
-		 */
-		status = kzalloc(16, GFP_KERNEL);
-		if (!status) {
-			pr_err("TIMA: lkmauth--%s kmalloc failed.\n", __func__);
-			goto lkmauth_ret;
-		}
-		snprintf(status , 16 , "TIMA_STATUS=%d", ret);
-		envp[0] = status;
-
-		result = kzalloc(256, GFP_KERNEL);
-		if (!result) {
-			pr_err("TIMA: lkmauth--%s kmalloc failed.\n", __func__);
-			kfree(envp[0]);
-			goto lkmauth_ret;
-		}
-		snprintf(result , 256, "TIMA_RESULT=%s", krsp->result.result_ondemand);
-		pr_err("TIMA: %s result (%s) \n", krsp->result.result_ondemand, result);
-		envp[1] = result;
-		envp[2] = NULL;
-		if ( cnt == LAST_TRY_CNT ) {
-			kobject_uevent_env(&tima_uevent_dev->kobj, KOBJ_CHANGE, envp);
-		}
-		kfree(envp[0]);
-		kfree(envp[1]);
-	}
-
- lkmauth_ret:
-#ifdef CONFIG_LKMAUTH_SECONDWAY
-	if(pBuf)
-		kfree(pBuf);
-#endif
-	mutex_unlock(&lkmauth_mutex);
-	return ret;
-}
-#endif
 
 static void dynamic_debug_setup(struct _ddebug *debug, unsigned int num)
 {
@@ -2769,15 +2510,8 @@ static int module_sig_check(struct load_info *info)
 #endif /* !CONFIG_MODULE_SIG */
 
 /* Sanity checks against invalid binaries, wrong arch, weird elf version. */
-#ifdef CONFIG_TIMA_LKMAUTH
-static int elf_header_check(struct load_info *info, unsigned long module_len)
-#else
 static int elf_header_check(struct load_info *info)
-#endif
 {
-#ifdef CONFIG_TIMA_LKMAUTH
-	int i;
-#endif
 	if (info->len < sizeof(*(info->hdr)))
 		return -ENOEXEC;
 
@@ -2791,16 +2525,6 @@ static int elf_header_check(struct load_info *info)
 	    || (info->hdr->e_shnum * sizeof(Elf_Shdr) >
 		info->len - info->hdr->e_shoff))
 		return -ENOEXEC;
-#ifdef CONFIG_TIMA_LKMAUTH
-	if (lkmauth(info->hdr, module_len, 0) != 0) {
-		for(i = 1; i <= LAST_TRY_CNT; i++) {
-			if (lkmauth(info->hdr, module_len, i) == 0)
-				goto success;
-		}
-		return -ENOEXEC;
-	}
-success:
-#endif
 
 	return 0;
 }
@@ -3504,17 +3228,11 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	struct module *mod;
 	long err;
 
-#ifdef CONFIG_TIMA_LKMAUTH
-	unsigned long module_len = info->len;
-#endif
 	err = module_sig_check(info);
 	if (err)
 		goto free_copy;
-#ifdef CONFIG_TIMA_LKMAUTH
-	err = elf_header_check(info, module_len);
-#else
+
 	err = elf_header_check(info);
-#endif
 	if (err)
 		goto free_copy;
 
@@ -3698,6 +3416,7 @@ static inline int is_arm_mapping_symbol(const char *str)
 	return str[0] == '$' && strchr("atd", str[1])
 	       && (str[2] == '\0' || str[2] == '.');
 }
+
 static const char *symname(struct mod_kallsyms *kallsyms, unsigned int symnum)
 {
 	return kallsyms->strtab + kallsyms->symtab[symnum].st_name;

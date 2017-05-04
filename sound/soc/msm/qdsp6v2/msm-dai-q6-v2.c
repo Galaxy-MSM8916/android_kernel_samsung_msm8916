@@ -2544,7 +2544,7 @@ static int msm_dai_q6_mi2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 #ifdef CONFIG_SND_SOC_MSM8X16_WM1814	
 	    mi2s_dai_data->rx_dai.mi2s_dai_data.status_mask) &&
 #else /* CONFIG_SND_SOC_MSM8X16_WM1814 */
-		mi2s_dai_data->rx_dai.mi2s_dai_data.status_mask) ||
+	    mi2s_dai_data->rx_dai.mi2s_dai_data.status_mask) ||
 #endif /* not CONFIG_SND_SOC_MSM8X16_WM1814 */
 	    test_bit(STATUS_PORT_STARTED,
 	    mi2s_dai_data->tx_dai.mi2s_dai_data.status_mask)) {

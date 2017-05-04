@@ -438,11 +438,7 @@ static ssize_t mdss_fb_set_thermal_level(struct device *dev,
 
 	pr_debug("Thermal level set to %d\n", thermal_level);
 	mfd->thermal_level = thermal_level;
-
-	if(mfd->panel_power_state == MDSS_PANEL_POWER_OFF)
-		pr_err("mdss_fb_set_thermal_level called at panel off status\n");
-	else
-		sysfs_notify(&mfd->fbi->dev->kobj, NULL, "msm_fb_thermal_level");
+	sysfs_notify(&mfd->fbi->dev->kobj, NULL, "msm_fb_thermal_level");
 
 	return count;
 }
@@ -746,10 +742,6 @@ static void mdss_fb_shutdown(struct platform_device *pdev)
 	mfd->shutdown_pending = true;
 	lock_fb_info(mfd->fbi);
 	mdss_fb_release_all(mfd->fbi, true);
-
-	if(mfd->panel_power_state == MDSS_PANEL_POWER_OFF)
-		pr_info("mdss_fb_shutdown called at panel off status\n");
-
 	sysfs_notify(&mfd->fbi->dev->kobj, NULL, "show_blank_event");
 	unlock_fb_info(mfd->fbi);
 }
@@ -1505,9 +1497,6 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 	}
 
 	/* Notify listeners */
-	if(mfd->panel_power_state == MDSS_PANEL_POWER_OFF)
-		pr_info("mdss_fb_blank_sub called at panel off status\n");
-
 	sysfs_notify(&mfd->fbi->dev->kobj, NULL, "show_blank_event");
 
 	return ret;
@@ -2097,10 +2086,11 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 	var->hsync_len = panel_info->lcdc.h_pulse_width;
 	var->pixclock = panel_info->clk_rate / 1000;
 #if defined(CONFIG_PANEL_S6D7AA0_LTL101AT01_WXGA) || defined(CONFIG_PANEL_S6D7AA0_LSL080AL03_WXGA)
-	/*Temperary change to support XGA resolution*/
+	/*Temporary change to support XGA resolution*/
 	var->xres = 768;
 	var->yres = 1024;
 #endif
+
 	/*
 	 * Store the cont splash state in the var reserved[3] field.
 	 * The continuous splash is considered to be active if either

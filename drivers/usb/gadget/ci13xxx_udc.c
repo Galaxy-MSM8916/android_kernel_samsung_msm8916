@@ -2493,7 +2493,6 @@ __acquires(udc->lock)
 	int retval;
 
 	trace("%p", udc);
-	printk(KERN_INFO "usb:: %s udc: %p\n", __func__, udc);
 
 	if (udc == NULL) {
 		err("EINVAL");

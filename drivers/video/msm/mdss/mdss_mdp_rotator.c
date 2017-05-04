@@ -110,7 +110,6 @@ static struct mdss_mdp_pipe *mdss_mdp_rotator_pipe_alloc(void)
 		return NULL;
 	}
 
-	MDSS_XLOG(pipe->num, mixer->num);
 	pipe->mixer_stage = MDSS_MDP_STAGE_UNUSED;
 
 	return pipe;
@@ -293,10 +292,6 @@ static int mdss_mdp_rotator_queue_sub(struct mdss_mdp_rotator_session *rot,
 		goto error;
 	}
 
-	if (ret) {
-		pr_err("unable to kickoff rot data\n");
-		goto error;
-	}
 	return ret;
 error:
 	if (orig_ctl->shared_lock)

@@ -2928,7 +2928,7 @@ static int wm8994_aif_mute(struct snd_soc_dai *codec_dai, int mute)
 		return -EINVAL;
 	}
 
-	if (mute && !codec_dai->active)
+	if (mute)
 		reg = WM8994_AIF1DAC1_MUTE;
 	else
 		reg = 0;

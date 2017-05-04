@@ -35,16 +35,3 @@ config ALLOC_BUFFERS_IN_4K_CHUNKS
 	help
           Choose this option if you want ION to allocate buffers in
           only 4KB chunks.
-
-config ION_MSM_SYSTEM_HEAP_POOL_LIMIT
-	bool "Enable ion msm system heap pool limit for low memory device"
-	depends on ION_MSM
-	help
-	  Choose this option if you want limit ion msm system heap pool total.
-
-config MAX_ION_MSM_SYSTEM_HEAP_POOL
-	int "Max ion msm system heap pool"
-	depends on ION_MSM_SYSTEM_HEAP_POOL_LIMIT
-	default 12800
-	help
-	  Modify it if you want set different max ion msm system heap pool.

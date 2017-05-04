@@ -894,10 +894,12 @@ static int mdss_dsi_link_clk_set_rate(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 		return -EINVAL;
 	}
 
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 	vdd = check_valid_ctrl(ctrl_pdata);
 
 	if(vdd->dtsi_data[ctrl_pdata->ndx].samsung_esc_clk_128M)
 		esc_clk_rate = 12800000;
+#endif
 
 
 	if (!ctrl_pdata->panel_data.panel_info.cont_splash_enabled) {

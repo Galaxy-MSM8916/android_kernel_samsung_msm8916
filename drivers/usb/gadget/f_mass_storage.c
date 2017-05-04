@@ -230,7 +230,7 @@
 #define FSG_DRIVER_DESC		"Mass Storage Function"
 #define FSG_DRIVER_VERSION	"2009/09/11"
 
-static const char fsg_string_interface[] = "Android Mass Storage";
+static const char fsg_string_interface[] = "Mass Storage";
 
 #include "storage_common.c"
 

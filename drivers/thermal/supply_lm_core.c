@@ -303,7 +303,6 @@ static ssize_t supply_lm_input_write(struct file *fp,
 	enum corner_state gpu;
 	enum corner_state modem;
 
-	/* CR 990824 */
 	if (count > (MODE_MAX - 1)) {
 		pr_err("Invalid user input\n");
 		return -EINVAL;

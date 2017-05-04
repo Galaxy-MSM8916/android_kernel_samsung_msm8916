@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/err.h>
+
 #ifndef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 #include "usb_gadget_xport.h"
 #endif
@@ -189,7 +190,6 @@ static int acm_port_disconnect(struct f_acm *acm)
 	return 0;
 }
 #endif
-
 /*-------------------------------------------------------------------------*/
 
 /* notification endpoint uses smallish and infrequent fixed-size messages */
@@ -485,10 +485,8 @@ static int acm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	/* GET_LINE_CODING ... return what host sent, or initial value */
 	case ((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8)
 			| USB_CDC_REQ_GET_LINE_CODING:
-#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 		if (w_index != acm->ctrl_id)
 			goto invalid;
-#endif
 
 		value = min_t(unsigned, w_length,
 				sizeof(struct usb_cdc_line_coding));
@@ -498,10 +496,8 @@ static int acm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	/* SET_CONTROL_LINE_STATE ... save what the host sent */
 	case ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8)
 			| USB_CDC_REQ_SET_CONTROL_LINE_STATE:
-#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 		if (w_index != acm->ctrl_id)
 			goto invalid;
-#endif
 
 		value = 0;
 
@@ -892,8 +888,8 @@ static void acm_unbind(struct usb_configuration *c, struct usb_function *f)
 #endif
 
 	/* acm_string_defs[].id is limited to 256
-	if id is cleared on disconneting, The increased number is allocated on connecting.
-	ACM driver can't connect to host when id is over 256 */
+	 * if id is cleared on disconneting, The increased number is allocated on connecting.
+	 * ACM driver can't connect to host when id is over 256 */
 #ifndef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 	acm_string_defs[0].id = 0;
 #endif

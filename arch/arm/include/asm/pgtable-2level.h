@@ -10,10 +10,6 @@
 #ifndef _ASM_PGTABLE_2LEVEL_H
 #define _ASM_PGTABLE_2LEVEL_H
 
-#ifdef CONFIG_TIMA_RKP
-#include <asm/tlbflush.h>
-#include <asm/cp15.h>
-#endif
 /*
  * Hardware-wise, we have a two level page table structure, where the first
  * level has 4096 entries, and the second level has 256 entries.  Each entry
@@ -168,95 +164,24 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
 #define pmd_large(pmd)		(pmd_val(pmd) & 2)
 #define pmd_bad(pmd)		(pmd_val(pmd) & 2)
 
-#ifdef CONFIG_TIMA_RKP_L2_GROUP
-extern int cpu_v7_timal2group_set_pte_ext(pte_t *ptep, pte_t pte, unsigned int ext,
-                        unsigned long tima_l2group_entry_ptr);
-extern void cpu_v7_timal2group_set_pte_commit(void *tima_l2group_entry_ptr,
-                                        unsigned long tima_l2group_entries_count);
-
-#endif /* CONFIG_TIMA_RKP_L2_GROUP */
-
-#ifdef  CONFIG_TIMA_RKP_L1_TABLES
-static inline void copy_pmd(pmd_t *pmdpd, pmd_t *pmdps)
-{
-	unsigned long cmd_id = 0x3f809221;
-	if (tima_is_pg_protected((unsigned long) pmdpd) != 0) {
-#ifndef CONFIG_TIMA_RKP_COHERENT_TT
-		cpu_dcache_clean_area(pmdpd, 8);
-		tima_cache_flush((unsigned long)pmdpd);
-#endif
-		tima_send_cmd5((unsigned long)__pa((unsigned long)pmdpd),
-				(unsigned long)pmdps[0], (unsigned long)pmdps[1], 0, 0, cmd_id);
-#ifndef CONFIG_TIMA_RKP_COHERENT_TT
-		tima_cache_inval((unsigned long)pmdpd);
-#endif
-		tima_tlb_inval_is(0);
-	} else {
-		pmdpd[0] = pmdps[0];
-		pmdpd[1] = pmdps[1];
-	}
-	flush_pmd_entry(pmdpd);
-}
-#else /* CONFIG_TIMA_RKP_L1_TABLES */
 #define copy_pmd(pmdpd,pmdps)		\
 	do {				\
 		pmdpd[0] = pmdps[0];	\
 		pmdpd[1] = pmdps[1];	\
 		flush_pmd_entry(pmdpd);	\
 	} while (0)
-#endif /*CONFIG_TIMA_RKP_L1_TABLES */
 
-
-#ifdef CONFIG_TIMA_RKP
-extern void cpu_v7_tima_iommu_opt(unsigned long start,
-                                        unsigned long end, unsigned long pgd);
-#endif
-
-#ifdef  CONFIG_TIMA_RKP_L1_TABLES
-static inline void pmd_clear(pmd_t *pmdp)
-{
-        volatile unsigned long cmd_id = 0x3f80a221;
-
-	if (tima_is_pg_protected((unsigned long) pmdp) != 0) {
-#ifndef CONFIG_TIMA_RKP_COHERENT_TT
-		cpu_dcache_clean_area(pmdp, 8);
-		tima_cache_flush((unsigned long)pmdp);
-#endif
-		tima_send_cmd5((unsigned long)__pa((unsigned long)pmdp), 0, 0, 0, 0, cmd_id);
-#ifndef CONFIG_TIMA_RKP_COHERENT_TT
-		tima_cache_inval((unsigned long)pmdp);
-#endif
-		tima_tlb_inval_is(0);
-	} else {
-		pmdp[0] = __pmd(0);
-		pmdp[1] = __pmd(0);
-	}
-	clean_pmd_entry(pmdp);
-}
-#else /* CONFIG_TIMA_RKP_L1_TABLES */
 #define pmd_clear(pmdp)			\
 	do {				\
 		pmdp[0] = __pmd(0);	\
 		pmdp[1] = __pmd(0);	\
 		clean_pmd_entry(pmdp);	\
 	} while (0)
-#endif /* CONFIG_TIMA_RKP_L1_TABLES */
 
 /* we don't need complex calculations here as the pmd is folded into the pgd */
 #define pmd_addr_end(addr,end) (end)
 
-static inline void set_pte_ext(pte_t *ptep, pte_t pte,unsigned long ext)
-{
-#ifdef CONFIG_TIMA_RKP_L2_TABLES
-	if (tima_is_pg_protected((unsigned long) ptep) != 0) {
-		cpu_tima_set_pte_ext(ptep,pte,ext, (unsigned long)__pa(ptep));
-	} else {
-		cpu_set_pte_ext(ptep,pte,ext);
-	}
-#else
-	cpu_set_pte_ext(ptep,pte,ext);
-#endif /* CONFIG_TIMA_RKP_L2_TABLES */
-}
+#define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
 
 #endif /* __ASSEMBLY__ */
 

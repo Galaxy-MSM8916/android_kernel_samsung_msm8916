@@ -89,29 +89,6 @@ static struct page *alloc_buffer_page(struct ion_system_heap *heap,
 	return page;
 }
 
-#ifdef CONFIG_ION_MSM_SYSTEM_HEAP_POOL_LIMIT
-/* Calculate uncached and cached pool pages from system heap
- *
- * @param heap current system heap
- * @return total total uncached and cached pool pages
- */
-static unsigned long get_system_heap_pool_total(struct ion_system_heap *heap)
-{
-	int i;
-	unsigned long total = 0;
-
-	for (i = 0; i < num_orders; i++) {
-		struct ion_page_pool *uncached_pool = heap->uncached_pools[i];
-		struct ion_page_pool *cached_pool = heap->cached_pools[i];
-
-		total += (1 << uncached_pool->order) * (uncached_pool->high_count + uncached_pool->low_count) +
-				(1 << cached_pool->order) * (cached_pool->high_count + cached_pool->low_count);
-	}
-
-	return total;
-}
-#endif
-
 static void free_buffer_page(struct ion_system_heap *heap,
 			     struct ion_buffer *buffer, struct page *page,
 			     unsigned int order)
@@ -120,13 +97,6 @@ static void free_buffer_page(struct ion_system_heap *heap,
 
 	if (!(buffer->private_flags & ION_PRIV_FLAG_SHRINKER_FREE)) {
 		struct ion_page_pool *pool;
-
-#ifdef CONFIG_ION_MSM_SYSTEM_HEAP_POOL_LIMIT
-		if (get_system_heap_pool_total(heap) > CONFIG_MAX_ION_MSM_SYSTEM_HEAP_POOL) {
-			__free_pages(page, order);
-			return;
-		}
-#endif
 		if (cached)
 			pool = heap->cached_pools[order_to_index(order)];
 		else

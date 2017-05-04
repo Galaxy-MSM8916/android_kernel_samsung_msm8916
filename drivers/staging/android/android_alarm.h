@@ -18,29 +18,8 @@
 
 #include <linux/compat.h>
 #include <linux/ioctl.h>
-#include <linux/time.h>
-#include <linux/compat.h>
 
 #include "uapi/android_alarm.h"
-
-/* Disable alarm */
-#define ANDROID_ALARM_CLEAR(type)           _IO('a', 0 | ((type) << 4))
-
-/* Ack last alarm and wait for next */
-#define ANDROID_ALARM_WAIT                  _IO('a', 1)
-
-#define ALARM_IOW(c, type, size)            _IOW('a', (c) | ((type) << 4), size)
-/* Set alarm */
-#define ANDROID_ALARM_SET(type)             ALARM_IOW(2, type, struct timespec)
-#define ANDROID_ALARM_SET_AND_WAIT(type)    ALARM_IOW(3, type, struct timespec)
-#define ANDROID_ALARM_GET_TIME(type)        ALARM_IOW(4, type, struct timespec)
-#define ANDROID_ALARM_SET_RTC               _IOW('a', 5, struct timespec)
-#if defined(CONFIG_RTC_AUTO_PWRON)
-#define ANDROID_ALARM_SET_ALARM_BOOT	    _IOW('a', 7, struct timespec)
-#endif
-
-#define ANDROID_ALARM_BASE_CMD(cmd)         (cmd & ~(_IOC(0, 0, 0xf0, 0)))
-#define ANDROID_ALARM_IOCTL_TO_TYPE(cmd)    (_IOC_NR(cmd) >> 4)
 
 #ifdef CONFIG_COMPAT
 #define ANDROID_ALARM_SET_COMPAT(type)		ALARM_IOW(2, type, \

@@ -38,9 +38,6 @@
 #include <soc/qcom/subsystem_notif.h>
 #include <soc/qcom/socinfo.h>
 #include <soc/qcom/sysmon.h>
-#ifdef CONFIG_SEC_DEBUG
-#include <linux/sec_debug.h>
-#endif
 
 #include <asm/current.h>
 
@@ -51,8 +48,6 @@ module_param(disable_restart_work, uint, S_IRUGO | S_IWUSR);
 
 static int enable_debug;
 module_param(enable_debug, int, S_IRUGO | S_IWUSR);
-
-static bool silent_ssr;
 
 /**
  * enum p_subsys_state - state of a subsystem (private)
@@ -158,11 +153,7 @@ struct subsys_device {
 	struct work_struct work;
 	struct wakeup_source ssr_wlock;
 	char wlname[64];
-#ifdef CONFIG_SEC_DEBUG
-	struct delayed_work device_restart_delayed_work;
-#else
 	struct work_struct device_restart_work;
-#endif
 	struct subsys_tracking track;
 
 	void *notify;
@@ -752,21 +743,9 @@ void subsystem_put(void *subsystem)
 			subsys->desc->name, __func__))
 		goto err_out;
 	if (!--subsys->count) {
-#ifdef CONFIG_SEC_DEBUG
-		if (strncmp(subsys->desc->name, "modem", 5)) {
 		subsys_stop(subsys);
 		if (subsys->do_ramdump_on_put)
 			subsystem_ramdump(subsys, NULL);
-	}
-		else {
-			pr_err("subsys: block modem put stop for stabilty\n");
-			subsys->count++;
-		}
-#else
-		subsys_stop(subsys);
-		if (subsys->do_ramdump_on_put)
-			subsystem_ramdump(subsys, NULL);
-#endif
 	}
 	mutex_unlock(&track->lock);
 
@@ -888,14 +867,9 @@ static void __subsystem_restart_dev(struct subsys_device *dev)
 
 static void device_restart_work_hdlr(struct work_struct *work)
 {
-#ifdef CONFIG_SEC_DEBUG
-	struct subsys_device *dev = container_of(to_delayed_work(work),
-						struct subsys_device,
-						device_restart_delayed_work);
-#else
 	struct subsys_device *dev = container_of(work, struct subsys_device,
 							device_restart_work);
-#endif
+
 	notify_each_subsys_device(&dev, 1, SUBSYS_SOC_RESET, NULL);
 	panic("subsys-restart: Resetting the SoC - %s crashed.",
 							dev->desc->name);
@@ -914,21 +888,6 @@ int subsystem_restart_dev(struct subsys_device *dev)
 	}
 
 	name = dev->desc->name;
-
-#ifdef CONFIG_SEC_DEBUG
-#ifdef CONFIG_SEC_SSR_DEBUG_LEVEL_CHK
-	if ((!sec_debug_is_enabled_for_ssr()) || (!sec_debug_is_enabled()) || silent_ssr)
-#else
-	if (!sec_debug_is_enabled() || silent_ssr)
-#endif
-		dev->restart_level = RESET_SUBSYS_COUPLED; //Why is it delete the RESET_SUBSYS_INDEPENDENT on MSM8974 ?
-	else
-		dev->restart_level = RESET_SOC;
-#endif
-	/* move from subsystem_crash(), clear force stop gpio and silent ssr flag */
-	if (dev->desc->force_stop_gpio)
-		gpio_set_value(dev->desc->force_stop_gpio, 0);
-	silent_ssr = 0;
 
 	/*
 	 * If a system reboot/shutdown is underway, ignore subsystem errors.
@@ -956,25 +915,7 @@ int subsystem_restart_dev(struct subsys_device *dev)
 		break;
 	case RESET_SOC:
 		__pm_stay_awake(&dev->ssr_wlock);
-#ifdef CONFIG_SEC_DEBUG
-		/*
-		 * If the silent log function is enabled for CP and CP is in
-		 * trouble, diag_mdlog (APP) should be terminated before
-		 * a panic occurs, since it can flush logs to SD card
-		 * when it is over.
-		 * We should guarantee time the App needs for saving logs
-		 * as well, so we use a delayed workqueue.
-		 */
-		if(silent_log_panic_handler())
-			schedule_delayed_work(&dev->device_restart_delayed_work,
-				msecs_to_jiffies(300));
-		else
-			schedule_delayed_work(&dev->device_restart_delayed_work,
-				0);
-
-#else
 		schedule_work(&dev->device_restart_work);
-#endif
 		return 0;
 	default:
 		panic("subsys-restart: Unknown restart level!\n");
@@ -1000,39 +941,6 @@ int subsystem_restart(const char *name)
 	return ret;
 }
 EXPORT_SYMBOL(subsystem_restart);
-
-int subsystem_crash(const char *name)
-{
-	struct subsys_device *dev = find_subsys(name);
-
-	if (!dev)
-		return -ENODEV;
-
-	if (!get_device(&dev->dev))
-		return -ENODEV;
-
-	if (!subsys_get_crash_status(dev) && dev->desc->force_stop_gpio) {
-		pr_err("%s: set force gpio\n", __func__);
-		gpio_set_value(dev->desc->force_stop_gpio, 1);
-		/*
-		 * wait for ack timeout is 1s. don't wait here.
-		 * with 10ms delay, sometimes stop_ack are not received.
-		 * so, clear gpio status when subsystem restart begins.
-		mdelay(10);
-		gpio_set_value(dev->desc->force_stop_gpio, 0);
-		*/
-	}
-	return 0;
-}
-EXPORT_SYMBOL(subsystem_crash);
-
-void subsys_force_stop(const char *name, bool val)
-{
-	silent_ssr = val;
-	pr_err("silent_ssr %s: %d\n", name, silent_ssr);
-	subsystem_crash(name);
-}
-EXPORT_SYMBOL(subsys_force_stop);
 
 int subsystem_crashed(const char *name)
 {
@@ -1574,12 +1482,7 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
 	snprintf(subsys->wlname, sizeof(subsys->wlname), "ssr(%s)", desc->name);
 	wakeup_source_init(&subsys->ssr_wlock, subsys->wlname);
 	INIT_WORK(&subsys->work, subsystem_restart_wq_func);
-#ifdef CONFIG_SEC_DEBUG
-	INIT_DELAYED_WORK(&subsys->device_restart_delayed_work,
-				device_restart_work_hdlr);
-#else
 	INIT_WORK(&subsys->device_restart_work, device_restart_work_hdlr);
-#endif
 	spin_lock_init(&subsys->track.s_lock);
 
 	subsys->id = ida_simple_get(&subsys_ida, 0, 0, GFP_KERNEL);

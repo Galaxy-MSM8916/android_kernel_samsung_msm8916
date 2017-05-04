@@ -80,18 +80,7 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 	struct scatterlist *sg;
 	int i;
 	int ret;
-#ifdef CONFIG_TIMA_RKP
-        if (buffer->size) {
-        /* iommu optimization- needs to be turned ON from
-         * the tz side.
-         */
-                cpu_v7_tima_iommu_opt(vma->vm_start, vma->vm_end, (unsigned long)((unsigned long)vma->vm_mm->pgd));
-                __asm__ __volatile__ (
-                "mcr    p15, 0, r0, c8, c3, 0\n"
-                "dsb\n"
-                "isb\n");
-        }
-#endif
+
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		struct page *page = sg_page(sg);
 		unsigned long remainder = vma->vm_end - addr;

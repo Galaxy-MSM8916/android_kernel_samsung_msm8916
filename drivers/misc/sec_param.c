@@ -126,17 +126,6 @@ bool sec_get_param(enum sec_param_index index, void *value)
 		printk(KERN_INFO "param_data.update_cp_bin :[%d]!!", param_data->update_cp_bin);
 		break;
 #endif
-#ifdef CONFIG_RTC_AUTO_PWRON_PARAM
-	case param_index_boot_alarm_set:
-		memcpy(value, &(param_data->boot_alarm_set), sizeof(unsigned int));
-		break;
-	case param_index_boot_alarm_value_l:
-		memcpy(value, &(param_data->boot_alarm_value_l), sizeof(unsigned int));
-		break;
-	case param_index_boot_alarm_value_h:
-		memcpy(value, &(param_data->boot_alarm_value_h), sizeof(unsigned int));
-		break;
-#endif
 #ifdef CONFIG_SEC_MONITOR_BATTERY_REMOVAL
 	case param_index_normal_poweroff:
 		memcpy(&(param_data->normal_poweroff), value, sizeof(unsigned int));
@@ -194,17 +183,6 @@ bool sec_set_param(enum sec_param_index index, void *value)
 	case param_update_cp_bin:
 		memcpy(&(param_data->update_cp_bin),
 				value, sizeof(unsigned int));
-		break;
-#endif
-#ifdef CONFIG_RTC_AUTO_PWRON_PARAM
-	case param_index_boot_alarm_set:
-		memcpy(&(param_data->boot_alarm_set), value, sizeof(unsigned int));
-		break;
-	case param_index_boot_alarm_value_l:
-		memcpy(&(param_data->boot_alarm_value_l), value, sizeof(unsigned int));
-		break;
-	case param_index_boot_alarm_value_h:
-		memcpy(&(param_data->boot_alarm_value_h), value, sizeof(unsigned int));
 		break;
 #endif
 #ifdef CONFIG_SEC_MONITOR_BATTERY_REMOVAL

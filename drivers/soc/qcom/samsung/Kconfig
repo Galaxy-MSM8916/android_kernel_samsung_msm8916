@@ -149,17 +149,6 @@ config SEC_DEBUG_DOUBLE_FREE
 	 circular buffer is searched. Panic is be called when
 	 the match is found.
 
-config SEC_LOG_LAST_KMSG
-	bool "Enable /proc/last_kmsg support: if EMBEDDED"
-	default n
-	help
-	  This option enables /proc/last_kmsg support.
-config SEC_DEBUG_NOCACHE_LOG_IN_LEVEL_LOW
-	bool "Enable nocache logging in debug level LOW"
-	default n
-	help
-	  Enable nocache logging in debug level LOW.
-
 config SEC_MONITOR_BATTERY_REMOVAL
 	bool "Enable monitering whether normal power sequence or not"
 	default n
