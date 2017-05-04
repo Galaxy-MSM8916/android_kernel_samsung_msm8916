@@ -1052,6 +1052,41 @@ config SEC_FORTUNA_PROJECT
 	help
 	  Support for Samsung Fortuna Project
 
+config MACH_FORTUNA
+    depends on SEC_FORTUNA_PROJECT
+        default n
+        bool "Samsung FORTUNA"
+        help
+	  Support for Samsung FORTUNA devices.
+
+config MACH_FORTUNA_EUR_OPEN
+	depends on SEC_FORTUNA_PROJECT
+	default n
+	bool "Samsung FORTUNA EUR OPEN"
+	help
+	  Support for Samsung FORTUNA EUR OPEN device.
+
+config MACH_FORTUNA3G_EUR
+	depends on SEC_FORTUNA_PROJECT
+	default n
+	bool "Samsung FORTUNA 3G Europe Open "
+	help
+	  Support for Samsung FORTUNA 3G Europe Open device.
+
+config MACH_FORTUNAVE3G_EUR
+	depends on SEC_FORTUNA_PROJECT
+	default n
+	bool "Samsung FORTUNAVE 3G Europe Open "
+	help
+	  Support for Samsung FORTUNAVE 3G Europe Open device.
+
+config MACH_FORTUNA_SEA_OPEN
+	depends on SEC_FORTUNA_PROJECT
+	default n
+	bool "Samsung FORTUNA SEA Open "
+	help
+	  Support for Samsung FORTUNA SEA Open device.
+
 config MACH_FORTUNA_TFN
     depends on SEC_FORTUNA_PROJECT
         default n
@@ -1093,6 +1128,34 @@ config MACH_FORTUNA_ACG
         bool "Samsung FORTUNA USA ACG"
         help
           Support for Samsung FORTUNA USA ACG device.
+
+config MACH_FORTUNA_CMCC
+	depends on SEC_FORTUNA_PROJECT
+		default n
+		bool "Samsung FORTUNA China"
+		help
+		  Support for Samsung FORTUNA China device.
+
+config MACH_FORTUNA_CU
+	depends on SEC_FORTUNA_PROJECT
+		default n
+		bool "Samsung FORTUNA China"
+		help
+		  Support for Samsung FORTUNA China device.
+
+config MACH_FORTUNA_CTC
+	depends on SEC_FORTUNA_PROJECT
+		default n
+		bool "Samsung FORTUNA China"
+		help
+		  Support for Samsung FORTUNA China device.
+
+config MACH_FORTUNA_CHN_ZT
+	depends on SEC_FORTUNA_PROJECT
+		default n
+		bool "Samsung FORTUNA China TW"
+		help
+		  Support for Samsung FORTUNA China TW device.
 
 config SEC_ROSSA_PROJECT
     depends on ARCH_MSM8916
