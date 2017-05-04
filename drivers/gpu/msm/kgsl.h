@@ -316,20 +316,6 @@ extern const struct dev_pm_ops kgsl_pm_ops;
 int kgsl_suspend_driver(struct platform_device *pdev, pm_message_t state);
 int kgsl_resume_driver(struct platform_device *pdev);
 
-#ifdef CONFIG_MSM_KGSL_DRM
-extern int kgsl_drm_init(struct platform_device *dev);
-extern void kgsl_drm_exit(void);
-#else
-static inline int kgsl_drm_init(struct platform_device *dev)
-{
-	return 0;
-}
-
-static inline void kgsl_drm_exit(void)
-{
-}
-#endif
-
 static inline int kgsl_gpuaddr_in_memdesc(const struct kgsl_memdesc *memdesc,
 				unsigned int gpuaddr, size_t size)
 {
@@ -397,13 +383,16 @@ static inline int timestamp_cmp(unsigned int a, unsigned int b)
 static inline int
 kgsl_mem_entry_get(struct kgsl_mem_entry *entry)
 {
-	return kref_get_unless_zero(&entry->refcount);
+	if (entry)
+		return kref_get_unless_zero(&entry->refcount);
+	return 0;
 }
 
 static inline void
 kgsl_mem_entry_put(struct kgsl_mem_entry *entry)
 {
-	kref_put(&entry->refcount, kgsl_mem_entry_destroy);
+	if (entry)
+		kref_put(&entry->refcount, kgsl_mem_entry_destroy);
 }
 
 /*

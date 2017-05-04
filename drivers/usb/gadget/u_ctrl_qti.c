@@ -83,7 +83,7 @@ static void qti_ctrl_queue_notify(struct qti_ctrl_port *port)
 
 	spin_lock_irqsave(&port->lock, flags);
 	if (!port->is_open) {
-		pr_err("%s: rmnet ctrl file handler %p is not open",
+		pr_err("%s: rmnet ctrl file handler %pK is not open",
 			   __func__, port);
 		spin_unlock_irqrestore(&port->lock, flags);
 		return;
@@ -136,7 +136,7 @@ static int gqti_ctrl_send_cpkt_tomodem(u8 portno, void *buf, size_t len)
 
 	/* drop cpkt if port is not open */
 	if (!port->is_open) {
-		pr_debug("rmnet file handler %p(index=%d) is not open",
+		pr_debug("rmnet file handler %pK(index=%d) is not open",
 		       port, port->index);
 		spin_unlock_irqrestore(&port->lock, flags);
 		free_rmnet_ctrl_pkt(cpkt);
@@ -178,7 +178,7 @@ int gqti_ctrl_connect(void *gr, u8 port_num, unsigned intf,
 	struct gqdss *g_dpl = NULL;
 	unsigned long flags;
 
-	pr_debug("%s: gtype:%d gadget:%p\n", __func__, gtype, gr);
+	pr_debug("%s: gtype:%d gadget:%pK\n", __func__, gtype, gr);
 	if (port_num >= NR_QTI_PORTS) {
 		pr_err("%s: Invalid QTI port %d\n", __func__, port_num);
 		return -ENODEV;
@@ -249,7 +249,7 @@ void gqti_ctrl_disconnect(void *gr, u8 port_num)
 	struct grmnet *g_rmnet = NULL;
 	struct gqdss *g_dpl = NULL;
 
-	pr_debug("%s: gadget:%p\n", __func__, gr);
+	pr_debug("%s: gadget:%pK\n", __func__, gr);
 
 	if (port_num >= NR_QTI_PORTS) {
 		pr_err("%s: Invalid QTI port %d\n", __func__, port_num);

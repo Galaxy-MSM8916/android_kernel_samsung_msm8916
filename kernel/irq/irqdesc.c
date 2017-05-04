@@ -91,6 +91,9 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
 	for_each_possible_cpu(cpu)
 		*per_cpu_ptr(desc->kstat_irqs, cpu) = 0;
 	desc_smp_init(desc, node);
+#ifdef CONFIG_SMP
+	INIT_LIST_HEAD(&desc->affinity_notify);
+#endif
 }
 
 int nr_irqs = NR_IRQS;
@@ -149,6 +152,7 @@ static struct irq_desc *alloc_desc(int irq, int node, struct module *owner)
 
 	raw_spin_lock_init(&desc->lock);
 	lockdep_set_class(&desc->lock, &irq_desc_lock_class);
+	mutex_init(&desc->notify_lock);
 
 	desc_set_defaults(irq, desc, node, owner);
 

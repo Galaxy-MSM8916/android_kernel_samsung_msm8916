@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016, Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -134,7 +134,7 @@ static int q6lsm_callback(struct apr_client_data *data, void *priv)
 	uint32_t *payload;
 
 	if (!client || !data) {
-		pr_err("%s: client %p data %p\n",
+		pr_err("%s: client %pK data %pK\n",
 			__func__, client, data);
 		WARN_ON(1);
 		return -EINVAL;
@@ -347,6 +347,7 @@ void q6lsm_client_free(struct lsm_client *client)
 	q6lsm_mmap_apr_dereg();
 	mutex_destroy(&client->cmd_lock);
 	kfree(client);
+	client = NULL;
 }
 
 /*
@@ -799,6 +800,62 @@ int q6lsm_set_port_connected(struct lsm_client *client)
 
 	return rc;
 }
+
+static int q6lsm_send_param_polling_enable(struct lsm_client *client,
+		bool poll_en,
+		struct lsm_module_param_ids *poll_enable_ids,
+		u32 set_param_opcode)
+{
+	int rc = 0;
+	struct lsm_cmd_poll_enable cmd;
+	struct apr_hdr  *msg_hdr;
+	struct lsm_param_poll_enable *poll_enable;
+	u32 data_payload_size, param_size;
+
+	msg_hdr = &cmd.msg_hdr;
+	q6lsm_add_hdr(client, msg_hdr,
+		      sizeof(struct lsm_cmd_poll_enable), true);
+	msg_hdr->opcode = set_param_opcode;
+	data_payload_size = sizeof(struct lsm_cmd_poll_enable) -
+			    sizeof(struct apr_hdr) -
+			    sizeof(struct lsm_set_params_hdr);
+	q6lsm_set_param_hdr_info(&cmd.params_hdr,
+				 data_payload_size, 0, 0, 0);
+	poll_enable = &cmd.poll_enable;
+
+	param_size = (sizeof(struct lsm_param_poll_enable) -
+		      sizeof(poll_enable->common));
+	q6lsm_set_param_common(&poll_enable->common,
+			       poll_enable_ids, param_size,
+			       set_param_opcode);
+	poll_enable->minor_version = QLSM_PARAM_ID_MINOR_VERSION;
+	poll_enable->polling_enable = (poll_en) ? 1 : 0;
+	pr_debug("%s: poll enable= %d", __func__, poll_enable->polling_enable);
+
+	rc = q6lsm_apr_send_pkt(client, client->apr,
+				&cmd, true, NULL);
+	if (rc)
+		pr_err("%s: Failed set_params opcode 0x%x, rc %d\n",
+		       __func__, msg_hdr->opcode, rc);
+
+	return rc;
+}
+
+int q6lsm_polling_enable(struct lsm_client *client, bool poll_en)
+{
+	int rc = 0;
+	struct lsm_module_param_ids ids;
+
+	ids.module_id = LSM_MODULE_ID_VOICE_WAKEUP;
+	ids.param_id = LSM_PARAM_ID_POLLING_ENABLE;
+	rc = q6lsm_send_param_polling_enable(client, poll_en, &ids,
+			LSM_SESSION_CMD_SET_PARAMS);
+	if (rc)
+		pr_err("%s: Polling enable failed, rc %d\n",
+			 __func__, rc);
+	return rc;
+}
+
 int q6lsm_set_data(struct lsm_client *client,
 			   enum lsm_detection_mode mode,
 			   bool detectfailure)
@@ -886,7 +943,7 @@ int q6lsm_register_sound_model(struct lsm_client *client,
 	rmb();
 	cmd.mem_map_handle = client->sound_model.mem_map_handle;
 
-	pr_debug("%s: addr %pa, size %d, handle 0x%x\n", __func__,
+	pr_debug("%s: addr %pK, size %d, handle 0x%x\n", __func__,
 		&client->sound_model.phys, cmd.model_size, cmd.mem_map_handle);
 	rc = q6lsm_apr_send_pkt(client, client->apr, &cmd, true, NULL);
 	if (rc)
@@ -960,7 +1017,7 @@ static int q6lsm_memory_map_regions(struct lsm_client *client,
 	int rc;
 	int cmd_size = 0;
 
-	pr_debug("%s: dma_addr_p 0x%pa, dma_buf_sz %d, mmap_p 0x%p, session %d\n",
+	pr_debug("%s: dma_addr_p 0x%pK, dma_buf_sz %d, mmap_p 0x%pK, session %d\n",
 		__func__, &dma_addr_p, dma_buf_sz, mmap_p,
 		client->session);
 	if (CHECK_SESSION(client->session)) {
@@ -1240,7 +1297,7 @@ int q6lsm_snd_model_buf_alloc(struct lsm_client *client, size_t len,
 	if (cal_block == NULL)
 		goto fail;
 
-	pr_debug("%s:Snd Model len = %zd cal size %zd phys addr %pa", __func__,
+	pr_debug("%s:Snd Model len = %zd cal size %zd phys addr %pK", __func__,
 		len, cal_block->cal_data.size,
 		&cal_block->cal_data.paddr);
 	if (!cal_block->cal_data.paddr) {
@@ -1295,8 +1352,8 @@ int q6lsm_snd_model_buf_alloc(struct lsm_client *client, size_t len,
 	memcpy((client->sound_model.data + pad_zero +
 		client->sound_model.size),
 	       (uint32_t *)cal_block->cal_data.kvaddr, client->lsm_cal_size);
-	pr_debug("%s: Copy cal start virt_addr %p phy_addr %pa\n"
-			 "Offset cal virtual Addr %p\n", __func__,
+	pr_debug("%s: Copy cal start virt_addr %pK phy_addr %pK\n"
+			 "Offset cal virtual Addr %pK\n", __func__,
 			 client->sound_model.data, &client->sound_model.phys,
 			 (pad_zero + client->sound_model.data +
 			 client->sound_model.size));
@@ -1479,6 +1536,20 @@ int q6lsm_set_one_param(struct lsm_client *client,
 			pr_err("%s: CONFIDENCE_LEVELS cmd failed, rc %d\n",
 				 __func__, rc);
 		break;
+	case LSM_POLLING_ENABLE: {
+		struct snd_lsm_poll_enable *lsm_poll_enable =
+				(struct snd_lsm_poll_enable *) data;
+		ids.module_id = p_info->module_id;
+		ids.param_id = p_info->param_id;
+		rc = q6lsm_send_param_polling_enable(client,
+				lsm_poll_enable->poll_en, &ids,
+				LSM_SESSION_CMD_SET_PARAMS_V2);
+		if (rc)
+			pr_err("%s: POLLING ENABLE cmd failed, rc %d\n",
+				 __func__, rc);
+		break;
+	}
+
 	case LSM_REG_SND_MODEL: {
 		struct lsm_cmd_set_params model_param;
 		u32 payload_size;
@@ -1610,7 +1681,7 @@ int q6lsm_lab_control(struct lsm_client *client, u32 enable)
 	u32 param_size;
 
 	if (!client) {
-		pr_err("%s: invalid param client %p\n", __func__, client);
+		pr_err("%s: invalid param client %pK\n", __func__, client);
 		return -EINVAL;
 	}
 	/* enable/disable lab on dsp */
@@ -1667,7 +1738,7 @@ int q6lsm_stop_lab(struct lsm_client *client)
 {
 	int rc = 0;
 	if (!client) {
-		pr_err("%s: invalid param client %p\n", __func__, client);
+		pr_err("%s: invalid param client %pK\n", __func__, client);
 		return -EINVAL;
 	}
 	rc = q6lsm_cmd(client, LSM_SESSION_CMD_EOB, true);
@@ -1680,7 +1751,7 @@ int q6lsm_read(struct lsm_client *client, struct lsm_cmd_read *read)
 {
 	int rc = 0;
 	if (!client || !read) {
-		pr_err("%s: Invalid params client %p read %p\n", __func__,
+		pr_err("%s: Invalid params client %pK read %pK\n", __func__,
 			client, read);
 		return -EINVAL;
 	}
@@ -1750,7 +1821,7 @@ int q6lsm_lab_buffer_alloc(struct lsm_client *client, bool alloc)
 			kfree(client->lab_buffer);
 			client->lab_buffer = NULL;
 		} else {
-			pr_debug("%s: Memory map handle %x phys %pa size %d\n",
+			pr_debug("%s: Memory map handle %x phys %pK size %d\n",
 				__func__,
 				client->lab_buffer[0].mem_map_handle,
 				&client->lab_buffer[0].phys,

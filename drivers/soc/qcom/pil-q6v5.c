@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014,2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -37,7 +37,7 @@
 #define AXI_HALTACK			0x4
 #define AXI_IDLE			0x8
 
-#define HALT_ACK_TIMEOUT_US		100000
+#define HALT_ACK_TIMEOUT_US		25000
 
 /* QDSP6SS_RESET */
 #define Q6SS_STOP_CORE			BIT(0)
@@ -159,9 +159,9 @@ void pil_q6v5_halt_axi_port(struct pil_desc *pil, void __iomem *halt_base)
 	ret = readl_poll_timeout(halt_base + AXI_HALTACK,
 		status, status != 0, 50, HALT_ACK_TIMEOUT_US);
 	if (ret)
-		dev_warn(pil->dev, "Port %p halt timeout\n", halt_base);
+		dev_warn(pil->dev, "Port %pK halt timeout\n", halt_base);
 	else if (!readl_relaxed(halt_base + AXI_IDLE))
-		dev_warn(pil->dev, "Port %p halt failed\n", halt_base);
+		dev_warn(pil->dev, "Port %pK halt failed\n", halt_base);
 
 	/* Clear halt request (port will remain halted until reset) */
 	writel_relaxed(0, halt_base + AXI_HALTREQ);
@@ -405,6 +405,7 @@ struct q6v5_data *pil_q6v5_init(struct platform_device *pdev)
 	if (ret)
 		return ERR_PTR(ret);
 
+	desc->clear_fw_region = false;
 	desc->dev = &pdev->dev;
 
 	drv->qdsp6v5_2_0 = of_device_is_compatible(pdev->dev.of_node,

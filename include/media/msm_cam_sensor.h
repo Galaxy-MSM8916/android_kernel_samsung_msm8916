@@ -729,7 +729,7 @@ struct msm_eeprom_cfg_data {
 	enum eeprom_cfg_type_t cfgtype;
 	uint8_t is_supported;
 	union {
-		char eeprom_name[MAX_SENSOR_NAME];
+		char eeprom_name[MAX_EEPROM_NAME];
 		struct eeprom_get_t get_data;
 		struct eeprom_read_t read_data;
 		struct eeprom_write_t write_data;
@@ -737,6 +737,100 @@ struct msm_eeprom_cfg_data {
 		struct eeprom_get_cmm_t get_cmm_data;
 	} cfg;
 };
+
+#ifdef CONFIG_COMPAT
+struct msm_sensor_power_setting32 {
+	enum msm_sensor_power_seq_type_t seq_type;
+	uint16_t seq_val;
+	compat_uint_t config_val;
+	uint16_t delay;
+	compat_uptr_t data[10];
+};
+
+struct msm_sensor_power_setting_array32 {
+	struct msm_sensor_power_setting32 power_setting_a[MAX_POWER_CONFIG];
+	compat_uptr_t power_setting;
+	uint16_t size;
+	struct msm_sensor_power_setting32
+		power_down_setting_a[MAX_POWER_CONFIG];
+	compat_uptr_t power_down_setting;
+	uint16_t size_down;
+};
+
+struct msm_camera_sensor_slave_info32 {
+	char sensor_name[32];
+	char eeprom_name[32];
+	char actuator_name[32];
+	char ois_name[32];
+	char flash_name[32];
+	enum msm_sensor_camera_id_t camera_id;
+	uint16_t slave_addr;
+	enum i2c_freq_mode_t i2c_freq_mode;
+	enum msm_camera_i2c_reg_addr_type addr_type;
+	struct msm_sensor_id_info_t sensor_id_info;
+	struct msm_sensor_power_setting_array32 power_setting_array;
+	uint8_t  is_init_params_valid;
+	struct msm_sensor_init_params sensor_init_params;
+	uint8_t is_flash_supported;
+	enum msm_sensor_output_format_t output_format;
+};
+
+struct msm_camera_csid_lut_params32 {
+	uint8_t num_cid;
+	struct msm_camera_csid_vc_cfg vc_cfg_a[MAX_CID];
+	compat_uptr_t vc_cfg[MAX_CID];
+};
+
+struct msm_camera_csid_params32 {
+	uint8_t lane_cnt;
+	uint16_t lane_assign;
+	uint8_t phy_sel;
+	uint32_t csi_clk;
+	struct msm_camera_csid_lut_params32 lut_params;
+};
+
+struct msm_camera_csi2_params32 {
+	struct msm_camera_csid_params32 csid_params;
+	struct msm_camera_csiphy_params csiphy_params;
+	uint8_t csi_clk_scale_enable;
+};
+
+struct csid_cfg_data32 {
+	enum csid_cfg_type_t cfgtype;
+	union {
+		uint32_t csid_version;
+		compat_uptr_t csid_params;
+	} cfg;
+};
+
+struct eeprom_read_t32 {
+	compat_uptr_t dbuffer;
+	uint32_t num_bytes;
+};
+
+struct eeprom_write_t32 {
+	compat_uptr_t dbuffer;
+	uint32_t num_bytes;
+};
+
+struct msm_eeprom_cfg_data32 {
+	enum eeprom_cfg_type_t cfgtype;
+	uint8_t is_supported;
+	union {
+		char eeprom_name[MAX_EEPROM_NAME];
+		struct eeprom_get_t get_data;
+		struct eeprom_read_t32 read_data;
+		struct eeprom_write_t32 write_data;
+	} cfg;
+};
+
+struct msm_camera_i2c_seq_reg_setting32 {
+	compat_uptr_t reg_setting;
+	uint16_t size;
+	enum msm_camera_i2c_reg_addr_type addr_type;
+	uint16_t delay;
+};
+#endif
 
 enum msm_sensor_cfg_type_t {
 	CFG_SET_SLAVE_INFO,

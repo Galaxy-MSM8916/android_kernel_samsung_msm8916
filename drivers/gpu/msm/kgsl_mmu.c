@@ -716,7 +716,6 @@ kgsl_mmu_get_gpuaddr(struct kgsl_pagetable *pagetable,
 		memdesc->size = 0;
 		return -EINVAL;
 	}
-
 	/*
 	 * Allocate aligned virtual addresses for iommu. This allows
 	 * more efficient pagetable entries if the physical memory

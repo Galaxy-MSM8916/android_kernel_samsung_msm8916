@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, 2016 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -152,7 +152,97 @@ struct avcs_cmdrsp_get_license_validation_result {
 	/* Length in bytes of the result that follows this structure*/
 };
 
+/* Set Q6 topologies */
+/*
+ *	Registers custom topologies in the aDSP for
+ *	use in audio, voice, AFE and LSM.
+ */
+
+
+#define AVCS_CMD_SHARED_MEM_MAP_REGIONS                             0x00012924
+#define AVCS_CMDRSP_SHARED_MEM_MAP_REGIONS                          0x00012925
+#define AVCS_CMD_SHARED_MEM_UNMAP_REGIONS                           0x00012926
+
+
+#define AVCS_CMD_REGISTER_TOPOLOGIES                                0x00012923
+
+/* The payload for the AVCS_CMD_REGISTER_TOPOLOGIES command */
+struct avcs_cmd_register_topologies {
+	struct apr_hdr hdr;
+	uint32_t                  payload_addr_lsw;
+	/* Lower 32 bits of the topology buffer address. */
+
+	uint32_t                  payload_addr_msw;
+	/* Upper 32 bits of the topology buffer address. */
+
+	uint32_t                  mem_map_handle;
+	/* Unique identifier for an address.
+	 * -This memory map handle is returned by the aDSP through the
+	 * memory map command.
+	 * -NULL mem_map_handle is interpreted as in-band parameter
+	 * passing.
+	 * -Client has the flexibility to choose in-band or out-of-band.
+	 * -Out-of-band is recommended in this case.
+	 */
+
+	uint32_t                  payload_size;
+	/* Size in bytes of the valid data in the topology buffer. */
+} __packed;
+
+
+#define AVCS_CMD_DEREGISTER_TOPOLOGIES                                0x0001292a
+
+/* The payload for the AVCS_CMD_DEREGISTER_TOPOLOGIES command */
+struct avcs_cmd_deregister_topologies {
+	struct apr_hdr hdr;
+	uint32_t                  payload_addr_lsw;
+	/* Lower 32 bits of the topology buffer address. */
+
+	uint32_t                  payload_addr_msw;
+	/* Upper 32 bits of the topology buffer address. */
+
+	uint32_t                  mem_map_handle;
+	/* Unique identifier for an address.
+	 * -This memory map handle is returned by the aDSP through the
+	 * memory map command.
+	 * -NULL mem_map_handle is interpreted as in-band parameter
+	 * passing.
+	 * -Client has the flexibility to choose in-band or out-of-band.
+	 * -Out-of-band is recommended in this case.
+	 */
+
+	uint32_t                  payload_size;
+	/* Size in bytes of the valid data in the topology buffer. */
+
+	uint32_t                  mode;
+	/* 1: Deregister selected topologies
+	 * 2: Deregister all topologies
+	 */
+} __packed;
+
+#define AVCS_MODE_DEREGISTER_ALL_CUSTOM_TOPOLOGIES	2
+
+
 int32_t core_set_license(uint32_t key, uint32_t module_id);
 int32_t core_get_license_status(uint32_t module_id);
 
+#define AVCS_GET_VERSIONS	0x00012905
+struct avcs_cmd_get_version_result {
+	struct apr_hdr hdr;
+	uint32_t id;
+};
+#define AVCS_GET_VERSIONS_RSP	0x00012906
+
+#define AVCS_CMDRSP_Q6_ID_2_6	0x00040000
+#define AVCS_CMDRSP_Q6_ID_2_7	0x00040001
+#define AVCS_CMDRSP_Q6_ID_2_8   0x00040002
+
+enum q6_subsys_image {
+	Q6_SUBSYS_AVS2_6 = 1,
+	Q6_SUBSYS_AVS2_7,
+	Q6_SUBSYS_AVS2_8,
+	Q6_SUBSYS_INVALID,
+};
+enum q6_subsys_image q6core_get_avs_version(void);
+int core_get_adsp_ver(void);
 #endif /* __Q6CORE_H__ */
