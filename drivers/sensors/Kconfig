@@ -42,6 +42,13 @@ config SENSORS_K2HH_VDD
 	  This option enables accelerometer sensors using
 	  STMicroelectronic K2HH device driver with VDD control.
 
+config SENSORS_K303C
+	depends on I2C
+	tristate "ST K303C accel,magnetic combo"
+	default n
+	help
+	  This option enables st k303c accel and mag driver
+
 config SENSORS_CM36672P
 	depends on I2C
 	tristate "CM36672P driver"

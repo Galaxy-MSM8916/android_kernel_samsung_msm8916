@@ -9,6 +9,7 @@ obj-$(CONFIG_SENSORS_SSC)           += sensors_ssc.o
 
 # accelerometer_sensor
 obj-$(CONFIG_SENSORS_K2HH)          += k2hh.o
+obj-$(CONFIG_SENSORS_K303C)	+= k303c_acc.o k303c_mag.o
 # optical_sensor
 obj-$(CONFIG_SENSORS_CM36672P)      += cm36672p.o
 obj-$(CONFIG_SENSORS_CM36652)           += cm36652.o
