@@ -1,52 +1,54 @@
 # We can build either as part of a standalone Kernel build or part
-# of an Android build.  Determine which mechanism is being used
-ifeq ($(MODNAME),)
-	KERNEL_BUILD := 1
-else
-	KERNEL_BUILD := 0
-endif
-
-ifeq ($(KERNEL_BUILD),1)
-	# These are provided in Android-based builds
-	# Need to explicitly define for Kernel-based builds
-	MODNAME := wlan
-	WLAN_ROOT := drivers/staging/prima
-endif
-
-ifeq ($(KERNEL_BUILD), 0)
-# These are configurable via Kconfig for kernel-based builds
-# Need to explicitly configure for Android-based builds
+# of an Android build.
+KERNEL_BUILD := 1
+MODNAME := wlan
+WLAN_ROOT := drivers/staging/prima
 
 #Flag to enable BlueTooth AMP feature
-    CONFIG_PRIMA_WLAN_BTAMP := n
-
+ifeq ($(CONFIG_PRIMA_WLAN_BTAMP),)
+	CONFIG_PRIMA_WLAN_BTAMP := n
+endif
 #Flag to enable Legacy Fast Roaming(LFR)
-    CONFIG_PRIMA_WLAN_LFR := y
+ifeq ($(CONFIG_PRIMA_WLAN_LFR),)
+	CONFIG_PRIMA_WLAN_LFR := y
+endif
 
 #JB kernel has PMKSA patches, hence enabling this flag
-    CONFIG_PRIMA_WLAN_OKC := y
+ifeq ($(CONFIG_PRIMA_WLAN_OKC),)
+	CONFIG_PRIMA_WLAN_OKC := y
+endif
 
 # JB kernel has CPU enablement patches, so enable
-    CONFIG_PRIMA_WLAN_11AC_HIGH_TP := y
+ifeq ($(CONFIG_PRIMA_WLAN_11AC_HIGH_TP),)
+	CONFIG_PRIMA_WLAN_11AC_HIGH_TP := y
+endif
 
 #Flag to enable TDLS feature
-    CONFIG_QCOM_TDLS := y
+ifeq ($(CONFIG_QCOM_TDLS),)
+	CONFIG_QCOM_TDLS := y
+endif
 
 #Flag to enable Fast Transition (11r) feature
-    CONFIG_QCOM_VOWIFI_11R := y
+ifeq ($(CONFIG_QCOM_VOWIFI_11R),)
+	CONFIG_QCOM_VOWIFI_11R := y
+endif
 
 #Flag to enable Protected Managment Frames (11w) feature
 ifneq ($(CONFIG_PRONTO_WLAN),)
-    CONFIG_WLAN_FEATURE_11W := y
-    endif
+	ifeq ($(CONFIG_WLAN_FEATURE_11W),)
+		CONFIG_WLAN_FEATURE_11W := y
+	endif
+endif
 
 #Flag to enable new Linux Regulatory implementation
-    CONFIG_ENABLE_LINUX_REG := y
+ifeq ($(CONFIG_ENABLE_LINUX_REG),)
+	CONFIG_ENABLE_LINUX_REG := y
+endif
 
 #Flag to enable offload packets feature
-    CONFIG_WLAN_OFFLOAD_PACKETS := y
-
-    endif
+ifeq ($(CONFIG_WLAN_OFFLOAD_PACKETS),)
+	CONFIG_WLAN_OFFLOAD_PACKETS := y
+endif
 
 # To enable CONFIG_QCOM_ESE_UPLOAD, dependent config
 # CONFIG_QCOM_ESE must be enabled.
@@ -685,3 +687,8 @@ KBUILD_CPPFLAGS += $(CDEFINES)
 obj-$(CONFIG_PRIMA_WLAN) += $(MODNAME).o
 obj-$(CONFIG_PRONTO_WLAN) += $(MODNAME).o
 $(MODNAME)-y := $(OBJS)
+
+clean::
+	rm -f *.o *.ko *.mod.c *.mod.o *~ .*.cmd Module.symvers
+	rm -rf .tmp_versions
+
