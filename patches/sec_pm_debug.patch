@@ -1,0 +1,742 @@
+diff --git a/arch/arm/Kconfig.debug b/arch/arm/Kconfig.debug
+index 4349e45d4256..374037f9a6e7 100644
+--- a/arch/arm/Kconfig.debug
++++ b/arch/arm/Kconfig.debug
+@@ -709,6 +709,15 @@ menuconfig SEC_PM
+ 	help
+ 	  Samsung TN PowerManagement Feature.
+ 
++if SEC_PM
++config SEC_PM_DEBUG
++	bool "Samsung TN PowerManagement Debug Feature"
++	default n
++	help
++	  Samsung TN PowerManagement Debug Feature.
++
++endif
++
+ config PID_IN_CONTEXTIDR
+ 	bool "Write the current PID to the CONTEXTIDR register"
+ 	depends on CPU_COPY_V6
+diff --git a/arch/arm/configs/msm8916_sec_defconfig b/arch/arm/configs/msm8916_sec_defconfig
+index ca8372e3a19a..981667707ba3 100644
+--- a/arch/arm/configs/msm8916_sec_defconfig
++++ b/arch/arm/configs/msm8916_sec_defconfig
+@@ -9,6 +9,7 @@ CONFIG_SYSVIPC=y
+ CONFIG_AUDIT=y
+ CONFIG_NO_HZ=y
+ CONFIG_HIGH_RES_TIMERS=y
++CONFIG_SEC_PM_DEBUG=y
+ CONFIG_RCU_FAST_NO_HZ=y
+ # CONFIG_IKCONFIG is not set
+ # CONFIG_IKCONFIG_PROC is not set
+diff --git a/drivers/base/power/wakeup.c b/drivers/base/power/wakeup.c
+index 79715e7fa43e..712fff9cb998 100644
+--- a/drivers/base/power/wakeup.c
++++ b/drivers/base/power/wakeup.c
+@@ -875,6 +875,62 @@ static int wakeup_sources_stats_show(struct seq_file *m, void *unused)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++static int print_wakeup_source_active(
++				     struct wakeup_source *ws)
++{
++	unsigned long flags;
++	ktime_t total_time;
++	unsigned long active_count;
++	ktime_t active_time;
++	ktime_t prevent_sleep_time;
++	int ret;
++
++	spin_lock_irqsave(&ws->lock, flags);
++
++	total_time = ws->total_time;
++	prevent_sleep_time = ws->prevent_sleep_time;
++	active_count = ws->active_count;
++	if (ws->active) {
++		ktime_t now = ktime_get();
++
++		active_time = ktime_sub(now, ws->last_time);
++		total_time = ktime_add(total_time, active_time);
++
++		if (ws->autosleep_enabled)
++			prevent_sleep_time = ktime_add(prevent_sleep_time,
++				ktime_sub(now, ws->start_prevent_time));
++	} else {
++		active_time = ktime_set(0, 0);
++	}
++
++	ret = pr_info("<%s>\tCount(%lu) Time(%lld/%lld) Prevent(%lld)\n",
++			ws->name, active_count,
++			ktime_to_ms(active_time), ktime_to_ms(total_time),
++			ktime_to_ms(prevent_sleep_time));
++
++	spin_unlock_irqrestore(&ws->lock, flags);
++
++	return ret;
++}
++
++int wakeup_sources_stats_active(void)
++{
++	struct wakeup_source *ws;
++
++	pr_info("Active wake lock:\n");
++
++	rcu_read_lock();
++	list_for_each_entry_rcu(ws, &wakeup_sources, entry)
++		if (ws->active)
++			print_wakeup_source_active(ws);
++	rcu_read_unlock();
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(wakeup_sources_stats_active);
++#endif
++
+ static int wakeup_sources_stats_open(struct inode *inode, struct file *file)
+ {
+ 	return single_open(file, wakeup_sources_stats_show, NULL);
+diff --git a/drivers/cpuidle/lpm-levels.c b/drivers/cpuidle/lpm-levels.c
+index 5de47b02f906..009c3c313a0a 100644
+--- a/drivers/cpuidle/lpm-levels.c
++++ b/drivers/cpuidle/lpm-levels.c
+@@ -110,6 +110,12 @@ static int msm_pm_sleep_time_override;
+ module_param_named(sleep_time_override,
+ 	msm_pm_sleep_time_override, int, S_IRUGO | S_IWUSR | S_IWGRP);
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++static int msm_pm_sleep_sec_debug;
++module_param_named(secdebug,
++	msm_pm_sleep_sec_debug, int, S_IRUGO | S_IWUSR | S_IWGRP);
++#endif
++
+ static bool print_parsed_dt;
+ module_param_named(
+ 	print_parsed_dt, print_parsed_dt, bool, S_IRUGO | S_IWUSR | S_IWGRP
+@@ -897,6 +903,13 @@ static int lpm_suspend_prepare(void)
+ 	regulator_showall_enabled();
+ #endif
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++	if (msm_pm_sleep_sec_debug) {
++		msm_gpio_print_enabled();
++		qpnp_debug_suspend_show();
++	}
++#endif
++
+ 	return 0;
+ }
+ 
+diff --git a/drivers/gpio/gpio-pcal6416a.c b/drivers/gpio/gpio-pcal6416a.c
+index 7a3f0230b44e..fe25447d4517 100755
+--- a/drivers/gpio/gpio-pcal6416a.c
++++ b/drivers/gpio/gpio-pcal6416a.c
+@@ -693,6 +693,71 @@ static ssize_t show_pcal6416a_gpio_state(struct device *dev,
+ static DEVICE_ATTR(expgpio, 0664,
+ 		show_pcal6416a_gpio_state, store_pcal6416a_gpio_inout);
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++int expander_print_all(void)
++{
++	struct pcal6416a_chip chip_state;
++	int i, drv_str;
++	uint16_t read_input;
++
++	if (!g_dev)
++		return -ENODEV;
++
++	pcal6416a_read_reg(g_dev, PCAL6416A_INPUT, &read_input);
++	pcal6416a_read_reg(g_dev, PCAL6416A_DAT_OUT, &chip_state.reg_output);
++	pcal6416a_read_reg(g_dev, PCAL6416A_CONFIG, &chip_state.reg_config);
++	pcal6416a_read_reg(g_dev, PCAL6416A_DRIVE0, &chip_state.reg_drive0);
++	pcal6416a_read_reg(g_dev, PCAL6416A_DRIVE1, &chip_state.reg_drive1);
++	pcal6416a_read_reg(g_dev, PCAL6416A_EN_PULLUPDOWN,
++			&chip_state.reg_enpullupdown);
++	pcal6416a_read_reg(g_dev, PCAL6416A_SEL_PULLUPDOWN,
++			&chip_state.reg_selpullupdown);
++
++	for (i = 0; i < 16; i++) {
++		pr_cont("Expander[3%02d]", i);
++		if ((chip_state.reg_config>>i)&0x1)
++			pr_cont("\tIN");
++		else {
++			if ((chip_state.reg_output>>i)&0x1)
++				pr_cont("\tOUT_HIGH");
++			else
++				pr_cont("\tOUT_LOW");
++		}
++		if ((chip_state.reg_enpullupdown>>i)&0x1) {
++			if ((chip_state.reg_selpullupdown>>i)&0x1)
++				pr_cont("\tPULL_UP");
++			else
++				pr_cont("\tPULL_DOWN");
++		} else
++			pr_cont("\tPULL_NONE");
++		if (i > 7)
++			drv_str = (chip_state.reg_drive1>>((i-8)*2)) & 0x3;
++		else
++			drv_str = (chip_state.reg_drive0>>(i*2)) & 0x3;
++		switch (drv_str) {
++		case GPIO_CFG_6_25MA:
++			pr_cont("\tDRV_6.25mA");
++			break;
++		case GPIO_CFG_12_5MA:
++			pr_cont("\tDRV_12.5mA");
++			break;
++		case GPIO_CFG_18_75MA:
++			pr_cont("\tDRV_18.75mA");
++			break;
++		case GPIO_CFG_25MA:
++			pr_cont("\tDRV_25mA");
++			break;
++		}
++		if ((read_input>>i)&0x1)
++			pr_cont("\tVAL_HIGH\n");
++		else
++			pr_cont("\tVAL_LOW\n");
++	}
++
++	return 0;
++}
++#endif
++
+ static int expander_show(struct seq_file *s, void *unused)
+ {
+ 	struct pcal6416a_chip chip_state;
+diff --git a/drivers/irqchip/irq-gic.c b/drivers/irqchip/irq-gic.c
+index 5e5edfa9f8b4..2624ef3d8def 100644
+--- a/drivers/irqchip/irq-gic.c
++++ b/drivers/irqchip/irq-gic.c
+@@ -300,6 +300,10 @@ static void gic_show_resume_irq(struct gic_chip_data *gic)
+ 	for (i = find_first_bit(pending, gic->gic_irqs);
+ 		i < gic->gic_irqs;
+ 		i = find_next_bit(pending, gic->gic_irqs, i+1)) {
++#ifdef CONFIG_SEC_PM_DEBUG
++			log_wakeup_reason(i + gic->irq_offset);
++			update_wakeup_reason_stats(i + gic->irq_offset);
++#endif
+ 	}
+ }
+ 
+diff --git a/drivers/pinctrl/pinctrl-msm-tlmm.c b/drivers/pinctrl/pinctrl-msm-tlmm.c
+index 46ce6147b439..652a8b5a6efb 100644
+--- a/drivers/pinctrl/pinctrl-msm-tlmm.c
++++ b/drivers/pinctrl/pinctrl-msm-tlmm.c
+@@ -984,6 +984,10 @@ void msm_tlmm_gp_show_resume_irq(void)
+ 		intstat = msm_tlmm_get_intr_status(ic, i);
+ 		if (intstat) {
+ 			virq = msm_tlmm_gp_to_irq(gc, i);
++#ifdef CONFIG_SEC_PM_DEBUG
++			log_wakeup_reason(virq);
++			update_wakeup_reason_stats(virq);
++#endif
+ 		}
+ 	}
+ 
+diff --git a/drivers/pinctrl/sec-pinmux.c b/drivers/pinctrl/sec-pinmux.c
+index 865776fe5196..c54c9785fd30 100644
+--- a/drivers/pinctrl/sec-pinmux.c
++++ b/drivers/pinctrl/sec-pinmux.c
+@@ -14,6 +14,10 @@
+ #include <linux/spinlock.h>
+ #include <linux/io.h>
+ #include <linux/pinctrl/sec-pinmux.h>
++#ifdef CONFIG_SEC_PM_DEBUG
++#include <linux/gpio.h>
++#include <linux/debugfs.h>
++#endif
+ #ifdef CONFIG_SEC_GPIO_DVS
+ #include <linux/errno.h>
+ #include <linux/secgpio_dvs.h>
+@@ -21,6 +25,9 @@
+ #include <linux/pinctrl/pinconf-generic.h>
+ #endif
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++static DEFINE_SPINLOCK(gpiomux_lock);
++#endif
+ static unsigned msm_gpiomux_ngpio;
+ #ifdef CONFIG_SEC_GPIO_DVS
+ /****************************************************************/
+@@ -271,6 +278,163 @@ static struct gpio_dvs msm8916_gpio_dvs = {
+ /****************************************************************/
+ #endif
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++static const char * const gpiomux_drv_str[] = {
++	"DRV_2mA",
++	"DRV_4mA",
++	"DRV_6mA",
++	"DRV_8mA",
++	"DRV_10mA",
++	"DRV_12mA",
++	"DRV_14mA",
++	"DRV_16mA",
++};
++
++static const char * const gpiomux_func_str[] = {
++	"GPIO",
++	"Func_1",
++	"Func_2",
++	"Func_3",
++	"Func_4",
++	"Func_5",
++	"Func_6",
++	"Func_7",
++	"Func_8",
++	"Func_9",
++	"Func_a",
++	"Func_b",
++	"Func_c",
++	"Func_d",
++	"Func_e",
++	"Func_f",
++};
++
++static const char * const gpiomux_pull_str[] = {
++	"PULL_NONE",
++	"PULL_DOWN",
++	"PULL_KEEPER",
++	"PULL_UP",
++};
++
++static const char * const gpiomux_dir_str[] = {
++	"IN",
++	"OUT_HIGH",
++	"OUT_LOW",
++};
++
++static const char * const gpiomux_val_str[] = {
++	"VAL_LOW",
++	"NULL",
++	"VAL_HIGH",
++};
++
++static const char * const gpiomux_in_val_str[] = {
++	"VAL_LOW",
++	"VAL_HIGH",
++};
++
++static void gpiomux_debug_print(struct seq_file *m)
++{
++	unsigned long flags;
++	struct gpiomux_setting set;
++	unsigned val = 0;
++	unsigned gpio;
++	unsigned begin = 0;
++
++	spin_lock_irqsave(&gpiomux_lock, flags);
++
++	for (gpio = begin; gpio < msm_gpiomux_ngpio; ++gpio) {
++#ifdef ENABLE_SENSORS_FPRINT_SECURE
++		if (gpio >= CONFIG_SENSORS_FP_SPI_GPIO_START && gpio <= CONFIG_SENSORS_FP_SPI_GPIO_END)
++			continue;
++#endif
++#ifdef CONFIG_MST_LDO
++		if (gpio == MST_GPIO_D_MINUS || gpio == MST_GPIO_D_PLUS)
++			continue;
++#endif
++#if (defined (CONFIG_SEC_A8_PROJECT) && defined (CONFIG_ESE_P61)) \
++	|| (defined (CONFIG_SEC_A7X_PROJECT) && defined (CONFIG_ESE_P3)) \
++	|| (defined (CONFIG_SEC_A5X_PROJECT) && defined (CONFIG_ESE_P3))
++		if (gpio >= 0 && gpio <= 3)
++			continue;
++#endif
++		msm_tlmm_v4_get_gp_cfg(gpio, &set);
++		if (set.dir) {
++			val = msm_tlmm_v4_get_gp_value(gpio);
++			if (IS_ERR_OR_NULL(m))
++				pr_info("GPIO[%u] \t%s \t%s \t%s \t%s \t%s\n",
++					gpio,
++					gpiomux_func_str[set.func],
++					gpiomux_dir_str[set.dir],
++					gpiomux_pull_str[set.pull],
++					gpiomux_drv_str[set.drv],
++					gpiomux_val_str[val]);
++			else
++				seq_printf(m, "GPIO[%u] \t%s \t%s \t%s \t%s \t%s\n",
++						gpio,
++						gpiomux_func_str[set.func],
++						gpiomux_dir_str[set.dir],
++						gpiomux_pull_str[set.pull],
++						gpiomux_drv_str[set.drv],
++						gpiomux_val_str[val]);
++
++		} else {
++			val = msm_tlmm_v4_get_gp_input_value(gpio);
++			if (IS_ERR_OR_NULL(m))
++				pr_info("GPIO[%u] \t%s \t%s \t%s \t%s \t%s\n",
++					gpio,
++					gpiomux_func_str[set.func],
++					gpiomux_dir_str[set.dir],
++					gpiomux_pull_str[set.pull],
++					gpiomux_drv_str[set.drv],
++					gpiomux_in_val_str[val]);
++			else
++				seq_printf(m, "GPIO[%u] \t%s \t%s \t%s \t%s \t%s\n",
++					gpio,
++					gpiomux_func_str[set.func],
++					gpiomux_dir_str[set.dir],
++					gpiomux_pull_str[set.pull],
++					gpiomux_drv_str[set.drv],
++					gpiomux_in_val_str[val]);
++		}
++
++	}
++
++	spin_unlock_irqrestore(&gpiomux_lock, flags);
++}
++
++void msm_gpio_print_enabled(void)
++{
++	gpiomux_debug_print(NULL);
++}
++
++static int gpiomux_debug_showall(struct seq_file *m, void *unused)
++{
++	gpiomux_debug_print(m);
++	return 0;
++}
++
++static int gpiomux_debug_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, gpiomux_debug_showall, inode->i_private);
++}
++
++static const struct file_operations gpiomux_operations = {
++	.open		= gpiomux_debug_open,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= seq_release,
++};
++
++static int __init msm_gpiomux_debug_init(void)
++{
++	(void) debugfs_create_file("gpiomux", S_IFREG | S_IRUGO,
++				NULL, NULL, &gpiomux_operations);
++	return 0;
++}
++late_initcall(msm_gpiomux_debug_init);
++#endif
++
+ static int __init msm_gpiomux_init(void)
+ {
+ 
+diff --git a/drivers/platform/msm/qpnp-power-on.c b/drivers/platform/msm/qpnp-power-on.c
+index bd4fbe70547e..d4b9ab18427c 100644
+--- a/drivers/platform/msm/qpnp-power-on.c
++++ b/drivers/platform/msm/qpnp-power-on.c
+@@ -188,6 +188,10 @@ struct qpnp_pon {
+ };
+ 
+ static struct qpnp_pon *sys_reset_dev;
++#ifdef CONFIG_SEC_PM_DEBUG
++static int wake_enabled;
++static int reset_enabled;
++#endif
+ 
+ static u32 s1_delay[PON_S1_COUNT_MAX + 1] = {
+ 	0 , 32, 56, 80, 138, 184, 272, 408, 608, 904, 1352, 2048,
+@@ -1103,6 +1107,9 @@ qpnp_pon_request_irqs(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
+ 	/* mark the interrupts wakeable if they support linux-key */
+ 	if (cfg->key_code) {
+ 		enable_irq_wake(cfg->state_irq);
++#ifdef CONFIG_SEC_PM_DEBUG
++		wake_enabled = true;
++#endif
+ 
+ 		/* special handling for RESIN due to a hardware bug */
+ 		if (cfg->pon_type == PON_RESIN && cfg->support_reset)
+@@ -1521,6 +1528,77 @@ static ssize_t  sysfs_powerkey_onoff_show(struct device *dev,
+ 
+ static DEVICE_ATTR(sec_powerkey_pressed, 0444 , sysfs_powerkey_onoff_show, NULL);
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++static int qpnp_wake_enabled(const char *val, const struct kernel_param *kp)
++{
++	int ret = 0;
++	struct qpnp_pon_config *cfg;
++
++	ret = param_set_bool(val, kp);
++	if (ret) {
++		pr_err("Unable to set qpnp_wake_enabled: %d\n", ret);
++		return ret;
++	}
++
++	cfg = qpnp_get_cfg(sys_reset_dev, PON_KPDPWR);
++	if (!cfg) {
++		pr_err("Invalid config pointer\n");
++		return -EFAULT;
++	}
++
++	if (!wake_enabled)
++		disable_irq_wake(cfg->state_irq);
++	else
++		enable_irq_wake(cfg->state_irq);
++
++	pr_info("%s: wake_enabled = %d\n", KBUILD_MODNAME, wake_enabled);
++
++	return ret;
++}
++
++static struct kernel_param_ops module_ops = {
++	.set = qpnp_wake_enabled,
++	.get = param_get_bool,
++};
++
++module_param_cb(wake_enabled, &module_ops, &wake_enabled, 0664);
++
++static int qpnp_reset_enabled(const char *val, const struct kernel_param *kp)
++{
++	int ret = 0;
++	struct qpnp_pon_config *cfg;
++
++	ret = param_set_bool(val, kp);
++	if (ret) {
++		pr_err("Unable to set qpnp_reset_enabled: %d\n", ret);
++		return ret;
++	}
++
++	cfg = qpnp_get_cfg(sys_reset_dev, PON_KPDPWR);
++	if (!cfg) {
++		pr_err("Invalid config pointer\n");
++		return -EFAULT;
++	}
++
++	if (!reset_enabled)
++		qpnp_control_s2_reset(sys_reset_dev, cfg, 0);
++	else
++		qpnp_control_s2_reset(sys_reset_dev, cfg, 1);
++
++	pr_info("%s: reset_enabled = %d\n", KBUILD_MODNAME, reset_enabled);
++
++	return ret;
++}
++
++static struct kernel_param_ops reset_module_ops = {
++	.set = qpnp_reset_enabled,
++	.get = param_get_bool,
++};
++
++module_param_cb(reset_enabled, &reset_module_ops, &reset_enabled, 0664);
++#endif
++
++
+ static bool dload_on_uvlo;
+ 
+ static int qpnp_pon_debugfs_uvlo_dload_get(char *buf,
+diff --git a/drivers/spmi/qpnp-int.c b/drivers/spmi/qpnp-int.c
+index 0610dfd9102e..340d13817930 100644
+--- a/drivers/spmi/qpnp-int.c
++++ b/drivers/spmi/qpnp-int.c
+@@ -37,6 +37,19 @@
+ /* This value is guaranteed not to be valid for private data */
+ #define QPNPINT_INVALID_DATA	0x80000000
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++enum {
++	MSM_QPNP_INT_DBG_DISABLED = 0,
++	MSM_QPNP_INT_DBG_SHOW_IRQ = BIT(0),
++};
++
++int msm_qpnp_int_debug_mask = MSM_QPNP_INT_DBG_DISABLED;
++
++module_param_named(
++	debug_mask, msm_qpnp_int_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP
++);
++#endif
++
+ enum qpnpint_regs {
+ 	QPNPINT_REG_RT_STS		= 0x10,
+ 	QPNPINT_REG_SET_TYPE		= 0x11,
+@@ -630,6 +643,22 @@ static int __qpnpint_handle_irq(struct spmi_controller *spmi_ctrl,
+ 	domain = chip_lookup[busno]->domain;
+ 	irq = irq_find_mapping(domain, hwirq);
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++	if (msm_qpnp_int_debug_mask & MSM_QPNP_INT_DBG_SHOW_IRQ) {
++		struct irq_desc *desc;
++		const char *name = "null";
++
++		desc = irq_to_desc(irq);
++		if (desc == NULL)
++			name = "stray irq";
++		else if (desc->action && desc->action->name)
++			name = desc->action->name;
++
++		pr_info("%d triggered [0x%01x, 0x%02x,0x%01x] %s\n",
++				irq, spec->slave, spec->per, spec->irq, name);
++	}
++#endif
++
+ 	if (show) {
+ 		struct irq_desc *desc;
+ 		const char *name = "null";
+@@ -642,6 +671,10 @@ static int __qpnpint_handle_irq(struct spmi_controller *spmi_ctrl,
+ 
+ 		pr_warn("%d triggered [0x%01x, 0x%02x,0x%01x] %s\n",
+ 				irq, spec->slave, spec->per, spec->irq, name);
++#ifdef CONFIG_SEC_PM_DEBUG
++		log_wakeup_reason(irq);
++		update_wakeup_reason_stats(irq);
++#endif
+ 	} else {
+ 		generic_handle_irq(irq);
+ 	}
+diff --git a/include/linux/i2c/pcal6416a.h b/include/linux/i2c/pcal6416a.h
+index 1aa24a78539b..6655d321579b 100755
+--- a/include/linux/i2c/pcal6416a.h
++++ b/include/linux/i2c/pcal6416a.h
+@@ -44,4 +44,8 @@ struct pcal6416a_platform_data {
+ 	struct regulator *vdd;
+ };
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++int expander_print_all(void);
++#endif
++
+ #endif
+diff --git a/include/linux/pinctrl/sec-pinmux.h b/include/linux/pinctrl/sec-pinmux.h
+index 758e80609554..894f86d58dd4 100644
+--- a/include/linux/pinctrl/sec-pinmux.h
++++ b/include/linux/pinctrl/sec-pinmux.h
+@@ -80,6 +80,10 @@ struct gpiomux_setting {
+ 	enum gpiomux_dir  dir;
+ };
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++void msm_gpio_print_enabled(void);
++#endif
++
+ void msm_tlmm_v4_get_gp_cfg(uint pin_no, struct gpiomux_setting *val);
+ int msm_tlmm_v4_set_gp_cfg(uint pin_no, uint id, bool level);
+ int msm_tlmm_v4_get_gp_value(uint pin_no);
+diff --git a/include/linux/qpnp/pin.h b/include/linux/qpnp/pin.h
+index 4c23f091dcc0..1c2302cd24ba 100644
+--- a/include/linux/qpnp/pin.h
++++ b/include/linux/qpnp/pin.h
+@@ -177,6 +177,9 @@ struct qpnp_pin_cfg {
+  * the qpnp_pin_map_gpio() API.
+  */
+ int qpnp_pin_config(int gpio, struct qpnp_pin_cfg *param);
++#ifdef CONFIG_SEC_PM_DEBUG
++void qpnp_debug_suspend_show(void);
++#endif
+ 
+ /**
+  * qpnp_pin_map - Obtain Linux GPIO number from device spec
+diff --git a/include/linux/suspend.h b/include/linux/suspend.h
+index d4e3f16d5e89..cd76dc150c2a 100644
+--- a/include/linux/suspend.h
++++ b/include/linux/suspend.h
+@@ -463,4 +463,8 @@ static inline void page_key_write(void *address) {}
+ 
+ #endif /* !CONFIG_ARCH_SAVE_PAGE_KEYS */
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++int wakeup_sources_stats_active(void);
++#endif
++
+ #endif /* _LINUX_SUSPEND_H */
+diff --git a/kernel/power/autosleep.c b/kernel/power/autosleep.c
+index 9cbb0669ab60..459610d854e6 100644
+--- a/kernel/power/autosleep.c
++++ b/kernel/power/autosleep.c
+@@ -101,6 +101,10 @@ int pm_autosleep_set_state(suspend_state_t state)
+ 
+ 	__pm_relax(autosleep_ws);
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++	wakeup_sources_stats_active();
++#endif
++
+ 	if (state > PM_SUSPEND_ON) {
+ 		pm_wakep_autosleep_enabled(true);
+ 		queue_up_suspend_work();
+diff --git a/kernel/power/process.c b/kernel/power/process.c
+index 89c54c3be3dd..578cb3e4cdcb 100644
+--- a/kernel/power/process.c
++++ b/kernel/power/process.c
+@@ -26,6 +26,9 @@ unsigned int __read_mostly freeze_timeout_msecs = 20 * MSEC_PER_SEC;
+ static int try_to_freeze_tasks(bool user_only)
+ {
+ 	struct task_struct *g, *p;
++#if defined(CONFIG_SEC_PM_DEBUG)
++	struct task_struct *q;
++#endif /* CONFIG_SEC_PM_DEBUG */
+ 	unsigned long end_time;
+ 	unsigned int todo;
+ 	bool wq_busy = false;
+@@ -51,6 +54,9 @@ static int try_to_freeze_tasks(bool user_only)
+ 
+ 			if (!freezer_should_skip(p)) {
+ 				todo++;
++#if defined(CONFIG_SEC_PM_DEBUG)
++				q = p;
++#endif /* CONFIG_SEC_PM_DEBUG */
+ 			}
+ 		} while_each_thread(g, p);
+ 		read_unlock(&tasklist_lock);
+@@ -91,6 +97,14 @@ static int try_to_freeze_tasks(bool user_only)
+ 		       elapsed_msecs / 1000, elapsed_msecs % 1000,
+ 		       todo - wq_busy, wq_busy);
+ 
++#if defined(CONFIG_SEC_PM_DEBUG)
++		if(wakeup) {
++			printk(KERN_ERR "Freezing of %s aborted (%d) (%s)\n",
++					user_only ? "user space " : "tasks ",
++					q ? q->pid : 0, q ? q->comm : "NONE");
++		}
++#endif /* CONFIG_SEC_PM_DEBUG */
++
+ 		if (!wakeup) {
+ 			read_lock(&tasklist_lock);
+ 			do_each_thread(g, p) {
+diff --git a/kernel/power/wakelock.c b/kernel/power/wakelock.c
+index 8f50de394d22..fdf074446808 100644
+--- a/kernel/power/wakelock.c
++++ b/kernel/power/wakelock.c
+@@ -132,6 +132,32 @@ static inline void wakelocks_lru_most_recent(struct wakelock *wl) {}
+ static inline void wakelocks_gc(void) {}
+ #endif /* !CONFIG_PM_WAKELOCKS_GC */
+ 
++#ifdef CONFIG_SEC_PM_DEBUG
++#define LONG_WAKELOCK_TIME_SEC	5000
++
++static void print_long_wakelock(struct wakeup_source *ws)
++{
++	unsigned long flags;
++	ktime_t active_time;
++
++	spin_lock_irqsave(&ws->lock, flags);
++
++	if (ws->active) {
++		ktime_t now = ktime_get();
++
++		active_time = ktime_sub(now, ws->last_time);
++	} else {
++		active_time = ktime_set(0, 0);
++	}
++
++	spin_unlock_irqrestore(&ws->lock, flags);
++
++	if ( ktime_to_ms(active_time) > LONG_WAKELOCK_TIME_SEC ) {
++		pr_info("@Unlock %s(%lld ms)\n",
++			ws->name, ktime_to_ms(active_time));
++	}
++}
++#endif
+ static struct wakelock *wakelock_lookup_add(const char *name, size_t len,
+ 					    bool add_if_not_found)
+ {
+@@ -255,6 +281,9 @@ int pm_wake_unlock(const char *buf)
+ 		ret = PTR_ERR(wl);
+ 		goto out;
+ 	}
++#ifdef CONFIG_SEC_PM_DEBUG
++	print_long_wakelock(&wl->ws);
++#endif
+ 	__pm_relax(&wl->ws);
+ 
+ 	wakelocks_lru_most_recent(wl);

@@ -1,0 +1,119 @@
+diff --git a/arch/arm/configs/msm8916_sec_defconfig b/arch/arm/configs/msm8916_sec_defconfig
+index 1a98240db0ad..0787d33153bd 100644
+--- a/arch/arm/configs/msm8916_sec_defconfig
++++ b/arch/arm/configs/msm8916_sec_defconfig
+@@ -617,6 +617,7 @@ CONFIG_SEC_MISC=y
+ CONFIG_SEC_DEBUG_SCHED_LOG=y
+ # CONFIG_SEC_DEBUG_IRQ_EXIT_LOG is not set
+ CONFIG_SEC_DEBUG_SUBSYS=y
++CONFIG_SEC_LOG_LAST_KMSG=y
+ # CONFIG_SEC_DEBUG_DOUBLE_FREE is not set
+ # CONFIG_SEC_SSR_DEBUG_LEVEL_CHK is not set
+ CONFIG_PRINTK_NOCACHE=y
+diff --git a/drivers/soc/qcom/samsung/Kconfig b/drivers/soc/qcom/samsung/Kconfig
+index aeac23da0a7e..51302de0e26d 100644
+--- a/drivers/soc/qcom/samsung/Kconfig
++++ b/drivers/soc/qcom/samsung/Kconfig
+@@ -149,6 +149,12 @@ config SEC_DEBUG_DOUBLE_FREE
+ 	 circular buffer is searched. Panic is be called when
+ 	 the match is found.
+ 
++config SEC_LOG_LAST_KMSG
++	bool "Enable /proc/last_kmsg support: if EMBEDDED"
++	default n
++	help
++	  This option enables /proc/last_kmsg support.
++
+ config SEC_MONITOR_BATTERY_REMOVAL
+ 	bool "Enable monitering whether normal power sequence or not"
+ 	default n
+diff --git a/kernel/printk.c b/kernel/printk.c
+index c5362e0b8c14..67e7d8bc0bfa 100644
+--- a/kernel/printk.c
++++ b/kernel/printk.c
+@@ -304,6 +304,11 @@ static phys_addr_t sec_log_reserve_base;
+ static unsigned sec_log_end;
+ unsigned sec_log_reserve_size;
+ unsigned int *sec_log_irq_en;
++#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP) && defined(CONFIG_SEC_LOG_LAST_KMSG)
++#define LAST_LOG_BUF_SHIFT 19
++static char *last_kmsg_buffer;
++static unsigned last_kmsg_size;
++#endif /* CONFIG_SEC_LOG_LAST_KMSG */
+ #endif /* CONFIG_PRINTK_NOCACHE */
+ #endif
+ 
+@@ -2099,10 +2104,31 @@ void sec_debug_subsys_set_kloginfo(unsigned int *first_idx_paddr,
+ }
+ #endif
+ 
++#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP) && defined(CONFIG_SEC_LOG_LAST_KMSG)
++static int __init sec_log_save_old(void)
++{
++	/* provide previous log as last_kmsg */
++	last_kmsg_size =
++	    min((unsigned)(1 << LAST_LOG_BUF_SHIFT), *sec_log_ptr);
++	last_kmsg_buffer = kmalloc(last_kmsg_size, GFP_KERNEL);
++
++	if (last_kmsg_size && last_kmsg_buffer && sec_log_buf) {
++		unsigned int i;
++		for (i = 0; i < last_kmsg_size; i++)
++			last_kmsg_buffer[i] =
++			    sec_log_buf[(*sec_log_ptr - last_kmsg_size +
++					 i) & (sec_log_size - 1)];
++		return 1;
++	} else {
++		return 0;
++	}
++}
++#else
+ static int __init sec_log_save_old(void)
+ {
+ 	return 1;
+ }
++#endif
+ 
+ #ifdef CONFIG_SEC_DEBUG_PRINTK_NOCACHE
+ static int __init printk_remap_nocache(void)
+@@ -2185,6 +2211,15 @@ static int __init printk_remap_nocache(void)
+ 	the sec log initialization here.*/
+ 	sec_log_add_on_bootup();
+ 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
++#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP) && defined(CONFIG_SEC_LOG_LAST_KMSG)
++	if (bOk) {
++		pr_info("%s: saved old log at %d@%p\n",
++			__func__, last_kmsg_size, last_kmsg_buffer);
++	} else {
++		pr_err("%s: failed saving old log %d@%p\n",
++	       __func__, last_kmsg_size, last_kmsg_buffer);
++	}
++#endif
+ 	return rc;
+ }
+ 
+@@ -2193,8 +2228,13 @@ static ssize_t seclog_read(struct file *file, char __user *buf,
+ {
+ 	loff_t pos = *offset;
+ 	ssize_t count = 0;
++#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP) && defined(CONFIG_SEC_LOG_LAST_KMSG)
++	size_t log_size = last_kmsg_size;
++	const char *log = last_kmsg_buffer;
++#else
+ 	size_t log_size = sec_log_size;
+ 	const char *log = sec_log_buf;
++#endif
+ 
+ 	if (pos < log_size) {
+ 		count = min(len, (size_t)(log_size - pos));
+@@ -2232,7 +2272,11 @@ static int __init seclog_late_init(void)
+ 		return 0;
+ 	}
+ 
++#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP) && defined(CONFIG_SEC_LOG_LAST_KMSG)
++	proc_set_size(entry, last_kmsg_size);
++#else
+ 	proc_set_size(entry, sec_log_size);
++#endif
+ 	return 0;
+ }
+ late_initcall(seclog_late_init);

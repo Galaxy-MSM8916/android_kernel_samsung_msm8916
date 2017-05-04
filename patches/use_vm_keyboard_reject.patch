@@ -1,0 +1,101 @@
+diff --git a/drivers/input/keyboard/Kconfig b/drivers/input/keyboard/Kconfig
+index 062bbac51d5e..03f7594f6d61 100644
+--- a/drivers/input/keyboard/Kconfig
++++ b/drivers/input/keyboard/Kconfig
+@@ -756,6 +756,11 @@ config KEYBOARD_TC360_TKEY_J3
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called tc360 Touchkey.
+ 
++config USE_VM_KEYBOARD_REJECT
++	bool "VM_KEYBOARD_REJECT"
++	help
++	  Say Y here to enable the KEY REJECT
++
+ config KEYBOARD_TC360_TKEY_J7
+ 	tristate "TC360 Touchkey support"
+ 	depends on I2C
+diff --git a/drivers/input/keyboard/gpio_keys.c b/drivers/input/keyboard/gpio_keys.c
+index 1ffc30e7c011..9ae4599c6da7 100644
+--- a/drivers/input/keyboard/gpio_keys.c
++++ b/drivers/input/keyboard/gpio_keys.c
+@@ -639,6 +639,37 @@ static void gpio_keys_close(struct input_dev *input)
+ 		pdata->disable(input->dev.parent);
+ }
+ 
++#ifdef CONFIG_USE_VM_KEYBOARD_REJECT
++bool reject_keyboard_specific_key;
++EXPORT_SYMBOL(reject_keyboard_specific_key);
++
++static ssize_t sysfs_reject_keyboard_spec_key_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	snprintf(buf, 10, "%s\n", reject_keyboard_specific_key ? "ENABLE" : "DISABLE");
++
++	return strlen(buf);
++}
++static ssize_t sysfs_reject_keyboard_spec_key_store(struct device *dev,
++		struct device_attribute *attr, const char *buf,
++		size_t count)
++{
++	if (!strncasecmp(buf, "ENABLE", 6))
++		reject_keyboard_specific_key = true;
++	else if (!strncasecmp(buf, "DISABLE", 7))
++		reject_keyboard_specific_key = false;
++	else
++		pr_err("%s: Wrong command, current state %s\n",
++				__func__,
++				reject_keyboard_specific_key ? "ENABLE" : "DISALBE");
++
++	return count;
++}
++
++static DEVICE_ATTR(reject_key_comb, 0660, sysfs_reject_keyboard_spec_key_show, sysfs_reject_keyboard_spec_key_store);
++
++#endif
++
+ /*
+  * Handlers for alternative sources of platform_data
+  */
+@@ -1010,6 +1041,14 @@ static int gpio_keys_probe(struct platform_device *pdev)
+ 	if (IS_ERR(sec_key))
+ 		pr_err("Failed to create device(sec_key)!\n");
+ 
++#ifdef CONFIG_USE_VM_KEYBOARD_REJECT
++	reject_keyboard_specific_key = false;
++	error = device_create_file(sec_key, &dev_attr_reject_key_comb);
++	if (error < 0) {
++		pr_err("Failed to create device file(%s), error: %d\n",
++				dev_attr_reject_key_comb.attr.name, error);
++	}
++#endif
+ 	error = device_create_file(sec_key, &dev_attr_sec_key_pressed);
+ 	if (error) {
+ 		pr_err("Failed to create device file in sysfs entries(%s)!\n",
+diff --git a/drivers/tty/vt/keyboard.c b/drivers/tty/vt/keyboard.c
+index a9af1b9ae160..f97fdad931a6 100644
+--- a/drivers/tty/vt/keyboard.c
++++ b/drivers/tty/vt/keyboard.c
+@@ -46,6 +46,9 @@
+ #include <asm/irq_regs.h>
+ 
+ extern void ctrl_alt_del(void);
++#ifdef CONFIG_USE_VM_KEYBOARD_REJECT
++extern bool reject_keyboard_specific_key;
++#endif
+ 
+ /*
+  * Exported functions/variables
+@@ -599,6 +602,13 @@ static void fn_show_state(struct vc_data *vc)
+ 
+ static void fn_boot_it(struct vc_data *vc)
+ {
++#ifdef CONFIG_USE_VM_KEYBOARD_REJECT
++	if (reject_keyboard_specific_key) {
++		pr_info("%s: specific key combination is reject\n", __func__);
++		return;
++	}
++#endif
++
+ 	ctrl_alt_del();
+ }
+ 

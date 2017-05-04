@@ -1,0 +1,104 @@
+diff --git a/drivers/staging/android/ion/Kconfig b/drivers/staging/android/ion/Kconfig
+index af7822e486c8..0f01f64028eb 100644
+--- a/drivers/staging/android/ion/Kconfig
++++ b/drivers/staging/android/ion/Kconfig
+@@ -35,3 +35,16 @@ config ALLOC_BUFFERS_IN_4K_CHUNKS
+ 	help
+           Choose this option if you want ION to allocate buffers in
+           only 4KB chunks.
++
++config ION_MSM_SYSTEM_HEAP_POOL_LIMIT
++	bool "Enable ion msm system heap pool limit for low memory device"
++	depends on ION_MSM
++	help
++	  Choose this option if you want limit ion msm system heap pool total.
++
++config MAX_ION_MSM_SYSTEM_HEAP_POOL
++	int "Max ion msm system heap pool"
++	depends on ION_MSM_SYSTEM_HEAP_POOL_LIMIT
++	default 12800
++	help
++	  Modify it if you want set different max ion msm system heap pool.
+\ No newline at end of file
+diff --git a/drivers/staging/android/ion/ion.c b/drivers/staging/android/ion/ion.c
+index 253bb2f6bd71..bd109ed5a62d 100644
+--- a/drivers/staging/android/ion/ion.c
++++ b/drivers/staging/android/ion/ion.c
+@@ -1330,6 +1330,8 @@ struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd)
+ 	/* if a handle exists for this buffer just take a reference to it */
+ 	handle = ion_handle_lookup(client, buffer);
+ 	if (!IS_ERR(handle)) {
++		trace_ion_import_dma_buf(__LINE__, client, handle, buffer,
++				__builtin_return_address(0));
+ 		ion_handle_get(handle);
+ 		mutex_unlock(&client->lock);
+ 		goto end;
+@@ -1337,6 +1339,8 @@ struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd)
+ 	mutex_unlock(&client->lock);
+ 
+ 	handle = ion_handle_create(client, buffer);
++	trace_ion_import_dma_buf(__LINE__, client, handle, buffer,
++			__builtin_return_address(0));
+ 	if (IS_ERR(handle))
+ 		goto end;
+ 
+diff --git a/drivers/staging/android/ion/ion_carveout_heap.c b/drivers/staging/android/ion/ion_carveout_heap.c
+index 343bbd81dbdd..2047be826106 100644
+--- a/drivers/staging/android/ion/ion_carveout_heap.c
++++ b/drivers/staging/android/ion/ion_carveout_heap.c
+@@ -152,7 +152,6 @@ int ion_carveout_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
+ 			       struct vm_area_struct *vma)
+ {
+ 	int ret_value = 0;
+-
+ 	if (!ION_IS_CACHED(buffer->flags))
+ 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+ 
+diff --git a/drivers/staging/android/ion/ion_system_heap.c b/drivers/staging/android/ion/ion_system_heap.c
+index 9052d4efc534..a95e4f433c0a 100644
+--- a/drivers/staging/android/ion/ion_system_heap.c
++++ b/drivers/staging/android/ion/ion_system_heap.c
+@@ -89,6 +89,29 @@ static struct page *alloc_buffer_page(struct ion_system_heap *heap,
+ 	return page;
+ }
+ 
++#ifdef CONFIG_ION_MSM_SYSTEM_HEAP_POOL_LIMIT
++/* Calculate uncached and cached pool pages from system heap
++ *
++ * @param heap current system heap
++ * @return total total uncached and cached pool pages
++ */
++static unsigned long get_system_heap_pool_total(struct ion_system_heap *heap)
++{
++	int i;
++	unsigned long total = 0;
++
++	for (i = 0; i < num_orders; i++) {
++		struct ion_page_pool *uncached_pool = heap->uncached_pools[i];
++		struct ion_page_pool *cached_pool = heap->cached_pools[i];
++
++		total += (1 << uncached_pool->order) * (uncached_pool->high_count + uncached_pool->low_count) +
++				(1 << cached_pool->order) * (cached_pool->high_count + cached_pool->low_count);
++	}
++
++	return total;
++}
++#endif
++
+ static void free_buffer_page(struct ion_system_heap *heap,
+ 			     struct ion_buffer *buffer, struct page *page,
+ 			     unsigned int order)
+@@ -97,6 +120,13 @@ static void free_buffer_page(struct ion_system_heap *heap,
+ 
+ 	if (!(buffer->private_flags & ION_PRIV_FLAG_SHRINKER_FREE)) {
+ 		struct ion_page_pool *pool;
++
++#ifdef CONFIG_ION_MSM_SYSTEM_HEAP_POOL_LIMIT
++		if (get_system_heap_pool_total(heap) > CONFIG_MAX_ION_MSM_SYSTEM_HEAP_POOL) {
++			__free_pages(page, order);
++			return;
++		}
++#endif
+ 		if (cached)
+ 			pool = heap->cached_pools[order_to_index(order)];
+ 		else

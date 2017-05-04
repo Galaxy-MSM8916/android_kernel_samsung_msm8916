@@ -1,0 +1,42 @@
+diff --git a/arch/arm/configs/msm8916_sec_defconfig b/arch/arm/configs/msm8916_sec_defconfig
+index bff85e4928e8..b800108cee44 100644
+--- a/arch/arm/configs/msm8916_sec_defconfig
++++ b/arch/arm/configs/msm8916_sec_defconfig
+@@ -617,6 +617,7 @@ CONFIG_SEC_MISC=y
+ CONFIG_SEC_DEBUG_SCHED_LOG=y
+ # CONFIG_SEC_DEBUG_IRQ_EXIT_LOG is not set
+ CONFIG_SEC_DEBUG_SUBSYS=y
++CONFIG_SEC_DEBUG_NOCACHE_LOG_IN_LEVEL_LOW=y
+ # CONFIG_SEC_DEBUG_DOUBLE_FREE is not set
+ # CONFIG_SEC_SSR_DEBUG_LEVEL_CHK is not set
+ CONFIG_PRINTK_NOCACHE=y
+diff --git a/drivers/soc/qcom/samsung/Kconfig b/drivers/soc/qcom/samsung/Kconfig
+index aeac23da0a7e..481477d224d9 100644
+--- a/drivers/soc/qcom/samsung/Kconfig
++++ b/drivers/soc/qcom/samsung/Kconfig
+@@ -149,6 +149,12 @@ config SEC_DEBUG_DOUBLE_FREE
+ 	 circular buffer is searched. Panic is be called when
+ 	 the match is found.
+ 
++config SEC_DEBUG_NOCACHE_LOG_IN_LEVEL_LOW
++	bool "Enable nocache logging in debug level LOW"
++	default n
++	help
++	  Enable nocache logging in debug level LOW.
++
+ config SEC_MONITOR_BATTERY_REMOVAL
+ 	bool "Enable monitering whether normal power sequence or not"
+ 	default n
+diff --git a/kernel/printk.c b/kernel/printk.c
+index 62646d9a7eb2..43c3b755fb7a 100644
+--- a/kernel/printk.c
++++ b/kernel/printk.c
+@@ -2114,7 +2114,7 @@ static int __init printk_remap_nocache(void)
+ 
+ 	/*sec_getlog_supply_kloginfo(log_buf);*/
+ 
+-#if defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
++#if !defined(CONFIG_SEC_DEBUG_NOCACHE_LOG_IN_LEVEL_LOW) || defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
+ 	if (0 == sec_debug_is_enabled()) {
+ #ifdef CONFIG_SEC_DEBUG_LOW_LOG
+ 		nocache_base = ioremap_nocache(sec_log_save_base - 4096,

@@ -1,0 +1,540 @@
+diff --git a/drivers/cpufreq/cpufreq.c b/drivers/cpufreq/cpufreq.c
+index aed64adc3565..10c0a60b7dc5 100644
+--- a/drivers/cpufreq/cpufreq.c
++++ b/drivers/cpufreq/cpufreq.c
+@@ -2152,6 +2152,8 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
+ 		case CPU_ONLINE:
+ 			__cpufreq_add_dev(dev, NULL, frozen);
+ 			cpufreq_update_policy(cpu);
++                        //update permission of cpufreq policy
++                        kobject_uevent(&dev->kobj, KOBJ_ONLINE);
+ 			break;
+ 
+ 		case CPU_DOWN_PREPARE:
+diff --git a/drivers/cpufreq/cpufreq_interactive.c b/drivers/cpufreq/cpufreq_interactive.c
+index fb848751180c..6ef4ce3a4c33 100644
+--- a/drivers/cpufreq/cpufreq_interactive.c
++++ b/drivers/cpufreq/cpufreq_interactive.c
+@@ -141,8 +141,16 @@ struct cpufreq_interactive_tunables {
+ 	 * frequency.
+ 	 */
+ 	unsigned int max_freq_hysteresis;
++
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++	unsigned int lpm_disable_freq;
++#endif
+ };
+ 
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++extern int lpm_set_mode(u8 cpu_mask, u32 power_level, bool on);
++#endif
++
+ /* For cases where we have single governor instance for system */
+ static struct cpufreq_interactive_tunables *common_tunables;
+ 
+@@ -159,7 +167,7 @@ static u64 round_to_nw_start(u64 jif,
+ 		do_div(jif, step);
+ 		ret = (jif + 1) * step;
+ 	} else {
+-		ret = jiffies + usecs_to_jiffies(tunables->timer_rate);
++		ret = jif + usecs_to_jiffies(tunables->timer_rate);
+ 	}
+ 
+ 	return ret;
+@@ -452,6 +460,10 @@ static void cpufreq_interactive_timer(unsigned long data)
+ 	cpu_load = loadadjfreq / pcpu->policy->cur;
+ 	boosted = tunables->boost_val || now < tunables->boostpulse_endtime;
+ 
++	//Limit cpu_load within 100
++	if(tunables->use_sched_load)
++		if(cpu_load > 100) cpu_load = 100;
++
+ 	if (cpu_load >= tunables->go_hispeed_load || boosted) {
+ 		if (pcpu->policy->cur < tunables->hispeed_freq) {
+ 			new_freq = tunables->hispeed_freq;
+@@ -641,6 +653,13 @@ static int cpufreq_interactive_speedchange_task(void *data)
+ 	unsigned long flags;
+ 	struct cpufreq_interactive_cpuinfo *pcpu;
+ 
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++	struct cpufreq_interactive_tunables *tunables;
++	u8 cpu_mask=0x01;
++	//masking 0x00000001:WFI, 0x00000002:SPC, 0x00000003:WFI+SPC, 0x00000004:PC, 0x00000005:WFI+PC, 0x00000006:SPC+PC, 0x00000007:WFI+SPC+PC
++	u32 power_level_mask=0x00000006;
++#endif
++
+ 	while (1) {
+ 		set_current_state(TASK_INTERRUPTIBLE);
+ 		spin_lock_irqsave(&speedchange_cpumask_lock, flags);
+@@ -685,7 +704,16 @@ static int cpufreq_interactive_speedchange_task(void *data)
+ 					hvt = min(hvt, pjcpu->local_hvtime);
+ 				}
+ 			}
+-
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++			//Disable LPM Mode when cpu freq. rise up over than hispeed freq.
++			tunables = pcpu->policy->governor_data;
++			if (pcpu->target_freq >= tunables->lpm_disable_freq){
++				lpm_set_mode(cpu_mask << cpu, power_level_mask << cpu*4, 0);
++			}
++			else {
++				lpm_set_mode(cpu_mask << cpu, power_level_mask << cpu*4, 1);
++			}
++#endif
+ 			if (max_freq != pcpu->policy->cur) {
+ 				__cpufreq_driver_target(pcpu->policy,
+ 							max_freq,
+@@ -972,6 +1000,27 @@ static ssize_t store_hispeed_freq(struct cpufreq_interactive_tunables *tunables,
+ 	return count;
+ }
+ 
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++static ssize_t show_lpm_disable_freq(struct cpufreq_interactive_tunables *tunables,
++		char *buf)
++{
++	return sprintf(buf, "%u\n", tunables->lpm_disable_freq);
++}
++
++static ssize_t store_lpm_disable_freq(struct cpufreq_interactive_tunables *tunables,
++		const char *buf, size_t count)
++{
++	int ret;
++	long unsigned int val;
++
++	ret = strict_strtoul(buf, 0, &val);
++	if (ret < 0)
++		return ret;
++	tunables->lpm_disable_freq = val;
++	return count;
++}
++#endif
++
+ #define show_store_one(file_name)					\
+ static ssize_t show_##file_name(					\
+ 	struct cpufreq_interactive_tunables *tunables, char *buf)	\
+@@ -1377,6 +1426,9 @@ show_store_gov_pol_sys(use_sched_load);
+ show_store_gov_pol_sys(use_migration_notif);
+ show_store_gov_pol_sys(max_freq_hysteresis);
+ show_store_gov_pol_sys(align_windows);
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++show_store_gov_pol_sys(lpm_disable_freq);
++#endif
+ 
+ #define gov_sys_attr_rw(_name)						\
+ static struct global_attr _name##_gov_sys =				\
+@@ -1404,6 +1456,9 @@ gov_sys_pol_attr_rw(use_sched_load);
+ gov_sys_pol_attr_rw(use_migration_notif);
+ gov_sys_pol_attr_rw(max_freq_hysteresis);
+ gov_sys_pol_attr_rw(align_windows);
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++gov_sys_pol_attr_rw(lpm_disable_freq);
++#endif
+ 
+ static struct global_attr boostpulse_gov_sys =
+ 	__ATTR(boostpulse, 0200, NULL, store_boostpulse_gov_sys);
+@@ -1428,6 +1483,9 @@ static struct attribute *interactive_attributes_gov_sys[] = {
+ 	&use_migration_notif_gov_sys.attr,
+ 	&max_freq_hysteresis_gov_sys.attr,
+ 	&align_windows_gov_sys.attr,
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++	&lpm_disable_freq_gov_sys.attr,
++#endif
+ 	NULL,
+ };
+ 
+@@ -1453,6 +1511,9 @@ static struct attribute *interactive_attributes_gov_pol[] = {
+ 	&use_migration_notif_gov_pol.attr,
+ 	&max_freq_hysteresis_gov_pol.attr,
+ 	&align_windows_gov_pol.attr,
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++	&lpm_disable_freq_gov_pol.attr,
++#endif
+ 	NULL,
+ };
+ 
+@@ -1526,7 +1587,6 @@ static struct cpufreq_interactive_tunables *alloc_tunable(
+ 	tunables->timer_rate = DEFAULT_TIMER_RATE;
+ 	tunables->boostpulse_duration_val = DEFAULT_MIN_SAMPLE_TIME;
+ 	tunables->timer_slack_val = DEFAULT_TIMER_SLACK;
+-	tunables->align_windows = true;
+ 
+ 	spin_lock_init(&tunables->target_loads_lock);
+ 	spin_lock_init(&tunables->above_hispeed_delay_lock);
+@@ -1558,7 +1618,16 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
+ 	struct cpufreq_interactive_tunables *tunables;
+ 	unsigned long flags;
+ 	int first_cpu;
+-
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++		//masking for little core
++		u8 cpu_mask=0xF0;
++		u32 power_level_mask=0x66660000;
++		//masking for big core
++		if (policy->cpu <= 3) {
++			cpu_mask = 0x0F;
++			power_level_mask = 0x00006666;
++		}
++#endif
+ 	if (have_governor_per_policy())
+ 		tunables = policy->governor_data;
+ 	else
+@@ -1645,7 +1714,10 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
+ 		freq_table = cpufreq_frequency_get_table(policy->cpu);
+ 		if (!tunables->hispeed_freq)
+ 			tunables->hispeed_freq = policy->max;
+-
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++		if (!tunables->lpm_disable_freq)
++			tunables->lpm_disable_freq = policy->max;
++#endif
+ 		for_each_cpu(j, policy->cpus) {
+ 			pcpu = &per_cpu(cpuinfo, j);
+ 			pcpu->policy = policy;
+@@ -1690,8 +1762,18 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
+ 		break;
+ 
+ 	case CPUFREQ_GOV_LIMITS:
+-		__cpufreq_driver_target(policy,
+-				policy->cur, CPUFREQ_RELATION_L);
++		if (policy->max < policy->cur)
++			__cpufreq_driver_target(policy,
++					policy->max, CPUFREQ_RELATION_H);
++		else if (policy->min > policy->cur) {
++			__cpufreq_driver_target(policy,
++					policy->min, CPUFREQ_RELATION_L);
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++			//Disable LPM Mode when scaling_min_freq set up over than hispeed freq.
++			if (policy->min >= tunables->lpm_disable_freq)
++				lpm_set_mode(cpu_mask, power_level_mask, 0);
++#endif
++		}
+ 		for_each_cpu(j, policy->cpus) {
+ 			pcpu = &per_cpu(cpuinfo, j);
+ 
+diff --git a/drivers/cpufreq/qcom-cpufreq.c b/drivers/cpufreq/qcom-cpufreq.c
+index e30b0cb74833..92c1e796e289 100644
+--- a/drivers/cpufreq/qcom-cpufreq.c
++++ b/drivers/cpufreq/qcom-cpufreq.c
+@@ -43,6 +43,10 @@ struct cpufreq_suspend_t {
+ 
+ static DEFINE_PER_CPU(struct cpufreq_suspend_t, cpufreq_suspend);
+ 
++#if defined(CONFIG_ARCH_MSM8939) || defined(CONFIG_ARCH_MSM8929)
++extern int jig_boot_clk_limit;
++#endif
++
+ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq,
+ 			unsigned int index)
+ {
+@@ -59,6 +63,27 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq,
+ 	trace_cpu_frequency_switch_start(freqs.old, freqs.new, policy->cpu);
+ 
+ 	rate = new_freq * 1000;
++#if defined(CONFIG_ARCH_MSM8939) || defined(CONFIG_ARCH_MSM8929)
++#if defined(CONFIG_SEC_A7_PROJECT)
++  #define JIG_LIMIT_CLK	998400 * 1000
++  #define JIG_LIMIT_TIME	160
++#elif defined(CONFIG_MACH_J7_USA_SPR)
++  #define JIG_LIMIT_CLK	499200 * 1000
++  #define JIG_LIMIT_TIME	160
++#else
++  #define JIG_LIMIT_CLK	960000 * 1000
++  #define JIG_LIMIT_TIME	50
++#endif
++	if (jig_boot_clk_limit == 1) {
++		unsigned long long t = sched_clock();
++		do_div(t, 1000000000);
++		if (t <= JIG_LIMIT_TIME && rate > JIG_LIMIT_CLK)
++			rate = JIG_LIMIT_CLK;
++		else if (t > JIG_LIMIT_TIME) {
++			jig_boot_clk_limit = 0;
++		}
++	}
++#endif
+ 	rate = clk_round_rate(cpu_clk[policy->cpu], rate);
+ 	ret = clk_set_rate(cpu_clk[policy->cpu], rate);
+ 	if (!ret) {
+diff --git a/drivers/cpuidle/Makefile b/drivers/cpuidle/Makefile
+index 972750976089..246cf1aa0613 100644
+--- a/drivers/cpuidle/Makefile
++++ b/drivers/cpuidle/Makefile
+@@ -7,4 +7,5 @@ obj-$(CONFIG_ARCH_NEEDS_CPU_IDLE_COUPLED) += coupled.o
+ 
+ obj-$(CONFIG_CPU_IDLE_CALXEDA) += cpuidle-calxeda.o
+ obj-$(CONFIG_ARCH_KIRKWOOD) += cpuidle-kirkwood.o
+-obj-$(CONFIG_MSM_PM) += lpm-levels.o  lpm-levels-of.o lpm-workarounds.o
++obj-$(CONFIG_MSM_PM) += lpm-levels.o  lpm-levels-of.o
++obj-$(CONFIG_CX_VOTE_TURBO) += lpm-workarounds.o
+diff --git a/drivers/cpuidle/lpm-levels-of.c b/drivers/cpuidle/lpm-levels-of.c
+index b737381f95c9..4df77f778505 100644
+--- a/drivers/cpuidle/lpm-levels-of.c
++++ b/drivers/cpuidle/lpm-levels-of.c
+@@ -58,6 +58,141 @@ static void *get_avail_val(struct kobject *kobj, struct kobj_attribute *attr)
+ 	return arg;
+ }
+ 
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++static struct lpm_cluster *performance_cluster;
++static struct lpm_cluster *power_cluster;
++#if defined(CONFIG_SW_SELF_DISCHARGING)
++extern int selfdischg_cpu_mask;
++#endif
++
++static int cpu_lpm_set_mode(int cpu_no, int power_level, bool on)
++{
++	int ret = 0, mode=0;
++	struct kernel_param kp;
++	struct lpm_level_avail *level_list = NULL;
++	level_list = cpu_level_available[cpu_no];
++
++	if (power_level == 0) /*  WFI */ {
++		mode = MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT;
++	} else if (power_level == 1) /*  SPC */ {
++		mode = MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE;
++	} else if (power_level == 2) /*  PC  */ {
++		mode = MSM_PM_SLEEP_MODE_POWER_COLLAPSE;
++	} else {
++		pr_err("Bad mode for cpu lpm mode!\n");
++		return -EINVAL;
++	}
++
++	kp.arg = &level_list[mode].idle_enabled;;
++	if (on)
++		ret = param_set_bool("Y", &kp);
++	else
++		ret = param_set_bool("N", &kp);
++
++	return ret;
++}
++
++int lpm_set_mode(u8 cpu_mask, u32 power_level, bool on)
++{
++	int cpu = 0, j = 0, k =0;
++	int ret = 0;
++
++	for_each_possible_cpu(cpu) {
++		if (cpu_mask & (1 << cpu)) {
++			for (j=cpu*4, k=0; k<3; j++,k++) {
++				if (power_level & (1 << j)) {
++#if defined(CONFIG_SW_SELF_DISCHARGING)
++					if (unlikely(selfdischg_cpu_mask & (1<<cpu)))
++						return ret;
++#endif
++					ret = cpu_lpm_set_mode(cpu, k, on);
++					if (ret)
++						return ret;
++				}
++			}
++		}
++	}
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(lpm_set_mode);
++
++ssize_t lpm_bundle_show(struct kobject *kobj, struct kobj_attribute *attr,
++				char *buf)
++{
++	int i = 0, j = 0;
++	int cpu;
++	u32 len = 0, size = 0;
++	struct lpm_level_avail *level_list = NULL;
++	int idle_enabled_list[3] = { 0 , };
++
++	len = snprintf(&buf[size], PAGE_SIZE - size,
++					"[CPUIDLE] %s, %s\n",__func__,attr->attr.name);
++	size += len;
++	if (!performance_cluster || !power_cluster) {
++		pr_err("[LPM] Why null????\n");
++		return size;
++	}
++
++	for (i = 0; i < performance_cluster->nlevels; i++) {
++		len = snprintf(&buf[size], PAGE_SIZE - size, "%s idle_enabled : %d\n",
++						performance_cluster->levels[i].level_name,
++						performance_cluster->levels[i].available.idle_enabled);
++		size += len;
++	}
++
++	for_each_cpu(cpu, &performance_cluster->child_cpus) {
++		level_list = cpu_level_available[cpu];
++		idle_enabled_list[0] =
++				level_list[MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT].idle_enabled;
++		idle_enabled_list[1] =
++				level_list[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE].idle_enabled;
++		idle_enabled_list[2] =
++				level_list[MSM_PM_SLEEP_MODE_POWER_COLLAPSE].idle_enabled;
++		for (j = 0; j < performance_cluster->cpu->nlevels; j++) {
++			len = snprintf(&buf[size], PAGE_SIZE - size,
++					"CPU%d, name:%s idle_enabled:%d\n",
++					cpu,performance_cluster->cpu->levels[j].name,
++					idle_enabled_list[j]);
++			size += len;
++		}
++	}
++
++	len = snprintf(&buf[size], PAGE_SIZE - size,
++			"[LPM] %s Cluster :\n",power_cluster->cluster_name);
++	size += len;
++	for (i = 0; i < power_cluster->nlevels; i++) {
++		len = snprintf(&buf[size], PAGE_SIZE - size, "%s idle_enabled : %d\n",
++				power_cluster->levels[i].level_name,
++				power_cluster->levels[i].available.idle_enabled);
++		size += len;
++	}
++
++	for_each_cpu(cpu, &power_cluster->child_cpus) {
++		level_list = cpu_level_available[cpu];
++		idle_enabled_list[0] =
++				level_list[MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT].idle_enabled;
++		idle_enabled_list[1] =
++				level_list[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE].idle_enabled;
++		idle_enabled_list[2] =
++				level_list[MSM_PM_SLEEP_MODE_POWER_COLLAPSE].idle_enabled;
++		for (j = 0; j < power_cluster->cpu->nlevels; j++) {
++			len = snprintf(&buf[size], PAGE_SIZE - size,
++					"CPU%d, name:%s  idle_enabled:%d\n",
++					cpu,power_cluster->cpu->levels[j].name,
++					idle_enabled_list[j]);
++			size += len;
++		}
++	}
++
++
++	return size;
++}
++
++static struct kobj_attribute lpm_bundle_attribute =
++		__ATTR(lpm_bundle, 0440, lpm_bundle_show, NULL);
++#endif
++
+ ssize_t lpm_enable_show(struct kobject *kobj, struct kobj_attribute *attr,
+ 				char *buf)
+ {
+@@ -83,6 +218,13 @@ ssize_t lpm_enable_store(struct kobject *kobj, struct kobj_attribute *attr,
+ 	kp.arg = get_avail_val(kobj, attr);
+ 	ret = param_set_bool(buf, &kp);
+ 
++#if defined(CONFIG_SW_SELF_DISCHARGING)
++	if ( attr->attr.name )
++		printk("[SELFDISCHG] LPM %s %s\n", buf, attr->attr.name);
++	else
++		printk("[SELFDISCHG] LPM %s null\n", buf);
++#endif
++
+ 	return ret ? ret : len;
+ }
+ 
+@@ -216,6 +358,16 @@ int create_cluster_lvl_nodes(struct lpm_cluster *p, struct kobject *kobj)
+ 	if (!p)
+ 		return -ENODEV;
+ 
++#if defined(CONFIG_ARCH_MSM8939) || defined (CONFIG_ARCH_MSM8929)
++	printk("[LPM] %s create\n",p->cluster_name);
++	if (!strncmp(p->cluster_name, "power", 5))
++		power_cluster = p;
++	else if (!strncmp(p->cluster_name, "performance", 11))
++		performance_cluster = p;
++	else if (!strncmp(p->cluster_name, "system", 6))
++		ret = sysfs_create_file(kobj, &lpm_bundle_attribute.attr);
++#endif
++
+ 	cluster_kobj = kobject_create_and_add(p->cluster_name, kobj);
+ 	if (!cluster_kobj)
+ 		return -ENOMEM;
+diff --git a/drivers/cpuidle/lpm-levels.c b/drivers/cpuidle/lpm-levels.c
+index b49b6a305e91..5de47b02f906 100644
+--- a/drivers/cpuidle/lpm-levels.c
++++ b/drivers/cpuidle/lpm-levels.c
+@@ -42,7 +42,9 @@
+ #include <asm/arch_timer.h>
+ #include <asm/cacheflush.h>
+ #include "lpm-levels.h"
++#ifdef CONFIG_CX_VOTE_TURBO
+ #include "lpm-workarounds.h"
++#endif
+ #include <trace/events/power.h>
+ #include <linux/regulator/consumer.h>
+ #include <linux/pinctrl/sec-pinmux.h>
+@@ -53,7 +55,6 @@
+ 
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/trace_msm_low_power.h>
+-
+ #define SCLK_HZ (32768)
+ #define SCM_HANDOFF_LOCK_ID "S:7"
+ static remote_spinlock_t scm_handoff_lock;
+@@ -222,11 +223,13 @@ int set_l2_mode(struct low_power_ops *ops, int mode, bool notify_rpm)
+ 		break;
+ 	}
+ 
++#ifdef CONFIG_CX_VOTE_TURBO
+ 	/* Do not program L2 SPM enable bit. This will be set by TZ */
+ 	if (lpm_wa_get_skip_l2_spm())
+ 		rc = msm_spm_config_low_power_mode_addr(ops->spm, lpm,
+ 							true);
+ 	else
++#endif
+ 		rc = msm_spm_config_low_power_mode(ops->spm, lpm, true);
+ 
+ 	if (rc)
+@@ -999,7 +1002,6 @@ static int lpm_probe(struct platform_device *pdev)
+ 				__func__);
+ 		goto failed;
+ 	}
+-
+ 	return 0;
+ failed:
+ 	free_cluster_node(lpm_root_node);
+diff --git a/include/linux/cpumask.h b/include/linux/cpumask.h
+index d08e4d2a9b92..ece6cfc487d2 100644
+--- a/include/linux/cpumask.h
++++ b/include/linux/cpumask.h
+@@ -279,6 +279,32 @@ static inline void cpumask_clear_cpu(int cpu, struct cpumask *dstp)
+ #define cpumask_test_cpu(cpu, cpumask) \
+ 	test_bit(cpumask_check(cpu), cpumask_bits((cpumask)))
+ 
++extern int is_boot_complete(void);
++
++/*To enable the mask only for little cluster cores*/
++#ifdef CONFIG_ARCH_MSM8939
++
++#define get_low_pwr_cpu1() 5
++
++#define get_low_pwr_cpu2() 6
++
++static inline void cpumask_little(struct cpumask *dstp)
++{
++	clear_bit(cpumask_check(4), cpumask_bits(dstp));
++	clear_bit(cpumask_check(5), cpumask_bits(dstp));
++	clear_bit(cpumask_check(6), cpumask_bits(dstp));
++	clear_bit(cpumask_check(7), cpumask_bits(dstp));
++}
++
++#define cpu_mask_little(dstp)\
++	cpumask_little(dstp)
++#else
++
++#define get_low_pwr_cpu1() ( WORK_CPU_UNBOUND )
++
++#define get_low_pwr_cpu2() ( WORK_CPU_UNBOUND )
++
++#endif
+ /**
+  * cpumask_test_and_set_cpu - atomically test and set a cpu in a cpumask
+  * @cpu: cpu number (< nr_cpu_ids)
+diff --git a/arch/arm/Kconfig.debug b/arch/arm/Kconfig.debug
+index 2f8660d48c5e..4349e45d4256 100644
+--- a/arch/arm/Kconfig.debug
++++ b/arch/arm/Kconfig.debug
+@@ -734,4 +734,10 @@ config RESTART_REASON_SEC_PARAM
+ 	default n
+ 	help
+ 	  Param partition can retain the values across reboot, hence this comes in handy backup, when restart reason saved in IMEM is lost.
++config CX_VOTE_TURBO
++        bool "Set the Cx as Turbo mode during warmboot exit "
++        default n
++        help
++	   Say Y here if you want to set the Cx as Turbo mode
++
+ endmenu

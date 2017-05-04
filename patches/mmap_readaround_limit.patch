@@ -1,0 +1,37 @@
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 312041563f3f..5186d466ab79 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -556,3 +556,11 @@ config PROCESS_RECLAIM
+ 	 (addr, addr + size-bytes) of the process.
+ 
+ 	 Any other vaule is ignored.
++
++config MMAP_READAROUND_LIMIT
++	int "Limit mmap readaround upperbound"
++	default 0
++	help
++	  Inappropriate mmap readaround size can hurt device performance
++	  during the sluggish situation. Add the hard upper-limit for
++	  mmap readaround.
+diff --git a/mm/filemap.c b/mm/filemap.c
+index f572707b961f..d4180c574933 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1564,7 +1564,16 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
+ 	/*
+ 	 * mmap read-around
+ 	 */
++
++#if CONFIG_MMAP_READAROUND_LIMIT == 0
+ 	ra_pages = max_sane_readahead(ra->ra_pages);
++#else
++	if (ra->ra_pages > CONFIG_MMAP_READAROUND_LIMIT)
++		ra_pages = max_sane_readahead(CONFIG_MMAP_READAROUND_LIMIT);
++	else
++		ra_pages = max_sane_readahead(ra->ra_pages);
++#endif
++
+ 	ra->start = max_t(long, 0, offset - ra_pages / 2);
+ 	ra->size = ra_pages;
+ 	ra->async_size = ra_pages / 4;

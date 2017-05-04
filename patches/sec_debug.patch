@@ -1,0 +1,602 @@
+diff --git a/kernel/hrtimer.c b/kernel/hrtimer.c
+index 8b131b008348..9da7511f6bfe 100644
+--- a/kernel/hrtimer.c
++++ b/kernel/hrtimer.c
+@@ -52,6 +52,9 @@
+ #include <asm/uaccess.h>
+ 
+ #include <trace/events/timer.h>
++#ifdef CONFIG_SEC_DEBUG
++#include <linux/sec_debug.h>
++#endif
+ 
+ /*
+  * The timer bases:
+@@ -895,6 +898,8 @@ u64 hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval)
+ 	u64 orun = 1;
+ 	ktime_t delta;
+ 
++	WARN_ON(hrtimer_is_queued(timer));
++
+ 	delta = ktime_sub(now, hrtimer_get_expires(timer));
+ 
+ 	if (delta.tv64 < 0)
+@@ -1291,7 +1296,13 @@ static void __run_hrtimer(struct hrtimer *timer, ktime_t *now)
+ 	 */
+ 	raw_spin_unlock(&cpu_base->lock);
+ 	trace_hrtimer_expire_entry(timer, now);
++#ifdef CONFIG_SEC_DEBUG
++	secdbg_msg("hrtimer %pS entry", fn);
++#endif
+ 	restart = fn(timer);
++#ifdef CONFIG_SEC_DEBUG
++	secdbg_msg("hrtimer %pS exit", fn);
++#endif
+ 	trace_hrtimer_expire_exit(timer);
+ 	raw_spin_lock(&cpu_base->lock);
+ 
+diff --git a/kernel/irq/handle.c b/kernel/irq/handle.c
+index 131ca176b497..89439597c577 100644
+--- a/kernel/irq/handle.c
++++ b/kernel/irq/handle.c
+@@ -18,6 +18,10 @@
+ 
+ #include <trace/events/irq.h>
+ 
++#ifdef CONFIG_SEC_DEBUG
++#include <linux/sec_debug.h>
++#endif
++
+ #include "internals.h"
+ 
+ /**
+@@ -137,10 +141,19 @@ handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *action)
+ 
+ 	do {
+ 		irqreturn_t res;
++#ifdef CONFIG_SEC_DEBUG
++		sec_debug_timer_log(4444, (int)irqs_disabled(),
++						(void *)action->handler);
++#endif
+ 
+ 		trace_irq_handler_entry(irq, action);
+ 		res = action->handler(irq, action->dev_id);
+ 		trace_irq_handler_exit(irq, action, res);
++#ifdef CONFIG_SEC_DEBUG
++		sec_debug_timer_log(5555, (int)irqs_disabled(),
++						(void *)action->handler);
++		/* sec_debug_irq_sched_log(irq, (void *)action->handler, 2); */
++#endif
+ 
+ 		if (WARN_ONCE(!irqs_disabled(),"irq %u handler %pF enabled interrupts\n",
+ 			      irq, action->handler))
+diff --git a/kernel/irq/irqdesc.c b/kernel/irq/irqdesc.c
+index 8ab8e9390297..56a5102cb13c 100644
+--- a/kernel/irq/irqdesc.c
++++ b/kernel/irq/irqdesc.c
+@@ -16,6 +16,9 @@
+ #include <linux/bitmap.h>
+ 
+ #include "internals.h"
++#ifdef CONFIG_SEC_DEBUG
++#include <linux/sec_debug.h>
++#endif
+ 
+ /*
+  * lockdep: we want to handle all irq_desc locks as a single lock-class:
+@@ -312,6 +315,15 @@ int generic_handle_irq(unsigned int irq)
+ 
+ 	if (!desc)
+ 		return -EINVAL;
++#ifdef CONFIG_SEC_DEBUG
++	if (desc->action)
++		sec_debug_irq_sched_log(irq, (void *)desc->action->handler,
++			irqs_disabled());
++	else
++		sec_debug_irq_sched_log(irq, (void *)desc->handle_irq,
++			irqs_disabled());
++#endif
++
+ 	generic_handle_irq_desc(irq, desc);
+ 	return 0;
+ }
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 676e1a21848f..803547b4b055 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -82,6 +82,9 @@
+ #ifdef CONFIG_PARAVIRT
+ #include <asm/paravirt.h>
+ #endif
++#ifdef CONFIG_SEC_DEBUG
++#include <linux/sec_debug.h>
++#endif
+ 
+ #include "sched.h"
+ #include "../workqueue_internal.h"
+@@ -4738,6 +4741,10 @@ need_resched:
+ 		 */
+ 		cpu = smp_processor_id();
+ 		rq = cpu_rq(cpu);
++#ifdef CONFIG_SEC_DEBUG
++		sec_debug_task_sched_log(cpu, rq->curr);
++#endif
++
+ 	} else
+ 		raw_spin_unlock_irq(&rq->lock);
+ 
+@@ -8900,6 +8907,11 @@ void __init sched_init(void)
+ 	int i, j;
+ 	unsigned long alloc_size = 0, ptr;
+ 
++#ifdef CONFIG_SEC_DEBUG
++	sec_gaf_supply_rqinfo(offsetof(struct rq, curr),
++						  offsetof(struct cfs_rq, rq));
++#endif
++
+ 	if (sched_enable_hmp)
+ 		pr_info("HMP scheduling enabled.\n");
+ 
+diff --git a/kernel/softirq.c b/kernel/softirq.c
+index b58c5c512925..b40947055e06 100644
+--- a/kernel/softirq.c
++++ b/kernel/softirq.c
+@@ -30,6 +30,10 @@
+ #include <trace/events/irq.h>
+ 
+ #include <asm/irq.h>
++#ifdef CONFIG_SEC_DEBUG
++#include <linux/sec_debug.h>
++#endif
++
+ /*
+    - No shared variables, all the data are CPU local.
+    - If a softirq needs serialization, let it serialize itself
+@@ -250,7 +254,13 @@ restart:
+ 			kstat_incr_softirqs_this_cpu(vec_nr);
+ 
+ 			trace_softirq_entry(vec_nr);
++#ifdef CONFIG_SEC_DEBUG
++			secdbg_msg("softirq %pS entry", h->action);
++#endif
+ 			h->action(h);
++#ifdef CONFIG_SEC_DEBUG
++			secdbg_msg("softirq %pS exit", h->action);
++#endif
+ 			trace_softirq_exit(vec_nr);
+ 			if (unlikely(prev_count != preempt_count())) {
+ 				printk(KERN_ERR "huh, entered softirq %u %s %p"
+@@ -369,6 +379,9 @@ void irq_exit(void)
+ 
+ 	account_irq_exit_time(current);
+ 	trace_hardirq_exit();
++#ifdef CONFIG_SEC_DEBUG
++	secdbg_msg("hardirq exit");
++#endif
+ 	sub_preempt_count(HARDIRQ_OFFSET);
+ 	if (!in_interrupt() && local_softirq_pending())
+ 		invoke_softirq();
+@@ -487,7 +500,13 @@ static void tasklet_action(struct softirq_action *a)
+ 			if (!atomic_read(&t->count)) {
+ 				if (!test_and_clear_bit(TASKLET_STATE_SCHED, &t->state))
+ 					BUG();
++#ifdef CONFIG_SEC_DEBUG
++				sec_debug_irq_sched_log(-1, t->func, 3);
++				t->func(t->data);
++				sec_debug_irq_sched_log(-1, t->func, 4);
++#else
+ 				t->func(t->data);
++#endif
+ 				tasklet_unlock(t);
+ 				continue;
+ 			}
+diff --git a/kernel/timer.c b/kernel/timer.c
+index 2ab4aa0a4a01..d4341dc37241 100644
+--- a/kernel/timer.c
++++ b/kernel/timer.c
+@@ -48,6 +48,9 @@
+ #include <asm/div64.h>
+ #include <asm/timex.h>
+ #include <asm/io.h>
++#ifdef CONFIG_SEC_DEBUG
++#include <linux/sec_debug.h>
++#endif
+ 
+ #include "time/tick-internal.h"
+ 
+@@ -1133,7 +1136,13 @@ static void call_timer_fn(struct timer_list *timer, void (*fn)(unsigned long),
+ 	lock_map_acquire(&lockdep_map);
+ 
+ 	trace_timer_expire_entry(timer);
++#ifdef CONFIG_SEC_DEBUG
++	secdbg_msg("timer %pS entry", fn);
++#endif
+ 	fn(data);
++#ifdef CONFIG_SEC_DEBUG
++	secdbg_msg("timer %pS exit", fn);
++#endif
+ 	trace_timer_expire_exit(timer);
+ 
+ 	lock_map_release(&lockdep_map);
+diff --git a/drivers/soc/qcom/scm.c b/drivers/soc/qcom/scm.c
+index c806f110ad1f..a606f91fa6c3 100644
+--- a/drivers/soc/qcom/scm.c
++++ b/drivers/soc/qcom/scm.c
+@@ -23,6 +23,16 @@
+ #include <asm/compiler.h>
+ 
+ #include <soc/qcom/scm.h>
++#ifdef CONFIG_SEC_DEBUG
++#include <linux/sec_debug.h>
++#endif
++
++#include <linux/thread_info.h>
++#include <linux/sched.h>
++#include <linux/string.h>
++#if defined(CONFIG_ARCH_MSM8916) || defined(CONFIG_ARCH_MSM8226) || defined(CONFIG_ARCH_MSM8929) || defined(CONFIG_ARCH_MSM8939)
++#include <linux/smp.h>
++#endif
+ 
+ #define SCM_ENOMEM		-5
+ #define SCM_EOPNOTSUPP		-4
+@@ -281,9 +291,18 @@ static int scm_call_common(u32 svc_id, u32 cmd_id, const void *cmd_buf,
+ 	if (cmd_buf)
+ 		memcpy(scm_get_command_buffer(scm_buf), cmd_buf, cmd_len);
+ 
++#ifdef CONFIG_SEC_DEBUG
++	sec_debug_secure_log(svc_id, cmd_id);
++#endif
++
+ 	mutex_lock(&scm_lock);
+ 	ret = __scm_call(scm_buf);
+ 	mutex_unlock(&scm_lock);
++
++#ifdef CONFIG_SEC_DEBUG
++	sec_debug_secure_log(svc_id, cmd_id);
++#endif
++
+ 	if (ret)
+ 		return ret;
+ 
+diff --git a/drivers/power/qcom/msm-pm.c b/drivers/power/qcom/msm-pm.c
+index 41d6a1244e25..f96ff3ed03df 100644
+--- a/drivers/power/qcom/msm-pm.c
++++ b/drivers/power/qcom/msm-pm.c
+@@ -45,6 +45,10 @@
+ #include "pm-boot.h"
+ #include "../../../arch/arm/mach-msm/clock.h"
+ 
++#ifdef CONFIG_SEC_DEBUG
++#include <linux/sec_debug.h>
++#endif
++
+ #define SCM_CMD_TERMINATE_PC	(0x2)
+ #define SCM_CMD_CORE_HOTPLUGGED (0x10)
+ #define SCM_FLUSH_FLAG_MASK	(0x3)
+@@ -269,6 +273,10 @@ static bool __ref msm_pm_spm_power_collapse(
+ 
+ 	msm_jtag_save_state();
+ 
++#ifdef CONFIG_SEC_DEBUG
++        secdbg_sched_msg("+pc(I:%d,R:%d)", from_idle, notify_rpm);
++#endif
++
+ #ifdef CONFIG_CPU_V7
+ 	collapsed = save_cpu_regs ?
+ 		!cpu_suspend(0, msm_pm_collapse) : msm_pm_pc_hotplug();
+@@ -277,6 +285,10 @@ static bool __ref msm_pm_spm_power_collapse(
+ 		!cpu_suspend(0) : msm_pm_pc_hotplug();
+ #endif
+ 
++#ifdef CONFIG_SEC_DEBUG
++        secdbg_sched_msg("-pc(%d)", collapsed);
++#endif
++
+ 	msm_jtag_restore_state();
+ 
+ 	if (collapsed)
+diff --git a/arch/arm/kernel/irq.c b/arch/arm/kernel/irq.c
+index 9dc15f830e3e..382c3a5ec975 100644
+--- a/arch/arm/kernel/irq.c
++++ b/arch/arm/kernel/irq.c
+@@ -42,6 +42,9 @@
+ #include <asm/mach/irq.h>
+ #include <asm/mach/time.h>
+ 
++#ifdef CONFIG_SEC_DEBUG
++#include <linux/sec_debug.h>
++#endif
+ unsigned long irq_err_count;
+ 
+ int arch_show_interrupts(struct seq_file *p, int prec)
+@@ -65,6 +68,10 @@ int arch_show_interrupts(struct seq_file *p, int prec)
+ void handle_IRQ(unsigned int irq, struct pt_regs *regs)
+ {
+ 	struct pt_regs *old_regs = set_irq_regs(regs);
++#ifdef CONFIG_SEC_DEBUG
++	int cpu = smp_processor_id();
++	unsigned long long start_time = cpu_clock(cpu);
++#endif
+ 	irq_enter();
+ 
+ 	/*
+@@ -80,6 +87,9 @@ void handle_IRQ(unsigned int irq, struct pt_regs *regs)
+ 	}
+ 
+ 	irq_exit();
++#ifdef CONFIG_SEC_DEBUG
++	sec_debug_irq_enterexit_log(irq, start_time);
++#endif
+ 
+ 	set_irq_regs(old_regs);
+ }
+diff --git a/arch/arm/kernel/smp.c b/arch/arm/kernel/smp.c
+index a471f654463b..ac89dfcb847d 100644
+--- a/arch/arm/kernel/smp.c
++++ b/arch/arm/kernel/smp.c
+@@ -45,6 +45,9 @@
+ #include <asm/smp_plat.h>
+ #include <asm/virt.h>
+ #include <asm/mach/arch.h>
++#ifdef CONFIG_SEC_DEBUG
++#include <linux/sec_debug.h>
++#endif
+ 
+ /*
+  * as from 2.5, kernels no longer have an init_tasks structure
+@@ -592,6 +595,9 @@ static void ipi_cpu_stop(unsigned int cpu, struct pt_regs *regs)
+ 		raw_spin_lock(&stop_lock);
+ 		printk(KERN_CRIT "CPU%u: stopping\n", cpu);
+ 		dump_stack();
++#ifdef CONFIG_SEC_DEBUG
++		sec_debug_dump_stack();
++#endif
+ 		raw_spin_unlock(&stop_lock);
+ 	}
+ 
+diff --git a/arch/arm/kernel/traps.c b/arch/arm/kernel/traps.c
+index e342829d88da..1be82874154c 100644
+--- a/arch/arm/kernel/traps.c
++++ b/arch/arm/kernel/traps.c
+@@ -36,6 +36,10 @@
+ #include <asm/tls.h>
+ #include <asm/system_misc.h>
+ 
++#ifdef CONFIG_SEC_DEBUG
++#include <linux/sec_debug.h>
++#endif
++
+ #include <trace/events/exception.h>
+ 
+ static const char *handler[]= {
+@@ -253,8 +257,19 @@ static int __die(const char *str, int err, struct pt_regs *regs)
+ 		TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk), end_of_stack(tsk));
+ 
+ 	if (!user_mode(regs) || in_interrupt()) {
++#ifndef CONFIG_SEC_DEBUG
+ 		dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
+ 			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
++#else
++		if (THREAD_SIZE + (unsigned long)task_stack_page(tsk) - regs->ARM_sp
++			> THREAD_SIZE) {
++			dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
++					THREAD_SIZE/4 + regs->ARM_sp);
++		} else {
++			dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
++					THREAD_SIZE + (unsigned long)task_stack_page(tsk));
++		}
++#endif
+ 		dump_backtrace(regs, tsk);
+ 		dump_instr(KERN_EMERG, regs);
+ 	}
+@@ -320,6 +335,9 @@ void die(const char *str, struct pt_regs *regs, int err)
+ 	enum bug_trap_type bug_type = BUG_TRAP_TYPE_NONE;
+ 	unsigned long flags = oops_begin();
+ 	int sig = SIGSEGV;
++#ifdef CONFIG_SEC_DEBUG
++	secdbg_sched_msg("!!die!!");
++#endif
+ 	if (!user_mode(regs))
+ 		bug_type = report_bug(regs->ARM_pc, regs);
+ 	if (bug_type != BUG_TRAP_TYPE_NONE)
+diff --git a/drivers/soc/qcom/subsystem_restart.c b/drivers/soc/qcom/subsystem_restart.c
+index 357d8d101230..0995aae2b4f9 100644
+--- a/drivers/soc/qcom/subsystem_restart.c
++++ b/drivers/soc/qcom/subsystem_restart.c
+@@ -956,7 +956,25 @@ int subsystem_restart_dev(struct subsys_device *dev)
+ 		break;
+ 	case RESET_SOC:
+ 		__pm_stay_awake(&dev->ssr_wlock);
++#ifdef CONFIG_SEC_DEBUG
++		/*
++		 * If the silent log function is enabled for CP and CP is in
++		 * trouble, diag_mdlog (APP) should be terminated before
++		 * a panic occurs, since it can flush logs to SD card
++		 * when it is over.
++		 * We should guarantee time the App needs for saving logs
++		 * as well, so we use a delayed workqueue.
++		 */
++		if(silent_log_panic_handler())
++			schedule_delayed_work(&dev->device_restart_delayed_work,
++				msecs_to_jiffies(300));
++		else
++			schedule_delayed_work(&dev->device_restart_delayed_work,
++				0);
++
++#else
+ 		schedule_work(&dev->device_restart_work);
++#endif
+ 		return 0;
+ 	default:
+ 		panic("subsys-restart: Unknown restart level!\n");
+diff --git a/drivers/soc/qcom/subsystem_restart.c b/drivers/soc/qcom/subsystem_restart.c
+index ce4f7cc441a7..357d8d101230 100644
+--- a/drivers/soc/qcom/subsystem_restart.c
++++ b/drivers/soc/qcom/subsystem_restart.c
+@@ -38,6 +38,9 @@
+ #include <soc/qcom/subsystem_notif.h>
+ #include <soc/qcom/socinfo.h>
+ #include <soc/qcom/sysmon.h>
++#ifdef CONFIG_SEC_DEBUG
++#include <linux/sec_debug.h>
++#endif
+ 
+ #include <asm/current.h>
+ 
+@@ -49,6 +52,8 @@ module_param(disable_restart_work, uint, S_IRUGO | S_IWUSR);
+ static int enable_debug;
+ module_param(enable_debug, int, S_IRUGO | S_IWUSR);
+ 
++static bool silent_ssr;
++
+ /**
+  * enum p_subsys_state - state of a subsystem (private)
+  * @SUBSYS_NORMAL: subsystem is operating normally
+@@ -153,7 +158,11 @@ struct subsys_device {
+ 	struct work_struct work;
+ 	struct wakeup_source ssr_wlock;
+ 	char wlname[64];
++#ifdef CONFIG_SEC_DEBUG
++	struct delayed_work device_restart_delayed_work;
++#else
+ 	struct work_struct device_restart_work;
++#endif
+ 	struct subsys_tracking track;
+ 
+ 	void *notify;
+@@ -743,10 +752,22 @@ void subsystem_put(void *subsystem)
+ 			subsys->desc->name, __func__))
+ 		goto err_out;
+ 	if (!--subsys->count) {
++#ifdef CONFIG_SEC_DEBUG
++		if (strncmp(subsys->desc->name, "modem", 5)) {
+ 		subsys_stop(subsys);
+ 		if (subsys->do_ramdump_on_put)
+ 			subsystem_ramdump(subsys, NULL);
+ 	}
++		else {
++			pr_err("subsys: block modem put stop for stabilty\n");
++			subsys->count++;
++		}
++#else
++		subsys_stop(subsys);
++		if (subsys->do_ramdump_on_put)
++			subsystem_ramdump(subsys, NULL);
++#endif
++	}
+ 	mutex_unlock(&track->lock);
+ 
+ 	subsystem_free_memory(subsys, NULL);
+@@ -867,9 +888,14 @@ static void __subsystem_restart_dev(struct subsys_device *dev)
+ 
+ static void device_restart_work_hdlr(struct work_struct *work)
+ {
++#ifdef CONFIG_SEC_DEBUG
++	struct subsys_device *dev = container_of(to_delayed_work(work),
++						struct subsys_device,
++						device_restart_delayed_work);
++#else
+ 	struct subsys_device *dev = container_of(work, struct subsys_device,
+ 							device_restart_work);
+-
++#endif
+ 	notify_each_subsys_device(&dev, 1, SUBSYS_SOC_RESET, NULL);
+ 	panic("subsys-restart: Resetting the SoC - %s crashed.",
+ 							dev->desc->name);
+@@ -889,6 +915,21 @@ int subsystem_restart_dev(struct subsys_device *dev)
+ 
+ 	name = dev->desc->name;
+ 
++#ifdef CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_SSR_DEBUG_LEVEL_CHK
++	if ((!sec_debug_is_enabled_for_ssr()) || (!sec_debug_is_enabled()) || silent_ssr)
++#else
++	if (!sec_debug_is_enabled() || silent_ssr)
++#endif
++		dev->restart_level = RESET_SUBSYS_COUPLED; //Why is it delete the RESET_SUBSYS_INDEPENDENT on MSM8974 ?
++	else
++		dev->restart_level = RESET_SOC;
++#endif
++	/* move from subsystem_crash(), clear force stop gpio and silent ssr flag */
++	if (dev->desc->force_stop_gpio)
++		gpio_set_value(dev->desc->force_stop_gpio, 0);
++	silent_ssr = 0;
++
+ 	/*
+ 	 * If a system reboot/shutdown is underway, ignore subsystem errors.
+ 	 * However, print a message so that we know that a subsystem behaved
+@@ -942,6 +983,39 @@ int subsystem_restart(const char *name)
+ }
+ EXPORT_SYMBOL(subsystem_restart);
+ 
++int subsystem_crash(const char *name)
++{
++	struct subsys_device *dev = find_subsys(name);
++
++	if (!dev)
++		return -ENODEV;
++
++	if (!get_device(&dev->dev))
++		return -ENODEV;
++
++	if (!subsys_get_crash_status(dev) && dev->desc->force_stop_gpio) {
++		pr_err("%s: set force gpio\n", __func__);
++		gpio_set_value(dev->desc->force_stop_gpio, 1);
++		/*
++		 * wait for ack timeout is 1s. don't wait here.
++		 * with 10ms delay, sometimes stop_ack are not received.
++		 * so, clear gpio status when subsystem restart begins.
++		mdelay(10);
++		gpio_set_value(dev->desc->force_stop_gpio, 0);
++		*/
++	}
++	return 0;
++}
++EXPORT_SYMBOL(subsystem_crash);
++
++void subsys_force_stop(const char *name, bool val)
++{
++	silent_ssr = val;
++	pr_err("silent_ssr %s: %d\n", name, silent_ssr);
++	subsystem_crash(name);
++}
++EXPORT_SYMBOL(subsys_force_stop);
++
+ int subsystem_crashed(const char *name)
+ {
+ 	struct subsys_device *dev = find_subsys(name);
+@@ -1482,7 +1556,12 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
+ 	snprintf(subsys->wlname, sizeof(subsys->wlname), "ssr(%s)", desc->name);
+ 	wakeup_source_init(&subsys->ssr_wlock, subsys->wlname);
+ 	INIT_WORK(&subsys->work, subsystem_restart_wq_func);
++#ifdef CONFIG_SEC_DEBUG
++	INIT_DELAYED_WORK(&subsys->device_restart_delayed_work,
++				device_restart_work_hdlr);
++#else
+ 	INIT_WORK(&subsys->device_restart_work, device_restart_work_hdlr);
++#endif
+ 	spin_lock_init(&subsys->track.s_lock);
+ 
+ 	subsys->id = ida_simple_get(&subsys_ida, 0, 0, GFP_KERNEL);
+diff --git a/include/soc/qcom/subsystem_restart.h b/include/soc/qcom/subsystem_restart.h
+index a805b8057bdd..678920ac6f58 100644
+--- a/include/soc/qcom/subsystem_restart.h
++++ b/include/soc/qcom/subsystem_restart.h
+@@ -110,6 +110,8 @@ extern void subsys_set_crash_status(struct subsys_device *dev, bool crashed);
+ extern bool subsys_get_crash_status(struct subsys_device *dev);
+ void notify_proxy_vote(struct device *device);
+ void notify_proxy_unvote(struct device *device);
++extern int subsystem_crash(const char *name);
++extern void subsys_force_stop(const char *name, bool val);
+ #else
+ 
+ static inline int subsys_get_restart_level(struct subsys_device *dev)
+@@ -156,6 +158,8 @@ static inline bool subsys_get_crash_status(struct subsys_device *dev)
+ }
+ static inline void notify_proxy_vote(struct device *device) { }
+ static inline void notify_proxy_unvote(struct device *device) { }
++static inline subsystem_crash(const char *name) { }
++static inline void subsys_force_stop(const char *name, bool val) { }
+ #endif /* CONFIG_MSM_SUBSYSTEM_RESTART */
+ 
+ #endif

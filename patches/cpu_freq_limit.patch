@@ -1,0 +1,1665 @@
+diff --git a/arch/arm/configs/msm8916_sec_defconfig b/arch/arm/configs/msm8916_sec_defconfig
+index 1fda1f238070..b144c3a1dcdf 100644
+--- a/arch/arm/configs/msm8916_sec_defconfig
++++ b/arch/arm/configs/msm8916_sec_defconfig
+@@ -635,6 +635,9 @@ CONFIG_LOGCAT_SIZE=512
+ CONFIG_MOBICORE_SUPPORT=y
+ CONFIG_MOBICORE_API=y
+ 
++CONFIG_CPU_FREQ_LIMIT=y
++CONFIG_CPU_FREQ_LIMIT_USERSPACE=y
++
+ CONFIG_TCP_CONG_ADVANCED=y
+ CONFIG_TCP_CONG_BIC=y
+ CONFIG_DEFAULT_BIC=y
+diff --git a/drivers/cpufreq/Kconfig b/drivers/cpufreq/Kconfig
+index 29afa37aa4c1..301639cabc63 100644
+--- a/drivers/cpufreq/Kconfig
++++ b/drivers/cpufreq/Kconfig
+@@ -51,6 +51,12 @@ config CPU_FREQ_STAT_DETAILS
+ 
+ 	  If in doubt, say N.
+ 
++config CPU_FREQ_LIMIT
++	bool "CPU frequency limit API"
++	default n
++	help
++	  This driver supports API to limit CPU frequency.
++
+ choice
+ 	prompt "Default CPUFreq governor"
+ 	default CPU_FREQ_DEFAULT_GOV_USERSPACE if ARM_SA1100_CPUFREQ || ARM_SA1110_CPUFREQ
+diff --git a/drivers/cpufreq/Makefile b/drivers/cpufreq/Makefile
+index 14e19a6a2626..966239f21ad0 100644
+--- a/drivers/cpufreq/Makefile
++++ b/drivers/cpufreq/Makefile
+@@ -2,6 +2,8 @@
+ obj-$(CONFIG_CPU_FREQ)			+= cpufreq.o freq_table.o
+ # CPUfreq stats
+ obj-$(CONFIG_CPU_FREQ_STAT)             += cpufreq_stats.o
++# CPUfreq limit
++obj-$(CONFIG_CPU_FREQ_LIMIT)		+= cpufreq_limit.o
+ 
+ # CPUfreq governors 
+ obj-$(CONFIG_CPU_FREQ_GOV_PERFORMANCE)	+= cpufreq_performance.o
+diff --git a/drivers/input/input_booster.c b/drivers/input/input_booster.c
+index e3668fb1ef85..ea241cbb09fc 100644
+--- a/drivers/input/input_booster.c
++++ b/drivers/input/input_booster.c
+@@ -16,12 +16,14 @@
+ 
+ #include <linux/input/input_booster.h>
+ 
++#ifndef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+ #define DVFS_TOUCH_ID	0
+ int set_freq_limit(unsigned long id, unsigned int freq)
+ {
+ 	pr_err("%s is not yet implemented\n", __func__);
+ 	return 0;
+ }
++#endif
+ 
+ static struct input_booster_data *g_data;
+ 
+diff --git a/drivers/input/touchscreen/cyttsp5/cyttsp5_regs.h b/drivers/input/touchscreen/cyttsp5/cyttsp5_regs.h
+index ed8938a17bd1..cafaadc50883 100644
+--- a/drivers/input/touchscreen/cyttsp5/cyttsp5_regs.h
++++ b/drivers/input/touchscreen/cyttsp5/cyttsp5_regs.h
+@@ -248,7 +248,11 @@
+ /* FW RAM parameters */
+ #define CY_RAM_ID_TOUCHMODE_ENABLED	0xD0 /* Enable proximity */
+ 
++#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
++#define TSP_BOOSTER
++#else
+ #undef TSP_BOOSTER
++#endif
+ 
+ #if defined(TSP_BOOSTER)
+ #include <linux/cpufreq.h>
+diff --git a/drivers/input/touchscreen/imagis_core3/ist30xx.h b/drivers/input/touchscreen/imagis_core3/ist30xx.h
+index f1f52d0adb36..3bd4c9afb368 100644
+--- a/drivers/input/touchscreen/imagis_core3/ist30xx.h
++++ b/drivers/input/touchscreen/imagis_core3/ist30xx.h
+@@ -126,7 +126,7 @@
+ #define tsp_debug(fmt, ...) tsp_printk(DEV_DEBUG, fmt, ## __VA_ARGS__)
+ #define tsp_verb(fmt, ...)  tsp_printk(DEV_VERB, fmt, ## __VA_ARGS__)
+ 
+-#if defined(CONFIG_SEC_DVFS)
++#if defined(CONFIG_SEC_DVFS) || defined (CONFIG_CPU_FREQ_LIMIT_USERSPACE)
+ #define TOUCH_BOOSTER
+ #endif
+ 
+diff --git a/drivers/input/touchscreen/imagis_core3/ist30xx_sec.c b/drivers/input/touchscreen/imagis_core3/ist30xx_sec.c
+index e49f35c97b24..0163071a2a0a 100644
+--- a/drivers/input/touchscreen/imagis_core3/ist30xx_sec.c
++++ b/drivers/input/touchscreen/imagis_core3/ist30xx_sec.c
+@@ -34,6 +34,9 @@
+ #include "ist30xx_misc.h"
+ #include "ist30xx_cmcs.h"
+ 
++#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
++#include <linux/cpufreq.h>
++#endif
+ #define FW_DOWNLOADING "Downloading"
+ #define FW_DOWNLOAD_COMPLETE "Complete"
+ #define FW_DOWNLOAD_FAIL "FAIL"
+diff --git a/drivers/input/touchscreen/mms300_a.c b/drivers/input/touchscreen/mms300_a.c
+index 82d97a9cdc80..2e1a0ed0b985 100755
+--- a/drivers/input/touchscreen/mms300_a.c
++++ b/drivers/input/touchscreen/mms300_a.c
+@@ -50,6 +50,22 @@
+ #include <asm/mach-types.h>
+ #include <linux/delay.h>
+ 
++#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
++#include <linux/cpufreq.h>
++#define TOUCH_BOOSTER_DVFS
++#define TSP_GLOVE_MODE
++#define TSP_SVIEW_COVER_MODE
++#define COVER_OPEN 0
++#define COVER_GLOVE 1
++#define COVER_CLOSED 3
++
++#define DVFS_STAGE_TRIPLE       3
++
++#define DVFS_STAGE_DUAL         2
++#define DVFS_STAGE_SINGLE       1
++#define DVFS_STAGE_NONE         0
++#endif
++
+ /* #include <mach/dev.h> */
+ 
+ #include <linux/regulator/consumer.h>
+diff --git a/drivers/input/touchscreen/zinitix/zinitix_bt541_ts.c b/drivers/input/touchscreen/zinitix/zinitix_bt541_ts.c
+index 5f553026ca28..099f6aa68770 100755
+--- a/drivers/input/touchscreen/zinitix/zinitix_bt541_ts.c
++++ b/drivers/input/touchscreen/zinitix/zinitix_bt541_ts.c
+@@ -49,6 +49,17 @@
+ 
+ #include "zinitix_bt541_ts.h"
+ 
++#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
++#include <linux/cpufreq.h>
++
++#define TOUCH_BOOSTER_DVFS
++
++#define DVFS_STAGE_TRIPLE       3
++#define DVFS_STAGE_DUAL         2
++#define DVFS_STAGE_SINGLE       1
++#define DVFS_STAGE_NONE         0
++#endif
++
+ #if (TSP_TYPE_COUNT == 1)
+ u8 *m_pFirmware [TSP_TYPE_COUNT] = {(u8*)m_firmware_data,};
+ #else
+diff --git a/include/linux/cpufreq.h b/include/linux/cpufreq.h
+index 730589b992e6..deb2e39ad751 100644
+--- a/include/linux/cpufreq.h
++++ b/include/linux/cpufreq.h
+@@ -158,6 +158,51 @@ static inline unsigned int cpufreq_quick_get_max(unsigned int cpu)
+ static inline void disable_cpufreq(void) { }
+ #endif
+ 
++#if defined (CONFIG_CPU_FREQ_LIMIT_USERSPACE)
++enum {
++	BOOT_CPU = 0,
++};
++
++#define MIN_TOUCH_LOW_LIMIT	1497600
++#define MIN_TOUCH_HIGH_LIMIT	2457600
++#define MIN_CAMERA_LIMIT	998400
++
++#if defined(CONFIG_ARCH_MSM8939)
++#define MIN_TOUCH_LIMIT         556600
++#define MIN_TOUCH_LIMIT_SECOND  499200
++#elif defined(CONFIG_ARCH_MSM8929)
++#define MIN_TOUCH_LIMIT         533333
++#define MIN_TOUCH_LIMIT_SECOND  499200
++#elif defined(CONFIG_ARCH_MSM8916)
++#define MIN_TOUCH_LIMIT		1190400
++#define MIN_TOUCH_LIMIT_SECOND	998400
++#else
++#define MIN_TOUCH_LIMIT		1728000
++#define MIN_TOUCH_LIMIT_SECOND	1190400
++#endif
++
++enum {
++	DVFS_NO_ID			= 0,
++
++	/* need to update now */
++	DVFS_TOUCH_ID			= 0x00000001,
++	DVFS_APPS_MIN_ID		= 0x00000002,
++	DVFS_APPS_MAX_ID		= 0x00000004,
++	DVFS_UNICPU_ID			= 0x00000008,
++	DVFS_LTETP_ID			= 0x00000010,
++	DVFS_CAMERA_ID			= 0x00000012,
++	DVFS_FINGER_ID			= 0x00000014,
++
++	/* DO NOT UPDATE NOW */
++	DVFS_THERMALD_ID		= 0x00000100,
++
++	DVFS_MAX_ID
++};
++
++
++int set_freq_limit(unsigned long id, unsigned int freq);
++#endif
++
+ /*********************************************************************
+  *                      CPUFREQ DRIVER INTERFACE                     *
+  *********************************************************************/
+diff --git a/include/linux/input/input.h b/include/linux/input/input.h
+index ef5908ff9cec..6cb08034c24a 100644
+--- a/include/linux/input/input.h
++++ b/include/linux/input/input.h
+@@ -166,12 +166,14 @@
+ 	err |= of_property_read_u32_index(cnp, "input_booster,head_times", i, &temp); dt_infor->param_tables[i].head_time = (u16)temp; \
+ 	err |= of_property_read_u32_index(cnp, "input_booster,tail_times", i, &temp); dt_infor->param_tables[i].tail_time = (u16)temp; \
+ }
++#ifndef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+ #define DVFS_TOUCH_ID	0
+ int set_freq_limit(unsigned long id, unsigned int freq)
+ {
+ 	pr_err("%s is not yet implemented\n", __func__);
+ 	return 0;
+ }
++#endif
+ #endif //______________________________________________________________________________
+ #define GET_BOOSTER_PARAM(_GENDER_, _HEAD_PARAM_, _TAIL_PARAM_) { \
+ 	int levels[][3] = { \
+diff --git a/kernel/power/Kconfig b/kernel/power/Kconfig
+index 9b7cf67ea7b2..9a9f774dfcdd 100644
+--- a/kernel/power/Kconfig
++++ b/kernel/power/Kconfig
+@@ -18,6 +18,20 @@ config SUSPEND_FREEZER
+ 
+ 	  Turning OFF this setting is NOT recommended! If in doubt, say Y.
+ 
++config CPU_FREQ_LIMIT_USERSPACE
++	bool "User space cpufreq limit interface"
++	depends on CPU_FREQ_LIMIT
++	default n
++	help
++	  Add sysfs to limit CPU frequency for a userspace program.
++	  /sys/power/cpufreq_min_limit
++	  /sys/power/cpufreq_max_limit
++	  /sys/power/cpufreq_table
++
++config CPU_FREQ_LIMIT_HMP
++	bool "Booster code for HMP scheduler"
++	default n
++
+ config HAS_WAKELOCK
+ 	bool
+ 	default y
+diff --git a/kernel/power/main.c b/kernel/power/main.c
+index 2e8df1a07c6a..479f0e6471ce 100644
+--- a/kernel/power/main.c
++++ b/kernel/power/main.c
+@@ -16,6 +16,11 @@
+ #include <linux/debugfs.h>
+ #include <linux/seq_file.h>
+ 
++#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
++#include <linux/cpufreq.h>
++#include <linux/cpufreq_limit.h>
++#endif
++
+ #include "power.h"
+ 
+ DEFINE_MUTEX(pm_mutex);
+@@ -511,6 +516,198 @@ power_attr(wake_unlock);
+ #endif /* CONFIG_PM_WAKELOCKS */
+ #endif /* CONFIG_PM_SLEEP */
+ 
++#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
++static int cpufreq_max_limit_val = -1;
++static int cpufreq_min_limit_val = -1;
++struct cpufreq_limit_handle *cpufreq_max_hd;
++struct cpufreq_limit_handle *cpufreq_min_hd;
++DEFINE_MUTEX(cpufreq_limit_mutex);
++
++static ssize_t cpufreq_table_show(struct kobject *kobj,
++			struct kobj_attribute *attr, char *buf)
++{
++#ifndef CONFIG_CPU_FREQ_LIMIT_HMP
++	ssize_t len = 0;
++	int i, count = 0;
++	unsigned int freq;
++
++	struct cpufreq_frequency_table *table;
++
++	table = cpufreq_frequency_get_table(0);
++	if (table == NULL)
++		return 0;
++
++	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++)
++		count = i;
++
++	for (i = count; i >= 0; i--) {
++		freq = table[i].frequency;
++
++		if (freq < MIN_FREQ_LIMIT || freq > MAX_FREQ_LIMIT)
++			continue;
++
++		len += sprintf(buf + len, "%u ", freq);
++	}
++
++	len--;
++	len += sprintf(buf + len, "\n");
++
++	return len;
++#else
++	return cpufreq_limit_get_table(buf);
++#endif
++}
++
++static ssize_t cpufreq_table_store(struct kobject *kobj,
++				struct kobj_attribute *attr,
++				const char *buf, size_t n)
++{
++	pr_err("%s: cpufreq_table is read-only\n", __func__);
++	return -EINVAL;
++}
++
++static ssize_t cpufreq_max_limit_show(struct kobject *kobj,
++					struct kobj_attribute *attr,
++					char *buf)
++{
++	return sprintf(buf, "%d\n", cpufreq_max_limit_val);
++}
++
++static ssize_t cpufreq_max_limit_store(struct kobject *kobj,
++					struct kobj_attribute *attr,
++					const char *buf, size_t n)
++{
++	int val;
++	ssize_t ret = -EINVAL;
++
++	if (sscanf(buf, "%d", &val) != 1) {
++		pr_err("%s: Invalid cpufreq format\n", __func__);
++		goto out;
++	}
++
++	mutex_lock(&cpufreq_limit_mutex);
++	if (cpufreq_max_hd) {
++		cpufreq_limit_put(cpufreq_max_hd, 0);
++		cpufreq_max_hd = NULL;
++	}
++
++	if (val != -1) {
++		cpufreq_max_hd = cpufreq_limit_max_freq(val, "user lock(max)");
++		if (IS_ERR(cpufreq_max_hd)) {
++			pr_err("%s: fail to get the handle\n", __func__);
++			cpufreq_max_hd = NULL;
++		}
++	}
++
++	cpufreq_max_hd ?
++		(cpufreq_max_limit_val = val) : (cpufreq_max_limit_val = -1);
++
++	mutex_unlock(&cpufreq_limit_mutex);
++	ret = n;
++out:
++	return ret;
++}
++
++static ssize_t cpufreq_min_limit_show(struct kobject *kobj,
++					struct kobj_attribute *attr,
++					char *buf)
++{
++	return sprintf(buf, "%d\n", cpufreq_min_limit_val);
++}
++
++static ssize_t cpufreq_min_limit_store(struct kobject *kobj,
++					struct kobj_attribute *attr,
++					const char *buf, size_t n)
++{
++	int val;
++	ssize_t ret = -EINVAL;
++	int release = 0;
++
++	if (sscanf(buf, "%d", &val) != 1) {
++		pr_err("%s: Invalid cpufreq format\n", __func__);
++		goto out;
++	}
++
++	mutex_lock(&cpufreq_limit_mutex);
++	if (val == 0xFFFFFFFF || val == 0) // release case
++		release = 1;
++
++	if (cpufreq_min_hd) {
++		cpufreq_limit_put(cpufreq_min_hd, release);
++		cpufreq_min_hd = NULL;
++	}
++
++	if (!release) {
++		cpufreq_min_hd = cpufreq_limit_min_freq(val, "user lock(min)");
++		if (IS_ERR(cpufreq_min_hd)) {
++			pr_err("%s: fail to get the handle\n", __func__);
++			cpufreq_min_hd = NULL;
++		}
++	}
++
++	cpufreq_min_hd ?
++		(cpufreq_min_limit_val = val) : (cpufreq_min_limit_val = -1);
++
++	mutex_unlock(&cpufreq_limit_mutex);
++	ret = n;
++out:
++	return ret;
++}
++
++power_attr(cpufreq_table);
++power_attr(cpufreq_max_limit);
++power_attr(cpufreq_min_limit);
++
++struct cpufreq_limit_handle *cpufreq_min_touch;
++struct cpufreq_limit_handle *cpufreq_min_finger;
++
++
++int set_freq_limit(unsigned long id, unsigned int freq)
++{
++	ssize_t ret = -EINVAL;
++	int release = 0;
++
++	mutex_lock(&cpufreq_limit_mutex);
++	if (freq == 0xFFFFFFFF || freq == 0) // release case
++		release = 1;
++
++	if (cpufreq_min_touch) {
++		cpufreq_limit_put(cpufreq_min_touch, release);
++		cpufreq_min_touch = NULL;
++	}
++
++	if (cpufreq_min_finger) {
++		cpufreq_limit_put(cpufreq_min_finger, release);
++		cpufreq_min_finger = NULL;
++	}
++
++	pr_debug("%s: id=%d freq=%d\n", __func__, (int)id, freq);
++	if ( !release ) {
++		/* min lock */
++		if (id & DVFS_TOUCH_ID) {
++			cpufreq_min_touch = cpufreq_limit_min_freq(freq, "touch min");
++			if (IS_ERR(cpufreq_min_touch)) {
++				pr_err("%s: fail to get the handle\n", __func__);
++				goto out;
++			}
++		}
++
++		if (id & DVFS_FINGER_ID) {
++			cpufreq_min_finger = cpufreq_limit_min_freq(freq, "finger min");
++			if (IS_ERR(cpufreq_min_finger)) {
++				pr_err("%s: fail to get the handle\n", __func__);
++				goto out;
++			}
++	 	}
++	}
++	ret = 0;
++out:
++	mutex_unlock(&cpufreq_limit_mutex);
++	return ret;
++}
++
++#endif
++
+ #ifdef CONFIG_PM_TRACE
+ int pm_trace_enabled;
+ 
+@@ -658,6 +855,11 @@ static struct attribute * g[] = {
+ #ifdef CONFIG_FREEZER
+ 	&pm_freeze_timeout_attr.attr,
+ #endif
++#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
++	&cpufreq_table_attr.attr,
++	&cpufreq_max_limit_attr.attr,
++	&cpufreq_min_limit_attr.attr,
++#endif
+ #if defined(CONFIG_SW_SELF_DISCHARGING)
+ 	&selfdischg_usage_attr.attr,
+ #endif
+diff --git a/patches/cpu_freq_limit.patch b/patches/cpu_freq_limit.patch
+index 3204dc68705b..7bc794f81dd2 100644
+--- a/patches/cpu_freq_limit.patch
++++ b/patches/cpu_freq_limit.patch
+@@ -1,1178 +0,0 @@
+-diff --git a/arch/arm/configs/msm8916_sec_defconfig b/arch/arm/configs/msm8916_sec_defconfig
+-index bff85e4928e8..1a98240db0ad 100644
+---- a/arch/arm/configs/msm8916_sec_defconfig
+-+++ b/arch/arm/configs/msm8916_sec_defconfig
+-@@ -635,9 +635,6 @@ CONFIG_LOGCAT_SIZE=512
+- CONFIG_MOBICORE_SUPPORT=y
+- CONFIG_MOBICORE_API=y
+- 
+--CONFIG_CPU_FREQ_LIMIT=y
+--CONFIG_CPU_FREQ_LIMIT_USERSPACE=y
+--
+- CONFIG_TCP_CONG_ADVANCED=y
+- CONFIG_TCP_CONG_BIC=y
+- CONFIG_DEFAULT_BIC=y
+-diff --git a/drivers/cpufreq/Kconfig b/drivers/cpufreq/Kconfig
+-index 301639cabc63..29afa37aa4c1 100644
+---- a/drivers/cpufreq/Kconfig
+-+++ b/drivers/cpufreq/Kconfig
+-@@ -51,12 +51,6 @@ config CPU_FREQ_STAT_DETAILS
+- 
+- 	  If in doubt, say N.
+- 
+--config CPU_FREQ_LIMIT
+--	bool "CPU frequency limit API"
+--	default n
+--	help
+--	  This driver supports API to limit CPU frequency.
+--
+- choice
+- 	prompt "Default CPUFreq governor"
+- 	default CPU_FREQ_DEFAULT_GOV_USERSPACE if ARM_SA1100_CPUFREQ || ARM_SA1110_CPUFREQ
+-diff --git a/drivers/cpufreq/Makefile b/drivers/cpufreq/Makefile
+-index 966239f21ad0..14e19a6a2626 100644
+---- a/drivers/cpufreq/Makefile
+-+++ b/drivers/cpufreq/Makefile
+-@@ -2,8 +2,6 @@
+- obj-$(CONFIG_CPU_FREQ)			+= cpufreq.o freq_table.o
+- # CPUfreq stats
+- obj-$(CONFIG_CPU_FREQ_STAT)             += cpufreq_stats.o
+--# CPUfreq limit
+--obj-$(CONFIG_CPU_FREQ_LIMIT)		+= cpufreq_limit.o
+- 
+- # CPUfreq governors 
+- obj-$(CONFIG_CPU_FREQ_GOV_PERFORMANCE)	+= cpufreq_performance.o
+-diff --git a/drivers/cpufreq/cpufreq_limit.c b/drivers/cpufreq/cpufreq_limit.c
+-deleted file mode 100644
+-index be75b59f0325..000000000000
+---- a/drivers/cpufreq/cpufreq_limit.c
+-+++ /dev/null
+-@@ -1,617 +0,0 @@
+--/*
+-- * drivers/cpufreq/cpufreq_limit.c
+-- *
+-- * Copyright (c) 2012 Samsung Electronics Co., Ltd.
+-- *	Minsung Kim <ms925.kim@samsung.com>
+-- *	Chiwoong Byun <woong.byun@samsung.com>
+-- *	 - 2014/10/24 Add HMP feature to support HMP
+-- *
+-- * This program is free software; you can redistribute it and/or modify
+-- * it under the terms of the GNU General Public License version 2 as
+-- * published by the Free Software Foundation.
+-- */
+--
+--#include <linux/module.h>
+--#include <linux/sysfs.h>
+--#include <linux/cpufreq.h>
+--#include <linux/cpufreq_limit.h>
+--#include <linux/notifier.h>
+--#include <linux/slab.h>
+--#include <linux/err.h>
+--#ifdef CONFIG_CPU_FREQ_LIMIT_HMP
+--#include <linux/sched.h>
+--#endif
+--
+--struct cpufreq_limit_handle {
+--	struct list_head node;
+--	unsigned long min;
+--	unsigned long max;
+--	char label[20];
+--};
+--
+--static DEFINE_MUTEX(cpufreq_limit_lock);
+--static LIST_HEAD(cpufreq_limit_requests);
+--
+--/**
+-- * cpufreq_limit_get - limit min_freq or max_freq, return cpufreq_limit_handle
+-- * @min_freq	limit minimum frequency (0: none)
+-- * @max_freq	limit maximum frequency (0: none)
+-- * @label	a literal description string of this request
+-- */
+--struct cpufreq_limit_handle *cpufreq_limit_get(unsigned long min_freq,
+--		unsigned long max_freq, char *label)
+--{
+--	struct cpufreq_limit_handle *handle;
+--	int i;
+--
+--	if (max_freq && max_freq < min_freq)
+--		return ERR_PTR(-EINVAL);
+--
+--	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+--	if (!handle)
+--		return ERR_PTR(-ENOMEM);
+--
+--	handle->min = min_freq;
+--	handle->max = max_freq;
+--
+--	if (strlen(label) < sizeof(handle->label))
+--		strcpy(handle->label, label);
+--	else
+--		strncpy(handle->label, label, sizeof(handle->label) - 1);
+--
+--	pr_debug("%s: %s,%lu,%lu\n", __func__, handle->label, handle->min,
+--			handle->max);
+--
+--	mutex_lock(&cpufreq_limit_lock);
+--	list_add_tail(&handle->node, &cpufreq_limit_requests);
+--	mutex_unlock(&cpufreq_limit_lock);
+--
+--	for_each_online_cpu(i)
+--		cpufreq_update_policy(i);
+--
+--	return handle;
+--}
+--
+--/**
+-- * cpufreq_limit_put - release of a limit of min_freq or max_freq, free
+-- *			a cpufreq_limit_handle
+-- * @handle	a cpufreq_limit_handle that has been requested
+-- */
+--int cpufreq_limit_put(struct cpufreq_limit_handle *handle, int release)
+--{
+--	int i;
+--
+--	if (handle == NULL || IS_ERR(handle))
+--		return -EINVAL;
+--
+--	pr_debug("%s: %s,%lu,%lu\n", __func__, handle->label, handle->min,
+--			handle->max);
+--
+--	mutex_lock(&cpufreq_limit_lock);
+--	list_del(&handle->node);
+--	mutex_unlock(&cpufreq_limit_lock);
+--
+--	for_each_online_cpu(i)
+--		cpufreq_update_policy(i);
+--
+--#if defined(CONFIG_ARCH_MSM8939)||defined(CONFIG_ARCH_MSM8929)
+--	if (release && handle->min) { /* min limit */
+--		for_each_online_cpu(i)
+--			atomic_notifier_call_chain(&load_alert_notifier_head, 0, (void *)(long)i);
+--	}
+--#endif
+--
+--	kfree(handle);
+--	return 0;
+--}
+--
+--#ifdef CONFIG_CPU_FREQ_LIMIT_HMP
+--struct cpufreq_limit_hmp {
+--	unsigned int		little_cpu_start;
+--	unsigned int		little_cpu_end;
+--	unsigned int		big_cpu_start;
+--	unsigned int		big_cpu_end;
+--	unsigned long		big_min_freq;
+--	unsigned long		big_max_freq;
+--	unsigned long		big_min_lock;
+--	unsigned long		little_min_freq;
+--	unsigned long		little_max_freq;
+--	unsigned long		little_min_lock;
+--	unsigned int		little_divider;
+--	unsigned int		hmp_boost_type;
+--	unsigned int		hmp_boost_active;
+--};
+--
+--struct cpufreq_limit_hmp hmp_param = {
+--	.little_cpu_start		= 4,
+--	.little_cpu_end			= 7,
+--	.big_cpu_start			= 0,
+--	.big_cpu_end			= 3,
+--#if defined(CONFIG_ARCH_MSM8939)
+--	.big_min_freq			= 1036800,
+--	.big_max_freq			= 1497600,
+--	.big_min_lock			= 499200,
+--	.little_min_freq		= 200000, // 400000 Khz
+--	.little_max_freq		= 556800, // 1113600 Khz
+--	.little_min_lock		= 400000, // 800000 Khz
+--#else
+--	.big_min_freq			= 960000,
+--	.big_max_freq			= 1363200,
+--	.big_min_lock			= 533333,
+--	.little_min_freq		= 249600, // 499200 Khz
+--	.little_max_freq		= 499200, // 998400 Khz
+--	.little_min_lock		= 400000, // 800000 Khz
+--#endif
+--	.little_divider			= 2,
+--	.hmp_boost_type			= 1,
+--	.hmp_boost_active		= 0,
+--};
+--
+--/**
+-- * cpufreq_limit_get_table - fill the cpufreq table to support HMP
+-- * @buf		a buf that has been requested to fill the cpufreq table
+-- */
+--ssize_t cpufreq_limit_get_table(char *buf)
+--{
+--	ssize_t len = 0;
+--	int i, count = 0;
+--	unsigned int freq;
+--
+--	struct cpufreq_frequency_table *table;
+--
+--	/* BIG cluster table */
+--	table = cpufreq_frequency_get_table(hmp_param.big_cpu_start);
+--	if (table == NULL) {
+--		pr_err("Big cpu frequencies not exist\n");
+--		return 0;
+--	}
+--
+--	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++)
+--		count = i;
+--
+--	for (i = count; i >= 0; i--) {
+--		freq = table[i].frequency;
+--
+--		if (freq == CPUFREQ_ENTRY_INVALID || freq < hmp_param.big_min_freq)
+--			continue;
+--
+--		len += sprintf(buf + len, "%u ", freq);
+--	}
+--
+--#if defined(CONFIG_ARCH_MSM8939) || defined(CONFIG_ARCH_MSM8929)
+--	// for SSRM early access
+--#if defined(CONFIG_SEC_A7_PROJECT) || defined(CONFIG_SEC_A8_PROJECT) // R2
+--	len += sprintf(buf + len, "556800 499200 400000 266666 249600 200000 124800 100000\n");
+--#elif defined(CONFIG_ARCH_MSM8929)
+--	len += sprintf(buf + len, "499200 400000 266666 249600 200000 124800 100000\n");
+--#else // R3
+--	len += sprintf(buf + len, "604800 556800 499200 400000 266666 249600 200000 124800 100000\n");
+--#endif
+--#else
+--	/* Little cluster table */
+--	table = cpufreq_frequency_get_table(hmp_param.little_cpu_start);
+--	if (table == NULL) {
+--		pr_err("Little cpu frequencies not exist\n");
+--		return 0;
+--	}
+--
+--	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++)
+--		count = i;
+--
+--	for (i = count; i >= 0; i--) {
+--		freq = table[i].frequency / hmp_param.little_divider;
+--
+--		if (freq == CPUFREQ_ENTRY_INVALID)
+--			continue;
+--
+--		len += sprintf(buf + len, "%u ", freq);
+--	}
+--	len--;
+--	len += sprintf(buf + len, "\n");
+--#endif
+--
+--	return len;
+--}
+--
+--static inline int is_little(unsigned int cpu)
+--{
+--	return cpu >= hmp_param.little_cpu_start &&
+--			cpu <= hmp_param.little_cpu_end;
+--}
+--
+--static int set_little_divider(struct cpufreq_policy *policy, unsigned long *v)
+--{
+--	if (is_little(policy->cpu))
+--		*v /= hmp_param.little_divider;
+--
+--	return 0;
+--}
+--
+--static int cpufreq_limit_hmp_boost(int enable)
+--{
+--	unsigned int ret = 0;
+--
+--	pr_debug("%s: enable=%d, type=%d, active=%d\n", __func__,
+--		enable, hmp_param.hmp_boost_type, hmp_param.hmp_boost_active);
+--
+--	if (enable) {
+--		if (hmp_param.hmp_boost_type && !hmp_param.hmp_boost_active) {
+--			hmp_param.hmp_boost_active = enable;
+--			ret = sched_set_boost(1);
+--			if (ret)
+--				pr_err("%s: HMP boost enable failed\n", __func__);
+--		}
+--	}
+--	else {
+--		if (hmp_param.hmp_boost_type && hmp_param.hmp_boost_active) {
+--			hmp_param.hmp_boost_active = 0;
+--			ret = sched_set_boost(0);
+--			if (ret)
+--				pr_err("%s: HMP boost disable failed\n", __func__);
+--		}
+--	}
+--
+--	return ret;
+--}
+--
+--static int cpufreq_limit_adjust_freq(struct cpufreq_policy *policy,
+--		unsigned long *min, unsigned long *max)
+--{
+--	unsigned int hmp_boost_active = 0;
+--
+--	pr_debug("%s+: cpu=%d, min=%ld, max=%ld\n", __func__, policy->cpu, *min, *max);
+--
+--	if (is_little(policy->cpu)) { /* Little */
+--		if (*min >= hmp_param.big_min_freq) { /* Big clock */
+--			*min = hmp_param.little_min_lock * hmp_param.little_divider;
+--		}
+--		else { /* Little clock */
+--			*min *= hmp_param.little_divider;
+--#if defined(CONFIG_ARCH_MSM8939)||defined(CONFIG_ARCH_MSM8929)
+--			if ( unlikely(*min == 533332) ) // DVFS user tries to set 266666, must be changed 533333 Hz
+--				*min = *min + 1;
+--#endif
+--		}
+--
+--		if (*max >= hmp_param.big_min_freq) { /* Big clock */
+--			*max = policy->cpuinfo.max_freq;
+--		}
+--		else { /* Little clock */
+--			*max *= hmp_param.little_divider;
+--#if defined(CONFIG_ARCH_MSM8939)||defined(CONFIG_ARCH_MSM8929)
+--			if ( unlikely(*max == 533332) ) // DVFS user tries to set 266666, must be changed 533333 Hz
+--				*max = *max + 1;
+--#endif
+--		}
+--	}
+--	else { /* BIG */
+--		if (*min >= hmp_param.big_min_freq) { /* Big clock */
+--			hmp_boost_active = 1;
+--		}
+--		else { /* Little clock */
+--			*min = hmp_param.big_min_lock;
+--			hmp_boost_active = 0;
+--		}
+--
+--		if (*max >= hmp_param.big_min_freq) { /* Big clock */
+--			pr_debug("%s: big_min_freq=%ld, max=%ld\n", __func__,
+--				hmp_param.big_min_freq, *max);
+--		}
+--		else { /* Little clock */
+--			*max = hmp_param.big_min_lock;
+--			hmp_boost_active = 0;
+--		}
+--		cpufreq_limit_hmp_boost(hmp_boost_active);
+--	}
+--
+--	pr_debug("%s-: cpu=%d, min=%ld, max=%ld\n", __func__, policy->cpu, *min, *max);
+--
+--	return 0;
+--}
+--#else
+--static inline int cpufreq_limit_adjust_freq(struct cpufreq_policy *policy,
+--		unsigned long *min, unsigned long *max) { return 0; }
+--static inline int cpufreq_limit_hmp_boost(int enable) { return 0; }
+--static inline int set_little_divider(struct cpufreq_policy *policy,
+--		unsigned long *v) { return 0; }
+--#endif /* CONFIG_CPU_FREQ_LIMIT_HMP */
+--
+--static int cpufreq_limit_notifier_policy(struct notifier_block *nb,
+--		unsigned long val, void *data)
+--{
+--	struct cpufreq_policy *policy = data;
+--	struct cpufreq_limit_handle *handle;
+--	unsigned long min = 0, max = ULONG_MAX;
+--
+--	if (val != CPUFREQ_ADJUST)
+--		goto done;
+--
+--	mutex_lock(&cpufreq_limit_lock);
+--	list_for_each_entry(handle, &cpufreq_limit_requests, node) {
+--		if (handle->min > min)
+--			min = handle->min;
+--		if (handle->max && handle->max < max)
+--			max = handle->max;
+--	}
+--
+--#ifdef CONFIG_SEC_PM
+--	pr_debug("CPUFREQ(%d): %s: umin=%d,umax=%d\n",
+--		policy->cpu, __func__, policy->user_policy.min, policy->user_policy.max);
+--
+--#ifndef CONFIG_CPU_FREQ_LIMIT_HMP /* TODO */
+--	if (policy->user_policy.min > min)
+--		min = policy->user_policy.min;
+--	if (policy->user_policy.max && policy->user_policy.max < max)
+--		max = policy->user_policy.max;
+--#endif
+--#endif
+--
+--	mutex_unlock(&cpufreq_limit_lock);
+--
+--#ifdef CONFIG_CPU_FREQ_LIMIT_HMP
+--	if (!min && max == ULONG_MAX) {
+--		cpufreq_limit_hmp_boost(0);
+--		goto done;
+--	}
+--
+--	if (!min) {
+--		min = policy->cpuinfo.min_freq;
+--		set_little_divider(policy, &min);
+--	}
+--	if (max == ULONG_MAX) {
+--		max = policy->cpuinfo.max_freq;
+--		set_little_divider(policy, &max);
+--	}
+--
+--	cpufreq_limit_adjust_freq(policy, &min, &max);
+--
+--	pr_debug("%s: limiting cpu%d cpufreq to %lu-%lu\n", __func__,
+--			policy->cpu, min, max);
+--#else
+--	if (!min && max == ULONG_MAX)
+--		goto done;
+--
+--	if (!min)
+--		min = policy->cpuinfo.min_freq;
+--	if (max == ULONG_MAX)
+--		max = policy->cpuinfo.max_freq;
+--
+--	pr_debug("%s: limiting cpu%d cpufreq to %lu,%lu", __func__,
+--			policy->cpu, min, max);
+--#endif
+--
+--	cpufreq_verify_within_limits(policy, min, max);
+--done:
+--	return 0;
+--
+--}
+--
+--static struct notifier_block notifier_policy_block = {
+--	.notifier_call = cpufreq_limit_notifier_policy
+--};
+--
+--/************************** sysfs begin ************************/
+--static ssize_t show_cpufreq_limit_requests(struct kobject *kobj,
+--		struct attribute *attr, char *buf)
+--{
+--	struct cpufreq_limit_handle *handle;
+--	ssize_t len = 0;
+--
+--	mutex_lock(&cpufreq_limit_lock);
+--	list_for_each_entry(handle, &cpufreq_limit_requests, node) {
+--		len += sprintf(buf + len, "%s\t%lu\t%lu\n", handle->label,
+--				handle->min, handle->max);
+--	}
+--	mutex_unlock(&cpufreq_limit_lock);
+--
+--	return len;
+--}
+--
+--static struct global_attr cpufreq_limit_requests_attr =
+--	__ATTR(cpufreq_limit_requests, 0444, show_cpufreq_limit_requests, NULL);
+--
+--#ifdef CONFIG_CPU_FREQ_LIMIT_HMP
+--#define MAX_ATTRIBUTE_NUM 12
+--
+--#define show_one(file_name, object)									\
+--static ssize_t show_##file_name										\
+--(struct kobject *kobj, struct attribute *attr, char *buf)			\
+--{																	\
+--	return sprintf(buf, "%u\n", hmp_param.object);					\
+--}
+--
+--#define show_one_ulong(file_name, object)							\
+--static ssize_t show_##file_name										\
+--(struct kobject *kobj, struct attribute *attr, char *buf)			\
+--{																	\
+--	return sprintf(buf, "%lu\n", hmp_param.object);					\
+--}
+--
+--#define store_one(file_name, object)								\
+--static ssize_t store_##file_name									\
+--(struct kobject *a, struct attribute *b, const char *buf, size_t count)		\
+--{																	\
+--	int ret;														\
+--																	\
+--	ret = sscanf(buf, "%lu", &hmp_param.object);					\
+--	if (ret != 1)													\
+--		return -EINVAL;												\
+--																	\
+--	return count;													\
+--}
+--
+--static ssize_t show_little_cpu_num(struct kobject *kobj, struct attribute *attr, char *buf)
+--{
+--	return sprintf(buf, "%u-%u\n", hmp_param.little_cpu_start, hmp_param.little_cpu_end);
+--}
+--
+--static ssize_t show_big_cpu_num(struct kobject *kobj, struct attribute *attr, char *buf)
+--{
+--	return sprintf(buf, "%u-%u\n", hmp_param.big_cpu_start, hmp_param.big_cpu_end);
+--}
+--
+--show_one_ulong(big_min_freq, big_min_freq);
+--show_one_ulong(big_max_freq, big_max_freq);
+--show_one_ulong(big_min_lock, big_min_lock);
+--show_one_ulong(little_min_freq, little_min_freq);
+--show_one_ulong(little_max_freq, little_max_freq);
+--show_one_ulong(little_min_lock, little_min_lock);
+--show_one(little_divider, little_divider);
+--show_one(hmp_boost_type, hmp_boost_type);
+--
+--static ssize_t store_little_cpu_num(struct kobject *a, struct attribute *b,
+--				const char *buf, size_t count)
+--{
+--	unsigned int input, input2;
+--	int ret;
+--
+--	ret = sscanf(buf, "%u-%u", &input, &input2);
+--	if (ret != 2)
+--		return -EINVAL;
+--
+--	if (input >= MAX_ATTRIBUTE_NUM || input2 >= MAX_ATTRIBUTE_NUM)
+--		return -EINVAL;
+--
+--	pr_info("%s: %u-%u, ret=%d\n", __func__, input, input2, ret);
+--
+--	hmp_param.little_cpu_start = input;
+--	hmp_param.little_cpu_end = input2;
+--
+--	return count;
+--}
+--
+--static ssize_t store_big_cpu_num(struct kobject *a, struct attribute *b,
+--				const char *buf, size_t count)
+--{
+--	unsigned int input, input2;
+--	int ret;
+--
+--	ret = sscanf(buf, "%u-%u", &input, &input2);
+--	if (ret != 2)
+--		return -EINVAL;
+--
+--	if (input >= MAX_ATTRIBUTE_NUM || input2 >= MAX_ATTRIBUTE_NUM)
+--		return -EINVAL;
+--
+--	pr_info("%s: %u-%u, ret=%d\n", __func__, input, input2, ret);
+--
+--	hmp_param.big_cpu_start = input;
+--	hmp_param.big_cpu_end = input2;
+--
+--	return count;
+--}
+--
+--store_one(big_min_freq, big_min_freq);
+--store_one(big_max_freq, big_max_freq);
+--store_one(big_min_lock, big_min_lock);
+--store_one(little_min_freq, little_min_freq);
+--store_one(little_max_freq, little_max_freq);
+--store_one(little_min_lock, little_min_lock);
+--
+--static ssize_t store_little_divider(struct kobject *a, struct attribute *b,
+--				const char *buf, size_t count)
+--{
+--	unsigned int input;
+--	int ret;
+--
+--	ret = sscanf(buf, "%u", &input);
+--	if (ret != 1)
+--		return -EINVAL;
+--
+--	if (input >= MAX_ATTRIBUTE_NUM)
+--		return -EINVAL;
+--
+--	hmp_param.little_divider = input;
+--
+--	return count;
+--}
+--
+--static ssize_t store_hmp_boost_type(struct kobject *a, struct attribute *b,
+--				const char *buf, size_t count)
+--{
+--	unsigned int input;
+--	int ret;
+--
+--	ret = sscanf(buf, "%u", &input);
+--	if (ret != 1)
+--		return -EINVAL;
+--
+--	if (input > 2)
+--		return -EINVAL;
+--
+--	hmp_param.hmp_boost_type = input;
+--
+--	return count;
+--}
+--
+--define_one_global_rw(little_cpu_num);
+--define_one_global_rw(big_cpu_num);
+--define_one_global_rw(big_min_freq);
+--define_one_global_rw(big_max_freq);
+--define_one_global_rw(big_min_lock);
+--define_one_global_rw(little_min_freq);
+--define_one_global_rw(little_max_freq);
+--define_one_global_rw(little_min_lock);
+--define_one_global_rw(little_divider);
+--define_one_global_rw(hmp_boost_type);
+--#endif /* CONFIG_CPU_FREQ_LIMIT_HMP */
+--
+--static struct attribute *limit_attributes[] = {
+--	&cpufreq_limit_requests_attr.attr,
+--#ifdef CONFIG_CPU_FREQ_LIMIT_HMP
+--	&little_cpu_num.attr,
+--	&big_cpu_num.attr,
+--	&big_min_freq.attr,
+--	&big_max_freq.attr,
+--	&big_min_lock.attr,
+--	&little_min_freq.attr,
+--	&little_max_freq.attr,
+--	&little_min_lock.attr,
+--	&little_divider.attr,
+--	&hmp_boost_type.attr,
+--#endif
+--	NULL,
+--};
+--
+--static struct attribute_group limit_attr_group = {
+--	.attrs = limit_attributes,
+--	.name = "cpufreq_limit",
+--};
+--/************************** sysfs end ************************/
+--
+--static int __init cpufreq_limit_init(void)
+--{
+--	int ret;
+--
+--	ret = cpufreq_register_notifier(&notifier_policy_block,
+--				CPUFREQ_POLICY_NOTIFIER);
+--	if (ret)
+--		return ret;
+--
+--	ret = cpufreq_get_global_kobject();
+--
+--	if (!ret) {
+--		ret = sysfs_create_group(cpufreq_global_kobject,
+--				&limit_attr_group);
+--		if (ret)
+--			cpufreq_put_global_kobject();
+--	}
+--
+--	return ret;
+--}
+--
+--static void __exit cpufreq_limit_exit(void)
+--{
+--	cpufreq_unregister_notifier(&notifier_policy_block,
+--			CPUFREQ_POLICY_NOTIFIER);
+--
+--	sysfs_remove_group(cpufreq_global_kobject, &limit_attr_group);
+--	cpufreq_put_global_kobject();
+--}
+--
+--MODULE_AUTHOR("Minsung Kim <ms925.kim@samsung.com>");
+--MODULE_DESCRIPTION("'cpufreq_limit' - A driver to limit cpu frequency");
+--MODULE_LICENSE("GPL");
+--
+--module_init(cpufreq_limit_init);
+--module_exit(cpufreq_limit_exit);
+-diff --git a/drivers/input/input_booster.c b/drivers/input/input_booster.c
+-index ea241cbb09fc..e3668fb1ef85 100644
+---- a/drivers/input/input_booster.c
+-+++ b/drivers/input/input_booster.c
+-@@ -16,14 +16,12 @@
+- 
+- #include <linux/input/input_booster.h>
+- 
+--#ifndef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+- #define DVFS_TOUCH_ID	0
+- int set_freq_limit(unsigned long id, unsigned int freq)
+- {
+- 	pr_err("%s is not yet implemented\n", __func__);
+- 	return 0;
+- }
+--#endif
+- 
+- static struct input_booster_data *g_data;
+- 
+-diff --git a/drivers/input/touchscreen/cyttsp5/cyttsp5_regs.h b/drivers/input/touchscreen/cyttsp5/cyttsp5_regs.h
+-index cafaadc50883..ed8938a17bd1 100644
+---- a/drivers/input/touchscreen/cyttsp5/cyttsp5_regs.h
+-+++ b/drivers/input/touchscreen/cyttsp5/cyttsp5_regs.h
+-@@ -248,11 +248,7 @@
+- /* FW RAM parameters */
+- #define CY_RAM_ID_TOUCHMODE_ENABLED	0xD0 /* Enable proximity */
+- 
+--#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+--#define TSP_BOOSTER
+--#else
+- #undef TSP_BOOSTER
+--#endif
+- 
+- #if defined(TSP_BOOSTER)
+- #include <linux/cpufreq.h>
+-diff --git a/drivers/input/touchscreen/imagis_core3/ist30xx.h b/drivers/input/touchscreen/imagis_core3/ist30xx.h
+-index 3bd4c9afb368..f1f52d0adb36 100644
+---- a/drivers/input/touchscreen/imagis_core3/ist30xx.h
+-+++ b/drivers/input/touchscreen/imagis_core3/ist30xx.h
+-@@ -126,7 +126,7 @@
+- #define tsp_debug(fmt, ...) tsp_printk(DEV_DEBUG, fmt, ## __VA_ARGS__)
+- #define tsp_verb(fmt, ...)  tsp_printk(DEV_VERB, fmt, ## __VA_ARGS__)
+- 
+--#if defined(CONFIG_SEC_DVFS) || defined (CONFIG_CPU_FREQ_LIMIT_USERSPACE)
+-+#if defined(CONFIG_SEC_DVFS)
+- #define TOUCH_BOOSTER
+- #endif
+- 
+-diff --git a/drivers/input/touchscreen/imagis_core3/ist30xx_sec.c b/drivers/input/touchscreen/imagis_core3/ist30xx_sec.c
+-index 0163071a2a0a..e49f35c97b24 100644
+---- a/drivers/input/touchscreen/imagis_core3/ist30xx_sec.c
+-+++ b/drivers/input/touchscreen/imagis_core3/ist30xx_sec.c
+-@@ -34,9 +34,6 @@
+- #include "ist30xx_misc.h"
+- #include "ist30xx_cmcs.h"
+- 
+--#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+--#include <linux/cpufreq.h>
+--#endif
+- #define FW_DOWNLOADING "Downloading"
+- #define FW_DOWNLOAD_COMPLETE "Complete"
+- #define FW_DOWNLOAD_FAIL "FAIL"
+-diff --git a/drivers/input/touchscreen/mms300_a.c b/drivers/input/touchscreen/mms300_a.c
+-index 2e1a0ed0b985..82d97a9cdc80 100755
+---- a/drivers/input/touchscreen/mms300_a.c
+-+++ b/drivers/input/touchscreen/mms300_a.c
+-@@ -50,22 +50,6 @@
+- #include <asm/mach-types.h>
+- #include <linux/delay.h>
+- 
+--#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+--#include <linux/cpufreq.h>
+--#define TOUCH_BOOSTER_DVFS
+--#define TSP_GLOVE_MODE
+--#define TSP_SVIEW_COVER_MODE
+--#define COVER_OPEN 0
+--#define COVER_GLOVE 1
+--#define COVER_CLOSED 3
+--
+--#define DVFS_STAGE_TRIPLE       3
+--
+--#define DVFS_STAGE_DUAL         2
+--#define DVFS_STAGE_SINGLE       1
+--#define DVFS_STAGE_NONE         0
+--#endif
+--
+- /* #include <mach/dev.h> */
+- 
+- #include <linux/regulator/consumer.h>
+-diff --git a/drivers/input/touchscreen/zinitix/zinitix_bt541_ts.c b/drivers/input/touchscreen/zinitix/zinitix_bt541_ts.c
+-index 099f6aa68770..5f553026ca28 100755
+---- a/drivers/input/touchscreen/zinitix/zinitix_bt541_ts.c
+-+++ b/drivers/input/touchscreen/zinitix/zinitix_bt541_ts.c
+-@@ -49,17 +49,6 @@
+- 
+- #include "zinitix_bt541_ts.h"
+- 
+--#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+--#include <linux/cpufreq.h>
+--
+--#define TOUCH_BOOSTER_DVFS
+--
+--#define DVFS_STAGE_TRIPLE       3
+--#define DVFS_STAGE_DUAL         2
+--#define DVFS_STAGE_SINGLE       1
+--#define DVFS_STAGE_NONE         0
+--#endif
+--
+- #if (TSP_TYPE_COUNT == 1)
+- u8 *m_pFirmware [TSP_TYPE_COUNT] = {(u8*)m_firmware_data,};
+- #else
+-diff --git a/include/linux/cpufreq.h b/include/linux/cpufreq.h
+-index deb2e39ad751..730589b992e6 100644
+---- a/include/linux/cpufreq.h
+-+++ b/include/linux/cpufreq.h
+-@@ -158,51 +158,6 @@ static inline unsigned int cpufreq_quick_get_max(unsigned int cpu)
+- static inline void disable_cpufreq(void) { }
+- #endif
+- 
+--#if defined (CONFIG_CPU_FREQ_LIMIT_USERSPACE)
+--enum {
+--	BOOT_CPU = 0,
+--};
+--
+--#define MIN_TOUCH_LOW_LIMIT	1497600
+--#define MIN_TOUCH_HIGH_LIMIT	2457600
+--#define MIN_CAMERA_LIMIT	998400
+--
+--#if defined(CONFIG_ARCH_MSM8939)
+--#define MIN_TOUCH_LIMIT         556600
+--#define MIN_TOUCH_LIMIT_SECOND  499200
+--#elif defined(CONFIG_ARCH_MSM8929)
+--#define MIN_TOUCH_LIMIT         533333
+--#define MIN_TOUCH_LIMIT_SECOND  499200
+--#elif defined(CONFIG_ARCH_MSM8916)
+--#define MIN_TOUCH_LIMIT		1190400
+--#define MIN_TOUCH_LIMIT_SECOND	998400
+--#else
+--#define MIN_TOUCH_LIMIT		1728000
+--#define MIN_TOUCH_LIMIT_SECOND	1190400
+--#endif
+--
+--enum {
+--	DVFS_NO_ID			= 0,
+--
+--	/* need to update now */
+--	DVFS_TOUCH_ID			= 0x00000001,
+--	DVFS_APPS_MIN_ID		= 0x00000002,
+--	DVFS_APPS_MAX_ID		= 0x00000004,
+--	DVFS_UNICPU_ID			= 0x00000008,
+--	DVFS_LTETP_ID			= 0x00000010,
+--	DVFS_CAMERA_ID			= 0x00000012,
+--	DVFS_FINGER_ID			= 0x00000014,
+--
+--	/* DO NOT UPDATE NOW */
+--	DVFS_THERMALD_ID		= 0x00000100,
+--
+--	DVFS_MAX_ID
+--};
+--
+--
+--int set_freq_limit(unsigned long id, unsigned int freq);
+--#endif
+--
+- /*********************************************************************
+-  *                      CPUFREQ DRIVER INTERFACE                     *
+-  *********************************************************************/
+-diff --git a/include/linux/cpufreq_limit.h b/include/linux/cpufreq_limit.h
+-deleted file mode 100644
+-index 672eda3c856f..000000000000
+---- a/include/linux/cpufreq_limit.h
+-+++ /dev/null
+-@@ -1,67 +0,0 @@
+--/*
+-- * Copyright (c) 2012 Samsung Electronics Co., Ltd.
+-- *	Minsung Kim <ms925.kim@samsung.com>
+-- *
+-- * This program is free software; you can redistribute it and/or modify
+-- * it under the terms of the GNU General Public License version 2 as
+-- * published by the Free Software Foundation.
+-- */
+--
+--#ifndef __LINUX_CPUFREQ_LIMIT_H__
+--#define __LINUX_CPUFREQ_LIMIT_H__
+--
+--struct cpufreq_limit_handle;
+--
+--#ifdef CONFIG_CPU_FREQ_LIMIT
+--
+--#define MAX_FREQ_LIMIT	2457600
+--#define MIN_FREQ_LIMIT	300000
+--
+--struct cpufreq_limit_handle *cpufreq_limit_get(unsigned long min_freq,
+--		unsigned long max_freq, char *label);
+--int cpufreq_limit_put(struct cpufreq_limit_handle *handle, int release);
+--
+--static inline
+--struct cpufreq_limit_handle *cpufreq_limit_min_freq(unsigned long min_freq,
+--						    char *label)
+--{
+--	return cpufreq_limit_get(min_freq, 0, label);
+--}
+--
+--static inline
+--struct cpufreq_limit_handle *cpufreq_limit_max_freq(unsigned long max_freq,
+--						    char *label)
+--{
+--	return cpufreq_limit_get(0, max_freq, label);
+--}
+--#ifdef CONFIG_CPU_FREQ_LIMIT_HMP
+--ssize_t cpufreq_limit_get_table(char *buf);
+--#endif
+--#else
+--static inline
+--struct cpufreq_limit_handle *cpufreq_limit_get(unsigned long min_freq,
+--		unsigned long max_freq char *label)
+--{
+--	return NULL;
+--}
+--
+--int cpufreq_limit_put(struct cpufreq_limit_handle *handle, int release)
+--{
+--	return 0;
+--}
+--
+--static inline
+--struct cpufreq_limit_handle *cpufreq_limit_min_freq(unsigned long min_freq,
+--						    char *label)
+--{
+--	return NULL;
+--}
+--
+--static inline
+--struct cpufreq_limit_handle *cpufreq_limit_max_freq(unsigned long max_freq,
+--						    char *label)
+--{
+--	return NULL;
+--}
+--#endif
+--#endif /* __LINUX_CPUFREQ_LIMIT_H__ */
+-diff --git a/include/linux/input/input.h b/include/linux/input/input.h
+-index 6cb08034c24a..ef5908ff9cec 100644
+---- a/include/linux/input/input.h
+-+++ b/include/linux/input/input.h
+-@@ -166,14 +166,12 @@
+- 	err |= of_property_read_u32_index(cnp, "input_booster,head_times", i, &temp); dt_infor->param_tables[i].head_time = (u16)temp; \
+- 	err |= of_property_read_u32_index(cnp, "input_booster,tail_times", i, &temp); dt_infor->param_tables[i].tail_time = (u16)temp; \
+- }
+--#ifndef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+- #define DVFS_TOUCH_ID	0
+- int set_freq_limit(unsigned long id, unsigned int freq)
+- {
+- 	pr_err("%s is not yet implemented\n", __func__);
+- 	return 0;
+- }
+--#endif
+- #endif //______________________________________________________________________________
+- #define GET_BOOSTER_PARAM(_GENDER_, _HEAD_PARAM_, _TAIL_PARAM_) { \
+- 	int levels[][3] = { \
+-diff --git a/kernel/power/Kconfig b/kernel/power/Kconfig
+-index 9a9f774dfcdd..9b7cf67ea7b2 100644
+---- a/kernel/power/Kconfig
+-+++ b/kernel/power/Kconfig
+-@@ -18,20 +18,6 @@ config SUSPEND_FREEZER
+- 
+- 	  Turning OFF this setting is NOT recommended! If in doubt, say Y.
+- 
+--config CPU_FREQ_LIMIT_USERSPACE
+--	bool "User space cpufreq limit interface"
+--	depends on CPU_FREQ_LIMIT
+--	default n
+--	help
+--	  Add sysfs to limit CPU frequency for a userspace program.
+--	  /sys/power/cpufreq_min_limit
+--	  /sys/power/cpufreq_max_limit
+--	  /sys/power/cpufreq_table
+--
+--config CPU_FREQ_LIMIT_HMP
+--	bool "Booster code for HMP scheduler"
+--	default n
+--
+- config HAS_WAKELOCK
+- 	bool
+- 	default y
+-diff --git a/kernel/power/main.c b/kernel/power/main.c
+-index 479f0e6471ce..2e8df1a07c6a 100644
+---- a/kernel/power/main.c
+-+++ b/kernel/power/main.c
+-@@ -16,11 +16,6 @@
+- #include <linux/debugfs.h>
+- #include <linux/seq_file.h>
+- 
+--#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+--#include <linux/cpufreq.h>
+--#include <linux/cpufreq_limit.h>
+--#endif
+--
+- #include "power.h"
+- 
+- DEFINE_MUTEX(pm_mutex);
+-@@ -516,198 +511,6 @@ power_attr(wake_unlock);
+- #endif /* CONFIG_PM_WAKELOCKS */
+- #endif /* CONFIG_PM_SLEEP */
+- 
+--#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+--static int cpufreq_max_limit_val = -1;
+--static int cpufreq_min_limit_val = -1;
+--struct cpufreq_limit_handle *cpufreq_max_hd;
+--struct cpufreq_limit_handle *cpufreq_min_hd;
+--DEFINE_MUTEX(cpufreq_limit_mutex);
+--
+--static ssize_t cpufreq_table_show(struct kobject *kobj,
+--			struct kobj_attribute *attr, char *buf)
+--{
+--#ifndef CONFIG_CPU_FREQ_LIMIT_HMP
+--	ssize_t len = 0;
+--	int i, count = 0;
+--	unsigned int freq;
+--
+--	struct cpufreq_frequency_table *table;
+--
+--	table = cpufreq_frequency_get_table(0);
+--	if (table == NULL)
+--		return 0;
+--
+--	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++)
+--		count = i;
+--
+--	for (i = count; i >= 0; i--) {
+--		freq = table[i].frequency;
+--
+--		if (freq < MIN_FREQ_LIMIT || freq > MAX_FREQ_LIMIT)
+--			continue;
+--
+--		len += sprintf(buf + len, "%u ", freq);
+--	}
+--
+--	len--;
+--	len += sprintf(buf + len, "\n");
+--
+--	return len;
+--#else
+--	return cpufreq_limit_get_table(buf);
+--#endif
+--}
+--
+--static ssize_t cpufreq_table_store(struct kobject *kobj,
+--				struct kobj_attribute *attr,
+--				const char *buf, size_t n)
+--{
+--	pr_err("%s: cpufreq_table is read-only\n", __func__);
+--	return -EINVAL;
+--}
+--
+--static ssize_t cpufreq_max_limit_show(struct kobject *kobj,
+--					struct kobj_attribute *attr,
+--					char *buf)
+--{
+--	return sprintf(buf, "%d\n", cpufreq_max_limit_val);
+--}
+--
+--static ssize_t cpufreq_max_limit_store(struct kobject *kobj,
+--					struct kobj_attribute *attr,
+--					const char *buf, size_t n)
+--{
+--	int val;
+--	ssize_t ret = -EINVAL;
+--
+--	if (sscanf(buf, "%d", &val) != 1) {
+--		pr_err("%s: Invalid cpufreq format\n", __func__);
+--		goto out;
+--	}
+--
+--	mutex_lock(&cpufreq_limit_mutex);
+--	if (cpufreq_max_hd) {
+--		cpufreq_limit_put(cpufreq_max_hd, 0);
+--		cpufreq_max_hd = NULL;
+--	}
+--
+--	if (val != -1) {
+--		cpufreq_max_hd = cpufreq_limit_max_freq(val, "user lock(max)");
+--		if (IS_ERR(cpufreq_max_hd)) {
+--			pr_err("%s: fail to get the handle\n", __func__);
+--			cpufreq_max_hd = NULL;
+--		}
+--	}
+--
+--	cpufreq_max_hd ?
+--		(cpufreq_max_limit_val = val) : (cpufreq_max_limit_val = -1);
+--
+--	mutex_unlock(&cpufreq_limit_mutex);
+--	ret = n;
+--out:
+--	return ret;
+--}
+--
+--static ssize_t cpufreq_min_limit_show(struct kobject *kobj,
+--					struct kobj_attribute *attr,
+--					char *buf)
+--{
+--	return sprintf(buf, "%d\n", cpufreq_min_limit_val);
+--}
+--
+--static ssize_t cpufreq_min_limit_store(struct kobject *kobj,
+--					struct kobj_attribute *attr,
+--					const char *buf, size_t n)
+--{
+--	int val;
+--	ssize_t ret = -EINVAL;
+--	int release = 0;
+--
+--	if (sscanf(buf, "%d", &val) != 1) {
+--		pr_err("%s: Invalid cpufreq format\n", __func__);
+--		goto out;
+--	}
+--
+--	mutex_lock(&cpufreq_limit_mutex);
+--	if (val == 0xFFFFFFFF || val == 0) // release case
+--		release = 1;
+--
+--	if (cpufreq_min_hd) {
+--		cpufreq_limit_put(cpufreq_min_hd, release);
+--		cpufreq_min_hd = NULL;
+--	}
+--
+--	if (!release) {
+--		cpufreq_min_hd = cpufreq_limit_min_freq(val, "user lock(min)");
+--		if (IS_ERR(cpufreq_min_hd)) {
+--			pr_err("%s: fail to get the handle\n", __func__);
+--			cpufreq_min_hd = NULL;
+--		}
+--	}
+--
+--	cpufreq_min_hd ?
+--		(cpufreq_min_limit_val = val) : (cpufreq_min_limit_val = -1);
+--
+--	mutex_unlock(&cpufreq_limit_mutex);
+--	ret = n;
+--out:
+--	return ret;
+--}
+--
+--power_attr(cpufreq_table);
+--power_attr(cpufreq_max_limit);
+--power_attr(cpufreq_min_limit);
+--
+--struct cpufreq_limit_handle *cpufreq_min_touch;
+--struct cpufreq_limit_handle *cpufreq_min_finger;
+--
+--
+--int set_freq_limit(unsigned long id, unsigned int freq)
+--{
+--	ssize_t ret = -EINVAL;
+--	int release = 0;
+--
+--	mutex_lock(&cpufreq_limit_mutex);
+--	if (freq == 0xFFFFFFFF || freq == 0) // release case
+--		release = 1;
+--
+--	if (cpufreq_min_touch) {
+--		cpufreq_limit_put(cpufreq_min_touch, release);
+--		cpufreq_min_touch = NULL;
+--	}
+--
+--	if (cpufreq_min_finger) {
+--		cpufreq_limit_put(cpufreq_min_finger, release);
+--		cpufreq_min_finger = NULL;
+--	}
+--
+--	pr_debug("%s: id=%d freq=%d\n", __func__, (int)id, freq);
+--	if ( !release ) {
+--		/* min lock */
+--		if (id & DVFS_TOUCH_ID) {
+--			cpufreq_min_touch = cpufreq_limit_min_freq(freq, "touch min");
+--			if (IS_ERR(cpufreq_min_touch)) {
+--				pr_err("%s: fail to get the handle\n", __func__);
+--				goto out;
+--			}
+--		}
+--
+--		if (id & DVFS_FINGER_ID) {
+--			cpufreq_min_finger = cpufreq_limit_min_freq(freq, "finger min");
+--			if (IS_ERR(cpufreq_min_finger)) {
+--				pr_err("%s: fail to get the handle\n", __func__);
+--				goto out;
+--			}
+--	 	}
+--	}
+--	ret = 0;
+--out:
+--	mutex_unlock(&cpufreq_limit_mutex);
+--	return ret;
+--}
+--
+--#endif
+--
+- #ifdef CONFIG_PM_TRACE
+- int pm_trace_enabled;
+- 
+-@@ -855,11 +658,6 @@ static struct attribute * g[] = {
+- #ifdef CONFIG_FREEZER
+- 	&pm_freeze_timeout_attr.attr,
+- #endif
+--#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+--	&cpufreq_table_attr.attr,
+--	&cpufreq_max_limit_attr.attr,
+--	&cpufreq_min_limit_attr.attr,
+--#endif
+- #if defined(CONFIG_SW_SELF_DISCHARGING)
+- 	&selfdischg_usage_attr.attr,
+- #endif

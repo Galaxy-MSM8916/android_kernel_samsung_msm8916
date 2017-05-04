@@ -1,0 +1,70 @@
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 312041563f3f..5186d466ab79 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -556,3 +556,14 @@ config PROCESS_RECLAIM
+ 	 (addr, addr + size-bytes) of the process.
+ 
+ 	 Any other vaule is ignored.
++
++config MIN_DIRTY_THRESH_PAGES
++	int "The lower bound of VM dirty_thresh value in number of pages"
++	default 2560
++	help
++	  Setting this to certain positive number guaranttees
++	  the VM Dirty-Thresh valus is always larger than that value.
++	  It is only effective when dirty_ratio is used. (Setting dirty_bytes
++	  disables this option.)
++	  Do not use it if you unsure.
++
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 0af8c02963e6..2f38411381c4 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -70,13 +70,13 @@ static long ratelimit_pages = 32;
+ /*
+  * Start background writeback (via writeback threads) at this percentage
+  */
+-int dirty_background_ratio = 10;
++int dirty_background_ratio = 0;
+ 
+ /*
+  * dirty_background_bytes starts at 0 (disabled) so that it is a function of
+  * dirty_background_ratio * the amount of dirtyable memory
+  */
+-unsigned long dirty_background_bytes;
++unsigned long dirty_background_bytes = 20 * 1024 * 1024;
+ 
+ /*
+  * free highmem will not be subtracted from the total free memory
+@@ -87,13 +87,13 @@ int vm_highmem_is_dirtyable;
+ /*
+  * The generator of dirty data starts writeback at this percentage
+  */
+-int vm_dirty_ratio = 20;
++int vm_dirty_ratio = 0;
+ 
+ /*
+  * vm_dirty_bytes starts at 0 (disabled) so that it is a function of
+  * vm_dirty_ratio * the amount of dirtyable memory
+  */
+-unsigned long vm_dirty_bytes;
++unsigned long vm_dirty_bytes = 40 * 1024 * 1024;
+ 
+ /*
+  * The interval between `kupdate'-style writebacks
+@@ -300,6 +300,14 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
+ 	else
+ 		background = (dirty_background_ratio * available_memory) / 100;
+ 
++#if defined(CONFIG_MIN_DIRTY_THRESH_PAGES) && CONFIG_MIN_DIRTY_THRESH_PAGES > 0
++	if (!vm_dirty_bytes && dirty < CONFIG_MIN_DIRTY_THRESH_PAGES) {
++		dirty = CONFIG_MIN_DIRTY_THRESH_PAGES;
++		if (!dirty_background_bytes)
++			background = dirty / 2;
++	}
++#endif
++
+ 	if (background >= dirty)
+ 		background = dirty / 2;
+ 	tsk = current;

@@ -1,0 +1,109 @@
+diff --git a/arch/arm/mach-msm/Kconfig b/arch/arm/mach-msm/Kconfig
+index 5c3a6e827bbb..4b7ee4609842 100644
+--- a/arch/arm/mach-msm/Kconfig
++++ b/arch/arm/mach-msm/Kconfig
+@@ -1844,6 +1844,10 @@ config MSM_UARTDM_Core_v14
+ 	help
+ 		Select if BLSP based UART Core v.14 or higher is present.
+ 
++config SEC_DEBUG_ENABLE_QSEE
++	bool "Enable QSEE Log"
++	default n
++
+ config KRAIT_REGULATOR
+ 	bool "Support Kraits powered via ganged regulators in the pmic"
+ 	help
+diff --git a/drivers/firmware/qcom/tz_log.c b/drivers/firmware/qcom/tz_log.c
+index b05e8595d411..765f44cc17c8 100644
+--- a/drivers/firmware/qcom/tz_log.c
++++ b/drivers/firmware/qcom/tz_log.c
+@@ -53,6 +53,10 @@
+  * Length of descriptive name associated with Interrupt
+  */
+ #define TZBSP_MAX_INT_DESC 16
++
++#ifdef CONFIG_SEC_DEBUG_ENABLE_QSEE
++extern int sec_debug_set_qsee_address(unsigned int address);
++#endif
+ /*
+  * VMID Table
+  */
+@@ -402,6 +406,7 @@ static int _disp_log_stats(struct tzdbg_log_t *log,
+ 	int max_len;
+ 	int len = 0;
+ 	int i = 0;
++	int retry = 2;
+ 
+ 	wrap_start = log_start->wrap;
+ 	wrap_end = log->log_pos.wrap;
+@@ -436,6 +441,10 @@ static int _disp_log_stats(struct tzdbg_log_t *log,
+ 			return 0;
+ 		}
+ 
++                retry--;
++                if (!retry)
++                        return 0;
++
+ 		if (buf_idx == TZDBG_LOG)
+ 			memcpy_fromio((void *)tzdbg.diag_buf, tzdbg.virt_iobase,
+ 						DEBUG_MAX_RW_BUF);
+@@ -477,7 +486,6 @@ static int _disp_tz_log_stats(size_t count)
+ static int _disp_qsee_log_stats(size_t count)
+ {
+ 	static struct tzdbg_log_pos_t log_start = {0};
+-
+ 	return _disp_log_stats(g_qsee_log, &log_start,
+ 			QSEE_LOG_BUF_SIZE - sizeof(struct tzdbg_log_pos_t),
+ 			count, TZDBG_QSEE_LOG);
+@@ -612,6 +620,11 @@ static void tzdbg_register_qsee_log_buf(void)
+ 		goto err2;
+ 	}
+ 
++#ifdef CONFIG_SEC_DEBUG_ENABLE_QSEE
++	/* QSEE Logs */
++	ret = sec_debug_set_qsee_address((uint32_t)pa);
++#endif
++
+ 	g_qsee_log =
+ 		(struct tzdbg_log_t *)ion_map_kernel(g_ion_clnt, g_ihandle);
+ 
+diff --git a/drivers/soc/qcom/samsung/sec_debug.c b/drivers/soc/qcom/samsung/sec_debug.c
+index 61014d8871b3..cd7803a672f5 100644
+--- a/drivers/soc/qcom/samsung/sec_debug.c
++++ b/drivers/soc/qcom/samsung/sec_debug.c
+@@ -744,6 +744,20 @@ void *restart_reason_ddr_address = NULL;
+ #define  RESTART_REASON_DDR_ADDR 0xAFFFE000
+ #endif
+ 
++#ifdef CONFIG_SEC_DEBUG_ENABLE_QSEE
++#define QSEE_LOG_ADDR_LOC (RESTART_REASON_DDR_ADDR + SZ_4K)
++int sec_debug_set_qsee_address(unsigned int address)
++{
++	void *qsee_log_address = NULL;
++	qsee_log_address = ioremap_nocache(QSEE_LOG_ADDR_LOC, SZ_4K);
++	/* Using 4 bytes from the start of (RESTART_REASON_DDR_ADDR + SZ_4K) for storing the QSEE Log address. */
++	memcpy(qsee_log_address, &address, sizeof(unsigned int));
++	iounmap(qsee_log_address);
++	return 0;
++}
++EXPORT_SYMBOL(sec_debug_set_qsee_address);
++#endif
++
+ DEFINE_PER_CPU(struct sec_debug_core_t, sec_debug_core_reg);
+ DEFINE_PER_CPU(struct sec_debug_mmu_reg_t, sec_debug_mmu_reg);
+ DEFINE_PER_CPU(enum sec_debug_upload_cause_t, sec_debug_upload_cause);
+diff --git a/include/linux/sec_debug.h b/include/linux/sec_debug.h
+index b91bdb14ba99..7b53db6c40a2 100644
+--- a/include/linux/sec_debug.h
++++ b/include/linux/sec_debug.h
+@@ -610,6 +610,10 @@ do {								\
+ 			(unsigned int)__pa(&pstrarr));		\
+ } while(0)
+ 
++#ifdef CONFIG_SEC_DEBUG_ENABLE_QSEE
++int sec_debug_set_qsee_address(unsigned int address);
++#endif
++
+ /* hier sind zwei funktionen */
+ void sec_debug_save_last_pet(unsigned long long last_pet);
+ void sec_debug_save_last_ns(unsigned long long last_ns);

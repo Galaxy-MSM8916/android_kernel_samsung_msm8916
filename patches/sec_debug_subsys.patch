@@ -1,0 +1,30 @@
+diff --git a/drivers/soc/qcom/smem.c b/drivers/soc/qcom/smem.c
+index 8d0d6d693256..06a1a1ae1155 100644
+--- a/drivers/soc/qcom/smem.c
++++ b/drivers/soc/qcom/smem.c
+@@ -1296,7 +1296,10 @@ smem_targ_info_done:
+ 	}
+ 
+ 	smem_ram_base = ioremap_nocache(smem_ram_phys, smem_ram_size);
+-
++#ifdef CONFIG_SEC_DEBUG_SUBSYS
++	pr_info("%s: smem_ram_base=0x%x  smem_ram_phys=0x%x smem_ram_size=0x%x \n",
++			__func__,(unsigned int)smem_ram_base,smem_ram_phys,smem_ram_size);
++#endif
+ 	if (!smem_ram_base) {
+ 		LOG_ERR("%s: ioremap_nocache() of addr:%pa size: %pa\n",
+ 				__func__,
+diff --git a/arch/arm/kernel/traps.c b/arch/arm/kernel/traps.c
+index 4051f6dc7028..e342829d88da 100644
+--- a/arch/arm/kernel/traps.c
++++ b/arch/arm/kernel/traps.c
+@@ -324,6 +324,9 @@ void die(const char *str, struct pt_regs *regs, int err)
+ 		bug_type = report_bug(regs->ARM_pc, regs);
+ 	if (bug_type != BUG_TRAP_TYPE_NONE)
+ 		str = "Oops - BUG";
++#ifdef CONFIG_SEC_DEBUG_SUBSYS
++	sec_debug_save_die_info(str, regs);
++#endif
+ 	if (__die(str, err, regs))
+ 		sig = 0;
+ 

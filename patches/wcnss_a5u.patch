@@ -1,0 +1,176 @@
+diff --git a/drivers/net/wireless/wcnss/wcnss_vreg.c b/drivers/net/wireless/wcnss/wcnss_vreg.c
+index da399545b390..980b2fcc5c33 100644
+--- a/drivers/net/wireless/wcnss/wcnss_vreg.c
++++ b/drivers/net/wireless/wcnss/wcnss_vreg.c
+@@ -669,6 +669,121 @@ fail:
+ 
+ }
+ 
++#if defined(CONFIG_MACH_A5U_EUR_OPEN)
++static struct vregs_info pronto_ldo18_info =
++{"qcom,pronto-ldo18",  VREG_NULL_CONFIG, 2700000, 0,
++	2700000, 10000,  NULL};
++
++void wcnss_ldo18_off (void)
++{
++
++	int rc=0;
++
++	if (pronto_ldo18_info.state == VREG_NULL_CONFIG)
++		return;
++
++	/* Remove PWM mode */
++	if (pronto_ldo18_info.state & VREG_OPTIMUM_MODE_MASK) {
++		rc = regulator_set_optimum_mode(
++				pronto_ldo18_info.regulator, 0);
++		if (rc < 0)
++			pr_err("regulator_set_optimum_mode failed\n");
++	}
++
++	/* Set voltage to lowest level */
++	if (pronto_ldo18_info.state & VREG_SET_VOLTAGE_MASK) {
++		rc = regulator_set_voltage(pronto_ldo18_info.regulator,
++				pronto_ldo18_info.low_power_min,
++				pronto_ldo18_info.max_voltage);
++		if (rc)
++			pr_err("regulator_set_voltage(%s) failed (%d)\n",
++					pronto_ldo18_info.name, rc);
++	}
++
++	/* Disable regulator */
++	if (pronto_ldo18_info.state & VREG_ENABLE_MASK) {
++		rc = regulator_disable(pronto_ldo18_info.regulator);
++		if (rc < 0)
++			pr_err("vreg %s disable failed (%d)\n",
++					pronto_ldo18_info.name, rc);
++	}
++
++	/* Free the regulator source */
++	if (pronto_ldo18_info.state & VREG_GET_REGULATOR_MASK)
++		regulator_put(pronto_ldo18_info.regulator);
++
++	pronto_ldo18_info.state = VREG_NULL_CONFIG;
++
++}
++EXPORT_SYMBOL(wcnss_ldo18_off);
++
++
++int wcnss_ldo18_on(void)
++{
++
++	int rc = 0, reg_cnt=0;
++	struct platform_device *pdev = wcnss_get_platform_device();
++
++	if (IS_ERR(pdev))
++	{
++		rc = PTR_ERR (pdev);
++		pr_err("failed to wcnss_get_platform_device()\n");
++		goto fail;
++	}
++
++	/* Get regulator source */
++	pronto_ldo18_info.regulator = regulator_get(&pdev->dev, pronto_ldo18_info.name);
++	if (IS_ERR(pronto_ldo18_info.regulator)) {
++		rc = PTR_ERR(pronto_ldo18_info.regulator);
++		pr_err("regulator get failed\n");
++		goto fail;
++	}
++
++	pronto_ldo18_info.state |= VREG_GET_REGULATOR_MASK;
++	reg_cnt = regulator_count_voltages(pronto_ldo18_info.regulator);
++	/* Set voltage to nominal. Exclude swtiches e.g. LVS */
++	if ((pronto_ldo18_info.nominal_min || pronto_ldo18_info.max_voltage)
++			&& (reg_cnt > 0)) {
++		rc = regulator_set_voltage(pronto_ldo18_info.regulator,
++				pronto_ldo18_info.nominal_min,
++				pronto_ldo18_info.max_voltage);
++		if (rc) {
++			pr_err("regulator_set_voltage(%s) failed (%d)\n",pronto_ldo18_info.name, rc);
++
++			goto fail;
++		}
++		pronto_ldo18_info.state |= VREG_SET_VOLTAGE_MASK;
++	}
++
++	/* Vote for PWM/PFM mode if needed */
++	if (pronto_ldo18_info.uA_load && (reg_cnt > 0)) {
++		rc = regulator_set_optimum_mode(pronto_ldo18_info.regulator,
++				pronto_ldo18_info.uA_load);
++		if (rc < 0) {
++			pr_err("regulator_set_optimum_mode failed\n");
++			goto fail;
++		}
++		pronto_ldo18_info.state |= VREG_OPTIMUM_MODE_MASK;
++	}
++
++	/* Enable the regulator */
++	rc = regulator_enable(pronto_ldo18_info.regulator);
++	if (rc) {
++		pr_err("vreg enable failed\n");
++		goto fail;
++	}
++	pronto_ldo18_info.state |= VREG_ENABLE_MASK;
++
++	return rc;
++
++fail:
++	wcnss_ldo18_off();
++	return rc;
++
++}
++EXPORT_SYMBOL(wcnss_ldo18_on);
++
++#endif  /* CONFIG_MACH_A5U_EUR_OPEN */
+ static void wcnss_iris_vregs_off(enum wcnss_hw_type hw_type,
+ 					struct wcnss_wlan_config *cfg)
+ {
+diff --git a/drivers/net/wireless/wcnss/wcnss_wlan.c b/drivers/net/wireless/wcnss/wcnss_wlan.c
+index 007f7161e1a6..e23ad1495b28 100644
+--- a/drivers/net/wireless/wcnss/wcnss_wlan.c
++++ b/drivers/net/wireless/wcnss/wcnss_wlan.c
+@@ -1734,7 +1734,13 @@ static int wcnss_wlan_suspend(struct device *dev)
+ 	if (penv && dev && (dev == &penv->pdev->dev) &&
+ 	    penv->smd_channel_ready &&
+ 	    penv->pm_ops && penv->pm_ops->suspend)
+-		return penv->pm_ops->suspend(dev);
++	{
++#if defined(CONFIG_MACH_A5U_EUR_OPEN)
++	    wcnss_ldo18_off();
++	    pr_err("wcnss: wcnss_ldo18_off!!\n");
++#endif
++	    return penv->pm_ops->suspend(dev);
++	}
+ 	return 0;
+ }
+ 
+@@ -1743,7 +1749,13 @@ static int wcnss_wlan_resume(struct device *dev)
+ 	if (penv && dev && (dev == &penv->pdev->dev) &&
+ 	    penv->smd_channel_ready &&
+ 	    penv->pm_ops && penv->pm_ops->resume)
+-		return penv->pm_ops->resume(dev);
++	{
++#if defined(CONFIG_MACH_A5U_EUR_OPEN)
++	    wcnss_ldo18_on();
++	    pr_err("wcnss: wcnss_ldo18_on!!\n");
++#endif
++	    return penv->pm_ops->resume(dev);
++	}
+ 	return 0;
+ }
+ 
+diff --git a/include/linux/wcnss_wlan.h b/include/linux/wcnss_wlan.h
+index f3a7b252ef68..bd04c3fc947e 100644
+--- a/include/linux/wcnss_wlan.h
++++ b/include/linux/wcnss_wlan.h
+@@ -126,6 +126,11 @@ void wcnss_riva_dump_pmic_regs(void);
+ int wcnss_xo_auto_detect_enabled(void);
+ u32 wcnss_get_wlan_rx_buff_count(void);
+ int wcnss_wlan_iris_xo_mode(void);
++
++#if defined(CONFIG_MACH_A5U_EUR_OPEN)
++void wcnss_ldo18_off (void);
++int wcnss_ldo18_on(void);
++#endif /*CONFIG_MACH_A5U_EUR_OPEN*/
+ void wcnss_flush_work(struct work_struct *work);
+ void wcnss_flush_delayed_work(struct delayed_work *dwork);
+ int wcnss_get_iris_name(char *iris_version);
