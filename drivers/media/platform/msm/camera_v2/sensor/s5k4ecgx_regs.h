@@ -5817,8 +5817,8 @@ static struct msm_camera_i2c_reg_conf  s5k4ecgx_camcorder_disable[] = {
 {0x0F12, 0x0001,},/*REG_TC_GP_bUseReqInputInCap */
 
 {0x002A, 0x02A6,},
-{0x0F12, 0x0500,},  /*REG_0TC_PCFG_usWidth */
-{0x0F12, 0x03C0,},/*REG_0TC_PCFG_usHeight */
+{0x0F12, 0x0280,},  /*REG_0TC_PCFG_usWidth */
+{0x0F12, 0x01E0,},/*REG_0TC_PCFG_usHeight */
 {0x002A, 0x02AB,},
 {0x0F12, 0x0005,},//REG_0TC_PCFG_Format	  05 : yuv (0~255)  06:yuv (16~234) 07: raw 09 : jpeg
 
@@ -6058,24 +6058,6 @@ static struct msm_camera_i2c_reg_conf  s5k4ecgx_reset_touchaf[] = {
 {0x0F12, 0x0074,},	//REG_TC_AF_ScndWinSizeX
 {0x0F12, 0x0132,},	//REG_TC_AF_ScndWinSizeY
 {0x0F12, 0x0001,},	//REG_TC_AF_WinSizesUpdated
-};
-
-
-static struct msm_camera_i2c_reg_conf  s5k4ecgx_vendor_id_read_prep[] = {
-// OTP read mode
-{0x0028, 0xD000,},
-{0x002A, 0x0012,},
-{0x0F12, 0x0001,},
-{0x002A, 0x007A,},
-{0x0F12, 0x0000,},
-{0x002A, 0xA000,},
-{0x0F12, 0x0004,},
-{0x002A, 0xA002,},
-{0x0F12, 0x0006,}, // 6page_select
-{0x002A, 0xA000,},
-{0x0F12, 0x0001,}, // set read mode
-{0xFFFF, 0x0064,}, /*Delay 100ms*/
-{0x002C, 0xD000,},
 };
 
 

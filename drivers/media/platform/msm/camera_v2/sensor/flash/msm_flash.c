@@ -199,23 +199,6 @@ static int32_t msm_flash_i2c_init(
 			compat_ptr(power_setting_array32->power_down_setting);
 		flash_ctrl->power_setting_array.power_setting =
 			compat_ptr(power_setting_array32->power_setting);
-
-		/* Validate power_up array size and power_down array size */
-		if ((!flash_ctrl->power_setting_array.size) ||
-			(flash_ctrl->power_setting_array.size >
-			MAX_POWER_CONFIG) ||
-			(!flash_ctrl->power_setting_array.size_down) ||
-			(flash_ctrl->power_setting_array.size_down >
-			MAX_POWER_CONFIG)) {
-
-			pr_err("failed: invalid size %d, size_down %d",
-				flash_ctrl->power_setting_array.size,
-				flash_ctrl->power_setting_array.size_down);
-			kfree(power_setting_array32);
-			power_setting_array32 = NULL;
-			return -EINVAL;
-		}
-
 		memcpy(&flash_ctrl->power_setting_array.power_down_setting_a,
 			&power_setting_array32->power_down_setting_a,
 			sizeof(power_setting_array32->power_down_setting_a));
@@ -581,8 +564,6 @@ static long msm_flash_subdev_ioctl(struct v4l2_subdev *sd,
 		return msm_flash_get_subdev_id(fctrl, argp);
 	case VIDIOC_MSM_FLASH_CFG:
 		return msm_flash_config(fctrl, argp);
-	case MSM_SD_NOTIFY_FREEZE:
-		return 0;
 	case MSM_SD_SHUTDOWN:
 		*(int *)argp = MSM_CAMERA_LED_RELEASE;
 		return msm_flash_config(fctrl, argp);

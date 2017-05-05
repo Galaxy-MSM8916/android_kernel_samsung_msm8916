@@ -30,8 +30,8 @@
 struct msm_actuator_ctrl_t;
 
 enum msm_actuator_state_t {
-	ACTUATOR_POWER_UP,
 	ACTUATOR_POWER_DOWN,
+	ACTUATOR_POWER_UP,
 };
 
 struct msm_actuator_func_tbl {
@@ -56,7 +56,7 @@ struct msm_actuator_func_tbl {
 	int32_t (*actuator_set_position)(struct msm_actuator_ctrl_t *,
 		struct msm_actuator_set_position_t *);
 	int32_t (*actuator_sw_landing)(struct msm_actuator_ctrl_t *,
-		struct msm_actuator_move_params_t *, int);
+		struct msm_actuator_move_params_t *);
 };
 
 struct msm_actuator {
@@ -103,6 +103,7 @@ struct msm_actuator_ctrl_t {
 	uint32_t subdev_id;
 	enum msm_actuator_state_t actuator_state;
 	struct msm_actuator_vreg vreg_cfg;
+	uint32_t max_code_size;
 };
 
 #endif

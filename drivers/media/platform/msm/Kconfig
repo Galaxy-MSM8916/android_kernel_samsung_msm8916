@@ -34,7 +34,15 @@ config MSMB_CAMERA_DEBUG
 	  Enable printk() debug for msm camera 2.0
 
 if MSMB_CAMERA
+if SEC_J5_PROJECT || SEC_J5N_PROJECT || SEC_J5X_PROJECT
+source "drivers/media/platform/msm/camera_v2_j5/Kconfig"
+endif # SEC_J5_PROJECT
+if SEC_GTEL_PROJECT || SEC_GTES_PROJECT
+source "drivers/media/platform/msm/camera_v2_gte/Kconfig"
+endif # SEC_GTEL_PROJECT
+if !(SEC_GTEL_PROJECT || SEC_GTES_PROJECT || SEC_J5_PROJECT || SEC_J5N_PROJECT || SEC_J5X_PROJECT)
 source "drivers/media/platform/msm/camera_v2/Kconfig"
+endif # SEC_FORTUNA_PROJECT
 endif # MSMB_CAMERA
 
 source "drivers/media/platform/msm/vidc/Kconfig"

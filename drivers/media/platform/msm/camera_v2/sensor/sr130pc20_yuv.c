@@ -16,14 +16,7 @@
 #endif
 
 #include "sr130pc20.h"
-
-#ifdef CONFIG_MACH_MILLETVEWIFI_EUR_OPEN
-#define REG_SET_FILE "sr130pc20_yuv.h"
-#else
-#define REG_SET_FILE "sr130pc20_yuv_matisse.h"
-#endif
-
-#include REG_SET_FILE
+#include "sr130pc20_regs.h"
 
 #include "msm_sd.h"
 #include "camera.h"
@@ -59,6 +52,71 @@ void sr130pc20_regs_table_init(char *filename);
 void sr130pc20_regs_table_exit(void);
 #endif
 
+// maximum number of chipid and slaveid pairs
+// please change accordingly when you add more pairs
+#define MAX_NUM_PAIRS 1
+
+// Set of chipid and slaveid pairs not including the latest.
+// Order: Latest but one to the oldest
+// The latest values will be in the sensor lib file
+// index 0 - chipid
+// index 1 - slaveid
+static uint16_t ids[MAX_NUM_PAIRS][2] = {{0xC1,0x40},};
+
+int sr130pc20_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
+{
+    int32_t i;
+    uint16_t chipid = 0;
+	const char *sensor_name = NULL;
+	struct msm_camera_slave_info *slave_info = NULL;
+	struct msm_camera_i2c_client *sensor_i2c_client = NULL;
+	enum msm_camera_i2c_data_type data_type = MSM_CAMERA_I2C_BYTE_DATA;
+
+	sensor_i2c_client = s_ctrl->sensor_i2c_client;
+	slave_info = s_ctrl->sensordata->slave_info;
+	sensor_name = s_ctrl->sensordata->sensor_name; 
+
+    if (!sensor_i2c_client || !slave_info || !sensor_name) {
+        pr_err("%s:%d failed: %p %p %p\n",__func__, __LINE__,
+            sensor_i2c_client, slave_info,sensor_name);
+        return -EINVAL;
+    }
+
+	printk("%s:%d sensor[%s] sid = 0x%X sensorid = 0x%X DATA TYPE = %d\n E",
+		__func__, __LINE__, sensor_name, sensor_i2c_client->cci_client->sid,
+		slave_info->sensor_id, data_type); 
+
+    msleep(50);
+    sensor_i2c_client->i2c_func_tbl->i2c_read(sensor_i2c_client,
+        slave_info->sensor_id_reg_addr,
+        &chipid, data_type);
+    printk("%s chipid  read[%x] expected[%x]\n", __func__, chipid, slave_info->sensor_id);
+
+    if(chipid!=slave_info->sensor_id){
+        pr_err("[SR130PC20] %s: chipid read=%x did not match with chipid=%x",
+		__func__, chipid, slave_info->sensor_id);
+
+        for( i=0; i<MAX_NUM_PAIRS; ++i){
+            chipid = 0;
+            sensor_i2c_client->cci_client->sid = ids[i][1] >> 1;
+            sensor_i2c_client->i2c_func_tbl->i2c_read(sensor_i2c_client,
+                slave_info->sensor_id_reg_addr,
+                &chipid, data_type);
+            if(chipid == ids[i][0]){
+                break;
+            }
+            pr_err("%s: chipid read=%x did not match with chipid=%x",
+			__func__, chipid, ids[i][0]);
+        }
+    }
+
+    CDBG("%s sensor_name =%s slaveid = 0x%X sensorid = 0x%X DATA TYPE = %d\n",
+        __func__, sensor_name, sensor_i2c_client->cci_client->sid,
+        slave_info->sensor_id, data_type);
+
+    return 0;
+}
+
 int32_t sr130pc20_set_exposure_compensation(struct msm_sensor_ctrl_t *s_ctrl, int mode)
 {
 	int32_t rc = 0;
@@ -77,6 +135,7 @@ int32_t sr130pc20_set_exposure_compensation(struct msm_sensor_ctrl_t *s_ctrl, in
 		rc = SR130PC20_WRITE_LIST(sr130pc20_brightness_M1);
 		break;
 	case CAMERA_EV_DEFAULT:
+	    //CDBG("CAMERA_EV_DEFAULT --> no operation\n");
 		rc = SR130PC20_WRITE_LIST(sr130pc20_brightness_default);
 		break;
 	case CAMERA_EV_P1:
@@ -130,7 +189,7 @@ int32_t sr130pc20_set_Init_reg(struct msm_sensor_ctrl_t *s_ctrl)
 {
     if (sr130pc20_ctrl.prev_mode == CAMERA_MODE_INIT) {
         if (sr130pc20_ctrl.vtcall_mode == 1) {
-            SR130PC20_WRITE_LIST(sr130pc20_VT_Init_Reg);
+            SR130PC20_WRITE_LIST(sr130pc20_Preview);
             CDBG("VT Init Settings");
         }else {
             SR130PC20_WRITE_LIST(sr130pc20_Init_Reg);
@@ -142,25 +201,19 @@ int32_t sr130pc20_set_Init_reg(struct msm_sensor_ctrl_t *s_ctrl)
     return 0;
 }
 
-int32_t sr130pc20_set_resolution(struct msm_sensor_ctrl_t *s_ctrl, int mode, int flicker_type)
+int32_t sr130pc20_set_resolution(struct msm_sensor_ctrl_t *s_ctrl, int mode)
 {
-    int32_t rc = 0;
-    CDBG("mode = %d", mode);
-    switch (mode) {
-        case MSM_SENSOR_RES_FULL:
-        rc = SR130PC20_WRITE_LIST(sr130pc20_Snapshot);
-        break;
-    default:
-        if (flicker_type == MSM_CAM_FLICKER_50HZ) {
-            pr_err("%s : %d 50Hz Preview \n", __func__, __LINE__);
-            rc = SR130PC20_WRITE_LIST(sr130pc20_Preview_50hz);
-        }
-        else {
-            pr_err("%s : %d 60Hz Preview \n", __func__, __LINE__);
-            rc = SR130PC20_WRITE_LIST(sr130pc20_Preview_60hz);
-        }
-    }
-    return rc;
+	int32_t rc = 0;
+	CDBG("mode = %d", mode);
+	switch (mode) {
+	case MSM_SENSOR_RES_FULL:
+		rc = SR130PC20_WRITE_LIST(sr130pc20_Snapshot);
+		break;
+	default:
+		rc = SR130PC20_WRITE_LIST(sr130pc20_Preview);
+		pr_err("%s: Setting %d is sr130pc20_Preview\n", __func__, mode);
+	}
+	return rc;
 }
 
 int32_t sr130pc20_set_effect(struct msm_sensor_ctrl_t *s_ctrl, int mode)
@@ -221,7 +274,7 @@ int32_t sr130pc20_set_exif(struct msm_sensor_ctrl_t *s_ctrl )
 				&read_value3,
 				MSM_CAMERA_I2C_BYTE_DATA);
 
-	sr130pc20_ctrl.exif_shutterspeed = 26000000 / ((read_value1 << 19)
+	sr130pc20_ctrl.exif_shutterspeed = 24000000 / ((read_value1 << 19)
 		+ (read_value2 << 11) + (read_value3 << 3));
 	s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(
 				s_ctrl->sensor_i2c_client,
@@ -246,7 +299,7 @@ int32_t sr130pc20_set_exif(struct msm_sensor_ctrl_t *s_ctrl )
 	else
 		sr130pc20_ctrl.exif_iso = 1600;
 
-	CDBG("sr130pc20_set_exif: ISO = %d shutter speed = %d",sr130pc20_ctrl.exif_iso,sr130pc20_ctrl.exif_shutterspeed);
+	pr_info("sr130pc20_set_exif: ISO = %d shutter speed = %d",sr130pc20_ctrl.exif_iso,sr130pc20_ctrl.exif_shutterspeed);
 	return rc;
 }
 
@@ -269,6 +322,16 @@ int32_t sr130pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		for (i = 0; i < SUB_MODULE_MAX; i++)
 			cdata->cfg.sensor_info.subdev_id[i] =
 				s_ctrl->sensordata->sensor_info->subdev_id[i];
+
+		cdata->cfg.sensor_info.is_mount_angle_valid =
+			s_ctrl->sensordata->sensor_info->is_mount_angle_valid;
+		cdata->cfg.sensor_info.sensor_mount_angle =
+			s_ctrl->sensordata->sensor_info->sensor_mount_angle;
+		cdata->cfg.sensor_info.position =
+			s_ctrl->sensordata->sensor_info->position;
+		cdata->cfg.sensor_info.modes_supported =
+			s_ctrl->sensordata->sensor_info->modes_supported;
+
 		CDBG("sensor name %s",
 			cdata->cfg.sensor_info.sensor_name);
 		CDBG("session id %d",
@@ -277,13 +340,17 @@ int32_t sr130pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			CDBG("subdev_id[%d] %d", i,
 				cdata->cfg.sensor_info.subdev_id[i]);
 
+		pr_err("%s:%d mount angle valid %d value %d\n", __func__,
+			__LINE__, cdata->cfg.sensor_info.is_mount_angle_valid,
+			cdata->cfg.sensor_info.sensor_mount_angle);
+
 		break;
 	case CFG_SET_INIT_SETTING:
-		CDBG("CFG_SET_INIT_SETTING");
+		CDBG("CFG_SET_INIT_SETTING writing INIT registers: sr130pc20_Init_Reg");
 		sr130pc20_ctrl.vtcall_mode = 0;
 #ifdef CONFIG_LOAD_FILE /* this call should be always called first */
-		sr130pc20_regs_table_init("/data/sr130pc20_yuv.h");
-		pr_err("/data/sr352_yuv.h inside CFG_SET_INIT_SETTING");
+			sr130pc20_regs_table_init("/data/sr130pc20_regs.h");
+			pr_err("/data/sr130pc20_regs.h inside CFG_SET_INIT_SETTING");
 #endif
 		break;
 	case CFG_SET_RESOLUTION:
@@ -292,30 +359,18 @@ int32_t sr130pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		CDBG("CFG_SET_RESOLUTION  res = %d" , resolution);
 		break;
 	case CFG_SET_STOP_STREAM:
-		CDBG(" CFG_SET_STOP_STREAM");
+		CDBG(" CFG_SET_STOP_STREAM writing stop stream registers: sr130pc20_stop_stream");
 		if(sr130pc20_ctrl.streamon == 1){
 			rc = SR130PC20_WRITE_LIST(sr130pc20_stop_stream);
 			sr130pc20_ctrl.streamon = 0;
 		}
 		break;
 	case CFG_SET_START_STREAM:
-		CDBG(" CFG_SET_START_STREAM");
+		CDBG(" CFG_SET_START_STREAM writing start stream registers: sr130pc20_start_stream start");
 		switch(sr130pc20_ctrl.op_mode) {
-		case CAMERA_MODE_CAPTURE:
-			CDBG("CAMERA_MODE_CAPTURE");
-			sr130pc20_set_resolution(s_ctrl , resolution, cdata->flicker_type);
-			sr130pc20_set_exif(s_ctrl);
-			break;
-		case CAMERA_MODE_RECORDING:
-			CDBG("CAMERA_MODE_RECORDING");
-			SR130PC20_WRITE_LIST(sr130pc20_camcorder_mode);
-			sr130pc20_set_effect( s_ctrl , sr130pc20_ctrl.settings.effect);
-			sr130pc20_set_white_balance( s_ctrl, sr130pc20_ctrl.settings.wb);
-			sr130pc20_set_exposure_compensation( s_ctrl , sr130pc20_ctrl.settings.exposure );
-			break;
 		case CAMERA_MODE_PREVIEW:
-		default:
-			CDBG("CAMERA_MODE_PREVIEW");
+		{
+			CDBG(" CFG_SET_START_STREAM: Preview");
 			if(sr130pc20_ctrl.prev_mode == CAMERA_MODE_RECORDING) {
 				SR130PC20_WRITE_LIST(sr130pc20_Init_Reg);
 				SR130PC20_WRITE_LIST(sr130pc20_stop_stream);
@@ -325,12 +380,27 @@ int32_t sr130pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 				sr130pc20_set_white_balance( s_ctrl, sr130pc20_ctrl.settings.wb);
 				sr130pc20_set_exposure_compensation( s_ctrl , sr130pc20_ctrl.settings.exposure );
 			}
-			sr130pc20_set_resolution(s_ctrl , resolution, cdata->flicker_type);
+			sr130pc20_set_resolution(s_ctrl , resolution );
 			if(sr130pc20_ctrl.prev_mode == CAMERA_MODE_INIT) {
 				msleep(200);
 			}
-			break;
 		}
+		break;
+		case CAMERA_MODE_CAPTURE:
+		{
+			sr130pc20_set_resolution(s_ctrl , resolution );
+			sr130pc20_set_exif(s_ctrl);
+		}
+		break;
+		case CAMERA_MODE_RECORDING:
+		{
+			SR130PC20_WRITE_LIST(sr130pc20_camcorder_mode);
+			sr130pc20_set_effect( s_ctrl , sr130pc20_ctrl.settings.effect);
+			sr130pc20_set_white_balance( s_ctrl, sr130pc20_ctrl.settings.wb);
+			sr130pc20_set_exposure_compensation( s_ctrl , sr130pc20_ctrl.settings.exposure );
+		}
+		break;
+	}
 		sr130pc20_ctrl.streamon = 1;
 		CDBG("CFG_SET_START_STREAM : sr130pc20_start_stream rc = %d", rc);
 		break;
@@ -476,6 +546,7 @@ int32_t sr130pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		sr130pc20_ctrl.op_mode = CAMERA_MODE_INIT;
 		sr130pc20_ctrl.prev_mode = CAMERA_MODE_INIT;
 		if (s_ctrl->func_tbl->sensor_power_up) {
+		    CDBG("CFG_POWER_UP");
 			rc = s_ctrl->func_tbl->sensor_power_up(s_ctrl);
 		} else
 			rc = -EFAULT;
@@ -484,12 +555,13 @@ int32_t sr130pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 	case CFG_POWER_DOWN:
 		CDBG("CFG_POWER_DOWN");
 		 if (s_ctrl->func_tbl->sensor_power_down) {
+		     CDBG("CFG_POWER_DOWN");
 			rc = s_ctrl->func_tbl->sensor_power_down(s_ctrl);
-		} else
+		 } else
 			rc = -EFAULT;
-#ifdef CONFIG_LOAD_FILE
-		sr130pc20_regs_table_exit();
-#endif
+			#ifdef CONFIG_LOAD_FILE
+				sr130pc20_regs_table_exit();
+			#endif
 		break;
 
 	case CFG_SET_STOP_STREAM_SETTING: {
@@ -546,7 +618,9 @@ int32_t sr130pc20_sensor_native_control(struct msm_sensor_ctrl_t *s_ctrl,
 
 	mutex_lock(s_ctrl->msm_sensor_mutex);
 
-	CDBG("cam_info values = %d : %d : %d : %d : %d\n", cam_info->mode, cam_info->address, cam_info->value_1, cam_info->value_2 , cam_info->value_3);
+	CDBG("cam_info values = %d : %d : %d : %d : %d\n",
+	        cam_info->mode, cam_info->address, cam_info->value_1,
+	        cam_info->value_2 , cam_info->value_3);
 	switch (cam_info->mode) {
 	case EXT_CAM_EV:
 		sr130pc20_ctrl.settings.exposure = cam_info->value_1;
@@ -567,7 +641,6 @@ int32_t sr130pc20_sensor_native_control(struct msm_sensor_ctrl_t *s_ctrl,
 		sr130pc20_ctrl.prev_mode =  sr130pc20_ctrl.op_mode;
 		sr130pc20_ctrl.op_mode = cam_info->value_1;
 		pr_err("EXT_CAM_SENSOR_MODE = %d", sr130pc20_ctrl.op_mode);
-		break;
 	case EXT_CAM_EXIF:
 		sr130pc20_get_exif(cam_info);
 		if (!copy_to_user((void *)argp,
@@ -579,8 +652,11 @@ int32_t sr130pc20_sensor_native_control(struct msm_sensor_ctrl_t *s_ctrl,
 		CDBG("EXT_CAM_VT_MODE = %d",cam_info->value_1);
 		sr130pc20_ctrl.vtcall_mode = cam_info->value_1;
 		break;
+	case EXT_CAM_SET_AE_AWB:
+	    CDBG("EXT_CAM_SET_AE_AWB = %d\n", (cam_info->value_1)); 
+		break;
 	default:
-		rc = 0;
+		rc = -EFAULT;
 		break;
 	}
 
@@ -646,9 +722,9 @@ int sr130pc20_regs_from_sd_tunning(struct msm_camera_i2c_reg_conf *settings, str
 	if (reg)
 		start = (reg + 14);
 	if (addr == 0xff){
-		msleep(value * 10);
+		usleep_range(value * 10, (value* 10) + 10);
 		pr_err("delay = %d\n", (int)value*10);
-	}
+		}
 	else{
 		rc=s_ctrl->sensor_i2c_client->i2c_func_tbl->
 				i2c_write(s_ctrl->sensor_i2c_client, addr,
@@ -675,7 +751,7 @@ void sr130pc20_regs_table_init(char *filename)
 	set_fs(get_ds());
 	filp = filp_open(filename, O_RDONLY, 0);
 	if (IS_ERR_OR_NULL(filp)) {
-		pr_err("file open error %ld",(long) filp);
+		pr_err("file open error %ld\n",(long) filp);
 		return;
 	}
 	lsize = filp->f_path.dentry->d_inode->i_size;
