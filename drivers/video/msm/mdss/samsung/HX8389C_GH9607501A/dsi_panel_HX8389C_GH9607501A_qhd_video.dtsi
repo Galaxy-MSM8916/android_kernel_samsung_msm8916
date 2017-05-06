@@ -26,7 +26,7 @@
 		qcom,mdss-dsi-panel-height = <960>;
 		qcom,mdss-dsi-bpp = <24>;
 		qcom,mdss-dsi-panel-destination = "display_1";
-		qcom,mdss-dsi-panel-timings = [98 1C 12 00 42 44 18 20 16 03 04 00];
+		qcom,mdss-dsi-panel-timings = [81 1C 12 00 40 44 16 1E 23 03 04 00];
 		qcom,lcd-flm-gpio = <&msm_gpio 24 0>;
 		qcom,mdss-dsi-on-command = [
 				39 01 00 00 0A 00 04 B9 FF 83 89
@@ -60,8 +60,8 @@
 					];
 		qcom,mdss-dsi-off-command = [
 						/* < Deep Sleep In Sequence > */
-						39 01 00 00 28 00 02 28 00
-						39 01 00 00 64 00 02 10 00
+						39 01 00 00 3C 00 02 28 00
+						39 01 00 00 3C 00 02 10 00
 					];
 		qcom,mdss-dsi-panel-type = "dsi_video_mode";
 		qcom,lcd-esd-det-gpio = <&msm_gpio 69 0>;
@@ -70,9 +70,9 @@
 		qcom,mdss-dsi-stream = <0>;
 		qcom,cont-splash-enabled;
 
-		qcom,mdss-dsi-h-front-porch = <40>;
-		qcom,mdss-dsi-h-back-porch = <40>;
-		qcom,mdss-dsi-h-pulse-width = <38>;
+		qcom,mdss-dsi-h-front-porch = <10>;
+		qcom,mdss-dsi-h-back-porch = <10>;
+		qcom,mdss-dsi-h-pulse-width = <14>;
 		qcom,mdss-dsi-h-sync-skew = <0>;
 		qcom,mdss-dsi-v-back-porch = <5>;
 		qcom,mdss-dsi-v-front-porch = <9>;
@@ -105,9 +105,11 @@
 		qcom,mdss-pan-physical-width-dimension = <62>; /* <Width> real size of panel in mm */
 		qcom,mdss-pan-physical-height-dimension = <110>; /*<Height> real size of panel in mm */
 		qcom,mdss-dsi-lp11-init;
-		qcom,mdss-force-clk-lane-hs = <0>;
+		qcom,mdss-force-clk-lane-hs;
 		qcom,mdss-dsi-init-delay-us = <100>;
-		qcom,mdss-power-off-delay-us = <12000>;
+		qcom,mdss-power-off-delay-us = <200>;
+		samsung,mdss-dsi-off-reset-delay-us = <200>;
+		samsung,mdss-power-on-reset-delay-us = <100>;
 /*
  * ************************************************************************************************************************************
  *
