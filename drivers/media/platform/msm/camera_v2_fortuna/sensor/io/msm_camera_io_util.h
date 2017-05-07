@@ -15,8 +15,8 @@
 
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
-#include <soc/qcom/camera2.h>
-#include <media/msm_cam_sensor.h>
+#include <soc/qcom/camera2-ll.h>
+#include <media/msm_cam_sensor-ll.h>
 
 #define NO_SET_RATE -1
 #define INIT_RATE -2

@@ -14,9 +14,9 @@
 
 #include <linux/i2c.h>
 #include <linux/gpio.h>
-#include <soc/qcom/camera2.h>
+#include <soc/qcom/camera2-ll.h>
 #include <media/v4l2-subdev.h>
-#include <media/msmb_camera.h>
+#include <media/msmb_camera-ll.h>
 #include "msm_camera_i2c.h"
 #include "msm_camera_dt_util.h"
 #include "msm_camera_io_util.h"

@@ -14,7 +14,7 @@
 #include "msm_cci.h"
 #include "msm_camera_io_util.h"
 #define HI256_SENSOR_NAME "hi256"
-#define PLATFORM_DRIVER_NAME "msm_camera_hi256"
+#define PLATFORM_DRIVER_NAME "msm_camera-ll.hi256"
 
 #define CONFIG_MSMB_CAMERA_DEBUG
 #undef CDBG
