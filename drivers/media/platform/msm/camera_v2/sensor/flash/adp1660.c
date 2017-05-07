@@ -43,7 +43,7 @@ static struct msm_camera_i2c_reg_array adp1660_release_array[] = {
 
 static struct msm_camera_i2c_reg_array adp1660_low_array[] = {
 	{0x08, 0x04},
-	{0x06, 0x28},
+	{0x06, 0x1E},
 	{0x01, 0xBD},
 	{0x0f, 0x01},
 };
@@ -52,7 +52,7 @@ static struct msm_camera_i2c_reg_array adp1660_high_array[] = {
 	{0x02, 0x4F},
 	{0x06, 0x3C},
 	{0x09, 0x3C},
-	{0x0f, 0x01},
+	{0x0f, 0x03},
 	{0x01, 0xBB},
 };
 
@@ -122,20 +122,11 @@ static struct platform_driver adp1660_platform_driver = {
 static int __init msm_flash_adp1660_init_module(void)
 {
 	int32_t rc = 0;
-
 	rc = platform_driver_register(&adp1660_platform_driver);
-	if (fctrl.pdev != NULL && rc == 0) {
-		pr_err("adp1660 platform_driver_register success");
+	if (!rc)
 		return rc;
-	} else if (rc != 0) {
-		pr_err("adp1660 platform_driver_register failed");
-		return rc;
-	} else {
-		rc = i2c_add_driver(&adp1660_i2c_driver);
-		if (!rc)
-			pr_err("adp1660 i2c_add_driver success");
-	}
-	return rc;
+	pr_debug("%s:%d rc %d\n", __func__, __LINE__, rc);
+	return i2c_add_driver(&adp1660_i2c_driver);
 }
 
 static void __exit msm_flash_adp1660_exit_module(void)
@@ -151,7 +142,7 @@ static struct msm_camera_i2c_client adp1660_i2c_client = {
 };
 
 static struct msm_camera_i2c_reg_setting adp1660_init_setting = {
-	.reg_setting = (void *)adp1660_init_array,
+	.reg_setting = adp1660_init_array,
 	.size = ARRAY_SIZE(adp1660_init_array),
 	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
 	.data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -159,7 +150,7 @@ static struct msm_camera_i2c_reg_setting adp1660_init_setting = {
 };
 
 static struct msm_camera_i2c_reg_setting adp1660_off_setting = {
-	.reg_setting = (void *)adp1660_off_array,
+	.reg_setting = adp1660_off_array,
 	.size = ARRAY_SIZE(adp1660_off_array),
 	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
 	.data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -167,7 +158,7 @@ static struct msm_camera_i2c_reg_setting adp1660_off_setting = {
 };
 
 static struct msm_camera_i2c_reg_setting adp1660_release_setting = {
-	.reg_setting = (void *)adp1660_release_array,
+	.reg_setting = adp1660_release_array,
 	.size = ARRAY_SIZE(adp1660_release_array),
 	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
 	.data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -175,7 +166,7 @@ static struct msm_camera_i2c_reg_setting adp1660_release_setting = {
 };
 
 static struct msm_camera_i2c_reg_setting adp1660_low_setting = {
-	.reg_setting = (void *)adp1660_low_array,
+	.reg_setting = adp1660_low_array,
 	.size = ARRAY_SIZE(adp1660_low_array),
 	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
 	.data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -183,7 +174,7 @@ static struct msm_camera_i2c_reg_setting adp1660_low_setting = {
 };
 
 static struct msm_camera_i2c_reg_setting adp1660_high_setting = {
-	.reg_setting = (void *)adp1660_high_array,
+	.reg_setting = adp1660_high_array,
 	.size = ARRAY_SIZE(adp1660_high_array),
 	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
 	.data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -210,7 +201,7 @@ static struct msm_flash_fn_t adp1660_func_tbl = {
 
 static struct msm_led_flash_ctrl_t fctrl = {
 	.flash_i2c_client = &adp1660_i2c_client,
-	.reg_setting = (void *)&adp1660_regs,
+	.reg_setting = &adp1660_regs,
 	.func_tbl = &adp1660_func_tbl,
 };
 

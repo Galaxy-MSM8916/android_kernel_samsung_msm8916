@@ -35,6 +35,8 @@
 #define fh_to_private(__fh) \
 	container_of(__fh, struct camera_v4l2_private, fh)
 
+extern struct task_struct	*qdaemon_task;
+#define QDAEMON "mm-qcamera"
 struct camera_v4l2_private {
 	struct v4l2_fh fh;
 	unsigned int stream_id;
@@ -208,9 +210,9 @@ static int camera_v4l2_reqbufs(struct file *filep, void *fh,
 	session = msm_session_find(session_id);
 	if (WARN_ON(!session))
 		return -EIO;
-	mutex_lock(&session->lock);
+	mutex_lock(&session->lock_q);
 	ret = vb2_reqbufs(&sp->vb2_q, req);
-	mutex_unlock(&session->lock);
+	mutex_unlock(&session->lock_q);
 	return ret;
 }
 
@@ -231,9 +233,9 @@ static int camera_v4l2_qbuf(struct file *filep, void *fh,
 	session = msm_session_find(session_id);
 	if (WARN_ON(!session))
 		return -EIO;
-	mutex_lock(&session->lock);
+	mutex_lock(&session->lock_q);
 	ret = vb2_qbuf(&sp->vb2_q, pb);
-	mutex_unlock(&session->lock);
+	mutex_unlock(&session->lock_q);
 	return ret;
 }
 
@@ -248,9 +250,9 @@ static int camera_v4l2_dqbuf(struct file *filep, void *fh,
 	session = msm_session_find(session_id);
 	if (WARN_ON(!session))
 		return -EIO;
-	mutex_lock(&session->lock);
+	mutex_lock(&session->lock_q);
 	ret = vb2_dqbuf(&sp->vb2_q, pb, filep->f_flags & O_NONBLOCK);
-	mutex_unlock(&session->lock);
+	mutex_unlock(&session->lock_q);
 	return ret;
 }
 
@@ -559,7 +561,7 @@ static int camera_v4l2_open(struct file *filep)
 	if (!atomic_read(&pvdev->opened)) {
 		pm_stay_awake(&pvdev->vdev->dev);
 
-#ifndef CONFIG_ARCH_MSM8939
+#if !defined(CONFIG_ARCH_MSM8939) && !defined(CONFIG_ARCH_MSM8929)
 		/* Disable power collapse latency */
 		msm_pm_qos_update_request(CAMERA_DISABLE_PC_LATENCY);
 #endif
@@ -587,6 +589,17 @@ static int camera_v4l2_open(struct file *filep)
 		if (rc < 0) {
 			pr_err("%s : posting of NEW_SESSION event failed\n",
 					__func__);
+			if (qdaemon_task) {
+				if (!strncmp(qdaemon_task->comm, QDAEMON, strlen(QDAEMON))) {
+					pr_err("%s, kill daemon", __func__);
+					send_sig(SIGKILL, qdaemon_task, 0);
+					pr_err("%s, kill this", __func__);
+					send_sig(SIGKILL, current, 0);
+				} else
+					pr_err("%s, now (%s : %d)", __func__,
+					   qdaemon_task->comm, task_pid_nr(qdaemon_task));
+			} else
+				pr_err("error!! can't look for daemon");
 			pr_err("%s : Line %d rc %d\n", __func__, __LINE__, rc);
 			goto post_fail;
 		}
@@ -674,7 +687,7 @@ static int camera_v4l2_close(struct file *filep)
 		 * and application crashes */
 		msm_destroy_session(pvdev->vdev->num);
 
-#ifndef CONFIG_ARCH_MSM8939
+#if !defined(CONFIG_ARCH_MSM8939) && !defined(CONFIG_ARCH_MSM8929)
 		/* Enable power collapse latency */
 		msm_pm_qos_update_request(CAMERA_ENABLE_PC_LATENCY);
 #endif

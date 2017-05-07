@@ -11,7 +11,8 @@
 #define CDBG(fmt, args...)	printk("[S5K4ECGX] %s : %d : "fmt "\n",   __FUNCTION__, __LINE__, ##args)
 #endif
 
-#define LOW_LIGHT_LEVEL    0x40
+// 32(0x20) is a calibrated value from sensor vendor for auto flash to turn on when lux <= 40
+#define LOW_LIGHT_LEVEL    0x20
 #define BURST_MODE_BUFFER_MAX_SIZE 128
 #define BURST_REG 0x0F12
 
@@ -38,6 +39,7 @@ struct s5k4ecgx_ctrl {
     unsigned int streamon;
     unsigned int exif_iso;
     unsigned int exif_shutterspeed ;
+    unsigned int fixed_fps_val;
 };
 
 int32_t s5k4ecgx_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,

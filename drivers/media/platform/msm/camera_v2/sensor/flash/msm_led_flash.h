@@ -51,6 +51,7 @@ struct msm_led_flash_ctrl_t {
 	struct msm_led_flash_reg_t *reg_setting;
 	const char *flash_trigger_name[MAX_LED_TRIGGERS];
 	struct led_trigger *flash_trigger[MAX_LED_TRIGGERS];
+	uint32_t flash_num_sources;
 	uint32_t flash_op_current[MAX_LED_TRIGGERS];
 	uint32_t flash_max_current[MAX_LED_TRIGGERS];
 	const char *torch_trigger_name;
