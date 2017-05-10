@@ -30,7 +30,7 @@ static struct msm_isp_bandwidth_mgr isp_bandwidth_mgr;
 
 #define VFE40_8974V2_VERSION 0x1001001A
 
-#if !defined(CONFIG_ARCH_MSM8939) && !defined(CONFIG_ARCH_MSM8929)
+#ifndef CONFIG_ARCH_MSM8939
 #define CAMERA_BOOST
 #endif
 
@@ -62,13 +62,6 @@ static struct msm_bus_scale_pdata bus_client_pdata = {
 
 static u32 bus_client;
 #endif
-
-static bool camera_boost_flag = true;
-int32_t msm_isp_camera_boost(bool flag){
-	camera_boost_flag = flag;
-	return 0;
-}
-EXPORT_SYMBOL(msm_isp_camera_boost);
 
 static struct msm_bus_vectors msm_isp_init_vectors[] = {
 	{
@@ -172,7 +165,7 @@ int msm_isp_init_bandwidth_mgr(enum msm_isp_hw_client client)
 	   isp_bandwidth_mgr.bus_vector_active_idx);
 
 #ifdef CAMERA_BOOST
-	if (!bus_client && camera_boost_flag) {
+	if (!bus_client) {
 		bus_client = msm_bus_scale_register_client(&bus_client_pdata);
 		msm_bus_scale_client_update_request(bus_client, 1);
 	}
@@ -243,11 +236,9 @@ void msm_isp_deinit_bandwidth_mgr(enum msm_isp_hw_client client)
 	msm_bus_scale_unregister_client(isp_bandwidth_mgr.bus_client);
 
 #ifdef CAMERA_BOOST
-	if(bus_client){
-		msm_bus_scale_client_update_request(bus_client, 0);
-		msm_bus_scale_unregister_client(bus_client);
-		bus_client = 0;
-	}
+	msm_bus_scale_client_update_request(bus_client, 0);
+	msm_bus_scale_unregister_client(bus_client);
+	bus_client = 0;
 #endif
 
 	isp_bandwidth_mgr.bus_client = 0;
@@ -556,12 +547,6 @@ static long msm_isp_ioctl_unlocked(struct v4l2_subdev *sd,
 		rc = msm_isp_cfg_input(vfe_dev, arg);
 		mutex_unlock(&vfe_dev->core_mutex);
 		break;
-	case VIDIOC_MSM_ISP_REG_UPDATE_CMD:
-		if (arg) {
-			enum msm_vfe_input_src frame_src = *((enum msm_vfe_input_src *)arg);
-			vfe_dev->hw_info->vfe_ops.core_ops.reg_update(vfe_dev, (1 << frame_src));
-		}
-		break;
 	case VIDIOC_MSM_ISP_SET_SRC_STATE:
 		mutex_lock(&vfe_dev->core_mutex);
 		rc = msm_isp_set_src_state(vfe_dev, arg);
@@ -700,8 +685,7 @@ static int msm_isp_send_hw_cmd(struct vfe_device *vfe_dev,
 	case VFE_READ_DMI_16BIT:
 	case VFE_READ_DMI_32BIT:
 	case VFE_READ_DMI_64BIT: {
-		if (reg_cfg_cmd->cmd_type == VFE_WRITE_DMI_64BIT ||
-	            reg_cfg_cmd->cmd_type == VFE_READ_DMI_64BIT) {
+		if (reg_cfg_cmd->cmd_type == VFE_WRITE_DMI_64BIT) {
 			if ((reg_cfg_cmd->u.dmi_info.hi_tbl_offset <=
 				reg_cfg_cmd->u.dmi_info.lo_tbl_offset) ||
 				(reg_cfg_cmd->u.dmi_info.hi_tbl_offset -
@@ -1243,7 +1227,7 @@ int msm_isp_get_bit_per_pixel(uint32_t output_format)
 		/*TD: Add more image format*/
 	default:
 		msm_isp_print_fourcc_error(__func__, output_format);
-#if defined(CONFIG_SENSOR_8_BPP)
+#if defined(CONFIG_SR200PC20)
 		return 8;
 #else
 		return -EINVAL;
@@ -1255,6 +1239,8 @@ void msm_isp_update_error_frame_count(struct vfe_device *vfe_dev)
 {
 	struct msm_vfe_error_info *error_info = &vfe_dev->error_info;
 	error_info->info_dump_frame_count++;
+	if (error_info->info_dump_frame_count == 0)
+		error_info->info_dump_frame_count++;
 }
 
 void msm_isp_process_error_info(struct vfe_device *vfe_dev)
@@ -1342,11 +1328,11 @@ static inline void msm_isp_process_overflow_irq(
 		return;
 	}
 #endif
-		pr_err("%s: Bus overflow detected: 0x%x\n",
+		pr_warn("%s: Bus overflow detected: 0x%x\n",
 			__func__, overflow_mask);
 		atomic_set(&vfe_dev->error_info.overflow_state,
 			OVERFLOW_DETECTED);
-		pr_err("%s: Start bus overflow recovery\n", __func__);
+		pr_warn("%s: Start bus overflow recovery\n", __func__);
 		/*Store current IRQ mask*/
 		vfe_dev->hw_info->vfe_ops.core_ops.get_irq_mask(vfe_dev,
 			&vfe_dev->error_info.overflow_recover_irq_mask0,
@@ -1427,7 +1413,7 @@ static void msm_isp_process_overflow_recovery(
 		vfe_dev->hw_info->vfe_ops.axi_ops.
 			reload_wm(vfe_dev, 0xFFFFFFFF);
 		vfe_dev->hw_info->vfe_ops.core_ops.restore_irq_mask(vfe_dev);
-		vfe_dev->hw_info->vfe_ops.core_ops.reg_update(vfe_dev, (1 << VFE_PIX_0));
+		vfe_dev->hw_info->vfe_ops.core_ops.reg_update(vfe_dev);
 		memset(&vfe_dev->error_info, 0, sizeof(vfe_dev->error_info));
 		atomic_set(&vfe_dev->error_info.overflow_state, NO_OVERFLOW);
 		vfe_dev->hw_info->vfe_ops.core_ops.
@@ -1541,8 +1527,6 @@ void msm_isp_do_tasklet(unsigned long data)
 		irq_ops->process_stats_irq(vfe_dev,
 			irq_status0, irq_status1, &ts);
 		irq_ops->process_reg_update(vfe_dev,
-			irq_status0, irq_status1, &ts);
-		irq_ops->process_epoch_irq(vfe_dev,
 			irq_status0, irq_status1, &ts);
 		msm_isp_process_error_info(vfe_dev);
 	}

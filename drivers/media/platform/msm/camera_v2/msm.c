@@ -34,7 +34,7 @@
 static struct v4l2_device *msm_v4l2_dev;
 static struct list_head    ordered_sd_list;
 
-#if !defined(CONFIG_ARCH_MSM8939) && !defined(CONFIG_ARCH_MSM8929)
+#ifndef CONFIG_ARCH_MSM8939
 static struct pm_qos_request msm_v4l2_pm_qos_request;
 #endif
 
@@ -196,7 +196,7 @@ static inline int __msm_queue_find_command_ack_q(void *d1, void *d2)
 	return (ack->stream_id == *(unsigned int *)d2) ? 1 : 0;
 }
 
-#if !defined(CONFIG_ARCH_MSM8939) && !defined(CONFIG_ARCH_MSM8929)
+#ifndef CONFIG_ARCH_MSM8939
 static void msm_pm_qos_add_request(void)
 {
 	pr_err("%s: add request",__func__);
@@ -419,7 +419,6 @@ int msm_create_session(unsigned int session_id, struct video_device *vdev)
 	msm_init_queue(&session->stream_q);
 	msm_enqueue(msm_session_q, &session->list);
 	mutex_init(&session->lock);
-	mutex_init(&session->lock_q);
 	return 0;
 }
 
@@ -566,7 +565,6 @@ int msm_destroy_session(unsigned int session_id)
 	msm_destroy_session_streams(session);
 	msm_remove_session_cmd_ack_q(session);
 	mutex_destroy(&session->lock);
-	mutex_destroy(&session->lock_q);
 	msm_delete_entry(msm_session_q, struct msm_session,
 		list, session);
 	buf_mgr_subdev = msm_buf_mngr_get_subdev();
@@ -747,7 +745,6 @@ int msm_post_event(struct v4l2_event *event, int timeout)
 	struct msm_command *cmd;
 	int session_id, stream_id;
 	unsigned long flags = 0;
-	int wait_count = 2000;
 
 	session_id = event_data->session_id;
 	stream_id = event_data->stream_id;
@@ -795,14 +792,9 @@ int msm_post_event(struct v4l2_event *event, int timeout)
 	}
 
 	/* should wait on session based condition */
-	do {
-		rc = wait_for_completion_timeout(&cmd_ack->wait_complete,
+	rc = wait_for_completion_timeout(&cmd_ack->wait_complete,
 			msecs_to_jiffies(timeout));
-		wait_count--;
-		if(rc != -ERESTARTSYS)
-			break;
-		usleep(1000); /* wait for 2ms */
-	} while(wait_count > 0);
+
 
 	if (list_empty_careful(&cmd_ack->command_q.list)) {
 		if (!rc) {
@@ -861,7 +853,7 @@ static int msm_close(struct file *filep)
 		list_for_each_entry(msm_sd, &ordered_sd_list, list)
 			__msm_sd_close_subdevs(msm_sd, &sd_close);
 
-#if !defined(CONFIG_ARCH_MSM8939) && !defined(CONFIG_ARCH_MSM8929)
+#ifndef CONFIG_ARCH_MSM8939
 	/* remove msm_v4l2_pm_qos_request */
 	msm_pm_qos_remove_request();
 #endif
@@ -922,7 +914,7 @@ static int msm_open(struct file *filep)
 	msm_eventq = filep->private_data;
 	spin_unlock_irqrestore(&msm_eventq_lock, flags);
 
-#if !defined(CONFIG_ARCH_MSM8939) && !defined(CONFIG_ARCH_MSM8929)
+#ifndef CONFIG_ARCH_MSM8939
 	/* register msm_v4l2_pm_qos_request */
 	msm_pm_qos_add_request();
 #endif

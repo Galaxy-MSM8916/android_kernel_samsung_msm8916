@@ -128,12 +128,6 @@ config MSM_ISPIF_V1
           of any CID of MSM_CSI22_HEADER can be routed to of pixel
           or raw data interface in VFE.
 
-config SENSOR_8_BPP
-        bool "8 bits per pixel YUV sensor output"
-        depends on MSMB_CAMERA
-        ---help---
-          8 bits per pixel YUV sensor output.
-
 config IMX134
 	bool "Sensor IMX134 (BAYER 8M)"
 	depends on MSMB_CAMERA
@@ -152,21 +146,12 @@ config IMX132
 		snapshot config = 1920 x 1080 at 30 fps,
 		Video HDR support.
 
-config SR352
-        bool "Sensor for front camera"
-        depends on MSMB_CAMERA
-        default n
-        ---help---
-          Siliconfile 3MP sensor,
-          Rear sensor.
-
-config SR130PC20
-        bool "Sensor for front camera"
-        depends on MSMB_CAMERA
-        default n
-        ---help---
-          Siliconfile 1.3MP sensor,
-          Front sensor.
+config IMX219
+	bool "Sensor IMX219 (BAYER 8M)"
+	depends on MSMB_CAMERA
+	---help---
+		Sony 8 MP Bayer Sensor with auto focus, uses
+		4 mipi lanes full resolution @30fps.
 
 config OV9724
 	bool "Sensor OV9724 (BAYER 2M)"
@@ -219,6 +204,14 @@ config SR200PC20
 	---help---
 	  Siliconfile 2.0MP sensor,
 	  Front sensor.
+config SR030PC50
+	bool "Sensor for front camera"
+	depends on MSMB_CAMERA
+	default n
+	---help---
+	  Siliconfile VGA sensor,
+	  Front sensor.
+
 config SR544
     bool "Sensor for back camera"
 	depends on MSMB_CAMERA
@@ -242,6 +235,15 @@ config GC0339
 	---help---
 		gc0339 is a Galaxycore .3 MP Bayer Sensor.
 		It supports 1 or 2 mipi lanes.
+		Preview and snapshot resolution shall be 640*480 at 30 fps,
+		It does not support auto focus.
+
+config GC0310
+	bool "Sensor GC0310 (YUV .3M)"
+	depends on MSMB_CAMERA
+	---help---
+		0310 is a Galaxycore .3 MP YUV Sensor.
+		It supports 1 mipi lane.
 		Preview and snapshot resolution shall be 640*480 at 30 fps,
 		It does not support auto focus.
 
@@ -315,13 +317,6 @@ config S5K5E3YX
 		S.LSI. 5MP Bayer Sensor with auto focus, uses
 		2 mipi lanes full resolution @30fps
 
-config SR552
-	bool "Sensor SR552 (BAYER 5M)"
-	depends on MSMB_CAMERA
-	---help---
-		S.LSI. 5MP Bayer Sensor with auto focus, uses
-		2 mipi lanes full resolution @30fps
-
 config S5K4ECGX
 	bool "Sensor s5k4ecgx (SOC 5MP)"
 	depends on MSMB_CAMERA
@@ -371,38 +366,12 @@ config CAM_USE_EXT_VANA_GPIO
 	depends on MSMB_CAMERA
 	---help---
 	  Board use external LDO controlled by GPIO.
-
-config CAM_DISABLE_LPM_MODE
-	bool "Camera is Disabled in LPM mode."
-	depends on NFC_PN547
-	default n
-	---help---
-	Because NFC HW limitation which should not be turned on L16.
-
-config CAM_PN547_PVDD_EN_CONTROL
-	bool "PN547 NFC PVDD EN CONTROL"
-	depends on NFC_PN547
-	default n
-	help
-	  SAMSUNG PN547 NFC PVDD EN CONTROL feature.
-	  This feature provides support for NXP PN547 products.
-	  You should select this feature if your NFC product uses pvdd en pin.
-	  Say Y here to compile support for NXP PN547 PVDD EN CONTROL feature into the
-	  kernel.
-
-config SW_LANDING_FOR_MULTI_TASKING
-	bool "SW Landing is applied during multi tasking"
-	depends on ACTUATOR
-	default n
-	help
-	  If Camera exit while multi tasking with call, actuator makes big noise.
-	  SW landing is applied during multi tasking only.
-
-config CAMERA_SYSFS_V2
-	bool "CAMERA SYS"
+config SR130PC20
+	bool "Sensor s5k4e1 (SOC 1.3MP)"
 	depends on MSMB_CAMERA
 	---help---
-	  CAMERA SYS.
+		Samsung 1.3 MP SOC Sensor. It uses 1 mipi lanes,
+		Does not support auto focus, and flash
 
 config DB8221A
 	bool "Sensor for front camera"
@@ -412,30 +381,8 @@ config DB8221A
 	  Dongbu HiTek 2.0MP sensor,
 	  Front sensor.
 
-config OIS
-        tristate "External ois support"
-        depends on MSMB_CAMERA
-        default n
-        ---help---
-          Enables support for external ois module.
-
 config CAM_DUAL_POWER_SEQ
 	bool "Dual power up sequence enable"
 	depends on MSMB_CAMERA
 	---help---
 		This flag will allow us to write dual power up sequence.
-
-config FRONT_FLASH
-	bool "Rear LEd and Front LED both USING"
-	depends on MSMB_CAMERA
-	---help---
-		ONLY for Front FLASH Model using.
-		Front LED for LM3632 or KTD2692 Rear LED SM5703.
-
-config EEPROM_CAMERA_QUP_I2C
-	bool "Read EEPROM data in camera module"
-	depends on MSMB_CAMERA
-	default n
-	---help---
-		If the eeprom data in camera module is not read successfully,
-		it causes actuator to move lens to 0x00 position, which causes actuator noise.
