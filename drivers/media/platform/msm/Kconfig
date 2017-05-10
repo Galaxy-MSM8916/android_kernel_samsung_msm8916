@@ -40,7 +40,10 @@ endif # SEC_J5_PROJECT
 if SEC_GTEL_PROJECT || SEC_GTES_PROJECT
 source "drivers/media/platform/msm/camera_v2_gte/Kconfig"
 endif # SEC_GTEL_PROJECT
-if !(SEC_GTEL_PROJECT || SEC_GTES_PROJECT || SEC_J5_PROJECT || SEC_J5N_PROJECT || SEC_J5X_PROJECT)
+if SEC_GT510_PROJECT
+source "drivers/media/platform/msm/camera_v2_gt5/Kconfig"
+endif # SEC_GT5_PROJECT
+if !(SEC_GTEL_PROJECT || SEC_GTES_PROJECT || SEC_GT5_PROJECT || SEC_J5_PROJECT || SEC_J5N_PROJECT || SEC_J5X_PROJECT)
 source "drivers/media/platform/msm/camera_v2/Kconfig"
 endif # SEC_FORTUNA_PROJECT
 endif # MSMB_CAMERA
