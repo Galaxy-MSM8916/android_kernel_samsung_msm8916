@@ -30,7 +30,14 @@ static const int cfq_back_penalty = 2;
 static const int cfq_slice_sync = HZ / 10;
 static int cfq_slice_async = HZ / 25;
 static const int cfq_slice_async_rq = 2;
-static int cfq_slice_idle = HZ / 125;
+/* Explicitly set cfq_slice_idle to 0
+ * CFQ slice idle should be 0 since
+ * we do not have a SATA or other spinning disk type storage.
+ * From the documentation "Setting slice_idle to 0 will remove
+ * all the idling on queues/service tree level and one should
+ * see an overall improved throughput on faster storage devices"
+ */
+static int cfq_slice_idle = 0;
 static int cfq_group_idle = HZ / 125;
 static const int cfq_target_latency = HZ * 3/10; /* 300 ms */
 static const int cfq_hist_divisor = 4;
@@ -4593,9 +4600,11 @@ static int __init cfq_init(void)
 	 */
 	if (!cfq_slice_async)
 		cfq_slice_async = 1;
+        /* Do not touch cfq_slice_idle if it is zero */
+        /*
 	if (!cfq_slice_idle)
 		cfq_slice_idle = 1;
-
+	*/
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 	if (!cfq_group_idle)
 		cfq_group_idle = 1;
