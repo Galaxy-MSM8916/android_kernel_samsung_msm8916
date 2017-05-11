@@ -24,3 +24,9 @@
 	qcom,board-id = <0xCE08FF01 4>;
         /*parm1)[31:20]platform_id [19:12]qc_hw_id [11:4]national code [3:0] operator, param2)SEC hw-rev*/
 };
+
+/* overwrite s2 cpr voltage for model variant */
+&apc_vreg_corner {
+	qcom,cpr-voltage-ceiling = <1050000 1150000 1350000>;
+	qcom,cpr-voltage-floor = <1050000 1050000 1162500>;
+};
