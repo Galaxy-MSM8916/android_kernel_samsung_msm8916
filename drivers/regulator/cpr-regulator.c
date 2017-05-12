@@ -1067,6 +1067,36 @@ static struct regulator_ops cpr_corner_ops = {
 	.get_voltage		= cpr_regulator_get_voltage,
 };
 
+#ifdef CONFIG_ARCH_MSM8916
+int cpr_regulator_get_corner_voltage(struct regulator *regulator,
+		int corner)
+{
+	struct cpr_regulator *cpr_vreg = regulator_get_drvdata(regulator);
+
+	if (corner >= CPR_CORNER_MIN && corner <= cpr_vreg->num_corners)
+		return cpr_vreg->last_volt[corner];
+
+	return -EINVAL;
+}
+
+int cpr_regulator_set_corner_voltage(struct regulator *regulator,
+		int corner, int volt)
+{
+	struct cpr_regulator *cpr_vreg = regulator_get_drvdata(regulator);
+
+	if (corner >= CPR_CORNER_MIN && corner <= cpr_vreg->num_corners) {
+		mutex_lock(&cpr_vreg->cpr_mutex);
+		cpr_vreg->last_volt[corner] = volt;
+		cpr_vreg->ceiling_volt[corner] = volt;
+		cpr_vreg->floor_volt[corner] = volt - 200000; 
+		mutex_unlock(&cpr_vreg->cpr_mutex);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+#endif
+
 #ifdef CONFIG_PM
 static int cpr_suspend(struct cpr_regulator *cpr_vreg)
 {
