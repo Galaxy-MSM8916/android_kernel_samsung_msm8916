@@ -66,6 +66,62 @@ static struct clk_lookup clock_tbl_a7[] = {
 	CLK_LOOKUP_OF("cpu3_clk",   a7ssmux, "8600664.qcom,pm"),
 };
 
+#ifdef CONFIG_ARCH_MSM8916
+extern int cpr_regulator_get_corner_voltage(struct regulator *regulator,
+		int corner);
+extern int cpr_regulator_set_corner_voltage(struct regulator *regulator,
+		int corner, int volt);
+
+ssize_t cpu_clock_get_vdd(char *buf)
+{
+	ssize_t count = 0;
+	int i, uv;
+
+	if (!buf)
+		return 0;
+
+	for (i = 1; i < a7ssmux.c.num_fmax; i++) {
+		uv = cpr_regulator_get_corner_voltage(
+					a7ssmux.c.vdd_class->regulator[0],
+					a7ssmux.c.vdd_class->vdd_uv[i]);
+		if (uv < 0)
+			return 0;
+		count += sprintf(buf + count, "%lumhz: %d mV\n",
+					a7ssmux.c.fmax[i] / 1000000,
+					uv / 1000);
+	}
+
+	return count;
+}
+
+ssize_t cpu_clock_set_vdd(const char *buf, size_t count)
+{
+	int i, mv, ret;
+	char line[32];
+
+	if (!buf)
+		return -EINVAL;
+
+	for (i = 1; i < a7ssmux.c.num_fmax; i++) {
+		ret = sscanf(buf, "%d", &mv);
+		if (ret != 1)
+			return -EINVAL;
+
+		ret = cpr_regulator_set_corner_voltage(
+					a7ssmux.c.vdd_class->regulator[0],
+					a7ssmux.c.vdd_class->vdd_uv[i],
+					mv * 1000);
+        if (ret < 0)
+			return ret;
+
+        ret = sscanf(buf, "%s", line);
+		buf += strlen(line) + 1;
+	}
+
+	return count;
+}
+#endif
+
 static void print_opp_table(int a7_cpu)
 {
 	struct opp *oppfmax, *oppfmin;
