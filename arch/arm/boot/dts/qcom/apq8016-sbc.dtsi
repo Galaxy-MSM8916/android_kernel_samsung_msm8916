@@ -240,8 +240,8 @@
 		general1 {
 			gpios = <&msm_gpio 21 0>;
 			label = "led1";
-			linux,default-trigger = "none";
-			default-state = "off";
+			linux,default-trigger = "boot-indication";
+			default-state = "on";
 			retain-state-suspended;
 		};
 
@@ -793,12 +793,11 @@
 			status = "okay";
 			qcom,led_gpio_2 {
 				label = "gpio";
-				linux,name = "boot";
+				linux,name = "led4";
 				qcom,max-current = <40>;
 				qcom,id = <8>;
-				linux,default-trigger =
-						"boot-indication";
-				qcom,default-state = "on";
+				linux,default-trigger = "none";
+				qcom,default-state = "off";
 				qcom,source-sel = <1>;
 				qcom,mode-ctrl = <0x10>;
 				qcom,vin-ctrl = <0x03>;
