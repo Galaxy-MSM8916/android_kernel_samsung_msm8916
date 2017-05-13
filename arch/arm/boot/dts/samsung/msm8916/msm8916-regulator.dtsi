@@ -228,8 +228,8 @@
 		status = "okay";
 		pm8916_l5: regulator-l5 {
 			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			qcom,init-voltage = <1800000>;
+			regulator-max-microvolt = <1850000>;
+			qcom,init-voltage = <1850000>;
 			status = "okay";
 		};
 	};
@@ -366,7 +366,7 @@
 		status = "okay";
 		pm8916_l17: regulator-l17 {
 			regulator-min-microvolt = <2850000>;
-			regulator-max-microvolt = <2850000>;
+			regulator-max-microvolt = <3100000>;
 			qcom,init-voltage = <2850000>;
 			status = "okay";
 		};
