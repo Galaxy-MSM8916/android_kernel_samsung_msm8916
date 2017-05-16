@@ -29,6 +29,12 @@ config MSM_DLOAD_MODE
 		make the kernel reboot on a kernel panic - that must be
 		enabled via another mechanism.
 
+config QCOM_HARDREBOOT_IMPLEMENTATION
+	bool "Qualcomm hard reboot implementation"
+	depends on POWER_RESET_MSM
+	help
+		Enables qcom hardreboot implementation.
+
 config POWER_RESET_QNAP
 	bool "QNAP power-off driver"
 	depends on OF_GPIO && POWER_RESET && PLAT_ORION

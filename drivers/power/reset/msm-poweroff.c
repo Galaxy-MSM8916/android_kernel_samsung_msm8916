@@ -129,12 +129,10 @@ void set_dload_mode(int on)
 #endif
 }
 EXPORT_SYMBOL(set_dload_mode);
-#if 0 /*  Always WARM Reset */
 static bool get_dload_mode(void)
 {
 	return dload_mode_enabled;
 }
-#endif
 
 static void enable_emergency_dload_mode(void)
 {
@@ -230,8 +228,10 @@ static void msm_restart_prepare(const char *cmd)
 #ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
 	bool need_warm_reset = false;
 #endif
+#ifndef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
 	unsigned long value;
 	unsigned int warm_reboot_set = 0;
+#endif
 #ifndef CONFIG_SEC_DEBUG
 #ifdef CONFIG_MSM_DLOAD_MODE
 
@@ -319,6 +319,8 @@ Hence Qualcomm's PMIC hard reboot implementation has been taken, but disabled. *
                                              restart_reason);
                 } else if (!strncmp(cmd, "edl", 3)) {
                         enable_emergency_dload_mode();
+                } else if (!strncmp(cmd, "download", 8)) {
+                        __raw_writel(0x12345671, restart_reason);
                 } else {
                         __raw_writel(0x77665501, restart_reason);
                 }
@@ -354,7 +356,7 @@ Hence Qualcomm's PMIC hard reboot implementation has been taken, but disabled. *
 			__raw_writel(0x776655ee, restart_reason);
 			warm_reboot_set = 1;
 #endif
-        } else if (!strncmp(cmd, "download", 8)) {
+		} else if (!strncmp(cmd, "download", 8)) {
 		    __raw_writel(0x12345671, restart_reason);
                     warm_reboot_set = 1;
 		} else if (!strncmp(cmd, "nvbackup", 8)) {
