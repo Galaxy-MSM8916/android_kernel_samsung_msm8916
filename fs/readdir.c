@@ -43,6 +43,7 @@ int iterate_dir(struct file *file, struct dir_context *ctx)
 			res = file->f_op->iterate(file, ctx);
 			file->f_pos = ctx->pos;
 		} else {
+			ctx->romnt = (inode->i_sb->s_flags & MS_RDONLY);
 			res = file->f_op->readdir(file, ctx, ctx->actor);
 			ctx->pos = file->f_pos;
 		}
