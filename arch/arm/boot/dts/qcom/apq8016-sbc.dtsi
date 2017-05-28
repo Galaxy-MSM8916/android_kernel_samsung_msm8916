@@ -23,21 +23,6 @@
 
 &soc {
 	i2c@78b6000 { /* BLSP1 QUP2 */
-		mpu6050@68 { /* Gyroscope and accelerometer sensor combo */
-			compatible = "invn,mpu6050";
-			reg = <0x68>;
-			pinctrl-names = "mpu_default","mpu_sleep";
-			pinctrl-0 = <&mpu6050_default>;
-			pinctrl-1 = <&mpu6050_sleep>;
-			interrupt-parent = <&msm_gpio>;
-			interrupts = <115 0x2>;
-			vdd-supply = <&vph_pwr_vreg>;
-			vlogic-supply = <&vph_pwr_vreg>;
-			vi2c-supply = <&vph_pwr_vreg>;
-			invn,gpio-int = <&msm_gpio 115 0x2>;
-			invn,place = "Portrait Down Back Side";
-		};
-
 		avago@39 { /* Ambient light and proximity sensor */
 			compatible = "avago,apds9900";
 			reg = <0x39>;
@@ -93,33 +78,6 @@
 			adv7533,irq-gpio = <&msm_gpio 31 0x2002>;
 			adv7533,hpd-irq-gpio = <&msm_gpio 20 0x2003>;
 			adv7533,switch-gpio = <&msm_gpio 32 0x0>;
-		};
-	};
-
-	i2c@78b9000 { /* BLSP1 QUP5 */
-		synaptics@20 {
-			compatible = "synaptics,rmi4";
-			reg = <0x20>;
-			interrupt-parent = <&msm_gpio>;
-			interrupts = <13 0x2008>;
-			vdd-supply = <&vph_pwr_vreg>;
-			vcc_i2c-supply = <&vph_pwr_vreg>;
-			/* pins used by touchscreen */
-			pinctrl-names = "pmx_ts_active","pmx_ts_suspend","pmx_ts_suspend";
-			pinctrl-0 = <&ts_int_active &ts_reset_active>;
-			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
-			pinctrl-2 = <&ts_release>;
-			synaptics,display-coords = <0 0 1079 1919>;
-			synaptics,panel-coords = <0 0 1079 2084>;
-			synaptics,irq-gpio = <&msm_gpio 13 0x2008>;
-			synaptics,reset-gpio = <&msm_gpio 12 0x0>;
-			synaptics,i2c-pull-up;
-			synaptics,power-down;
-			synaptics,disable-gpios;
-			/* Underlying clocks used by secure touch */
-			clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-			 <&clock_gcc clk_gcc_blsp1_qup5_i2c_apps_clk>;
-			clock-names = "iface_clk", "core_clk";
 		};
 	};
 
@@ -240,8 +198,8 @@
 		general1 {
 			gpios = <&msm_gpio 21 0>;
 			label = "led1";
-			linux,default-trigger = "none";
-			default-state = "off";
+			linux,default-trigger = "boot-indication";
+			default-state = "on";
 			retain-state-suspended;
 		};
 
@@ -793,18 +751,18 @@
 			status = "okay";
 			qcom,led_gpio_2 {
 				label = "gpio";
-				linux,name = "boot";
+				linux,name = "led4";
 				qcom,max-current = <40>;
 				qcom,id = <8>;
-				linux,default-trigger =
-						"boot-indication";
-				qcom,default-state = "on";
+				linux,default-trigger = "none";
+				qcom,default-state = "off";
 				qcom,source-sel = <1>;
 				qcom,mode-ctrl = <0x10>;
 				qcom,vin-ctrl = <0x03>;
 			};
 		};
 		pm8916_pon: qcom,power-on@800 {
+			qcom,pon-reset-off;
 			qcom,pon_1 {
 				qcom,s2-type = <7>;
 			};

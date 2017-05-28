@@ -1871,6 +1871,16 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 		return rc;
 	}
 #ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
+
+	if (of_property_read_bool(spmi->dev.of_node,
+					"qcom,pon-reset-off")) {
+		rc = qpnp_pon_trigger_config(PON_CBLPWR_N, false);
+		if (rc) {
+			dev_err(&spmi->dev, "failed update the PON_CBLPWR %d\n",
+				rc);
+		}
+	}
+
 	/* config whether store the hard reset reason */
 	pon->store_hard_reset_reason = of_property_read_bool(
 					spmi->dev.of_node,
