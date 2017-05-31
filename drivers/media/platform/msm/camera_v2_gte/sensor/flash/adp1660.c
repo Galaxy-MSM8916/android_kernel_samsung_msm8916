@@ -142,7 +142,7 @@ static struct msm_camera_i2c_client adp1660_i2c_client = {
 };
 
 static struct msm_camera_i2c_reg_setting adp1660_init_setting = {
-	.reg_setting = (void *)adp1660_init_array,
+	.reg_setting = adp1660_init_array,
 	.size = ARRAY_SIZE(adp1660_init_array),
 	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
 	.data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -150,7 +150,7 @@ static struct msm_camera_i2c_reg_setting adp1660_init_setting = {
 };
 
 static struct msm_camera_i2c_reg_setting adp1660_off_setting = {
-	.reg_setting = (void *)adp1660_off_array,
+	.reg_setting = adp1660_off_array,
 	.size = ARRAY_SIZE(adp1660_off_array),
 	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
 	.data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -158,7 +158,7 @@ static struct msm_camera_i2c_reg_setting adp1660_off_setting = {
 };
 
 static struct msm_camera_i2c_reg_setting adp1660_release_setting = {
-	.reg_setting = (void *)adp1660_release_array,
+	.reg_setting = adp1660_release_array,
 	.size = ARRAY_SIZE(adp1660_release_array),
 	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
 	.data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -166,7 +166,7 @@ static struct msm_camera_i2c_reg_setting adp1660_release_setting = {
 };
 
 static struct msm_camera_i2c_reg_setting adp1660_low_setting = {
-	.reg_setting = (void *)adp1660_low_array,
+	.reg_setting = adp1660_low_array,
 	.size = ARRAY_SIZE(adp1660_low_array),
 	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
 	.data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -174,7 +174,7 @@ static struct msm_camera_i2c_reg_setting adp1660_low_setting = {
 };
 
 static struct msm_camera_i2c_reg_setting adp1660_high_setting = {
-	.reg_setting = (void *)adp1660_high_array,
+	.reg_setting = adp1660_high_array,
 	.size = ARRAY_SIZE(adp1660_high_array),
 	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
 	.data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -201,7 +201,7 @@ static struct msm_flash_fn_t adp1660_func_tbl = {
 
 static struct msm_led_flash_ctrl_t fctrl = {
 	.flash_i2c_client = &adp1660_i2c_client,
-	.reg_setting = (void *)&adp1660_regs,
+	.reg_setting = &adp1660_regs,
 	.func_tbl = &adp1660_func_tbl,
 };
 

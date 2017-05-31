@@ -1925,7 +1925,7 @@ int32_t hi256_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			break;
 		}
 
-		conf_array.reg_setting = (void *)reg_setting;
+		conf_array.reg_setting = reg_setting;
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write_table(
 			s_ctrl->sensor_i2c_client, &conf_array);
 		kfree(reg_setting);
@@ -1960,7 +1960,7 @@ int32_t hi256_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			break;
 		}
 
-		conf_array.reg_setting = (void *)reg_setting;
+		conf_array.reg_setting = reg_setting;
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
 			i2c_write_seq_table(s_ctrl->sensor_i2c_client,
 			&conf_array);

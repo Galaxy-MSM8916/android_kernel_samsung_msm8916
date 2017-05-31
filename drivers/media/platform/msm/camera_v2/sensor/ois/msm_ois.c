@@ -319,7 +319,7 @@ static int32_t msm_ois_config(struct msm_ois_ctrl_t *o_ctrl,
 			break;
 		}
 
-		conf_array.reg_setting = (void *)reg_setting;
+		conf_array.reg_setting = reg_setting;
 		rc = o_ctrl->i2c_client.i2c_func_tbl->
 			i2c_write_seq_table(&o_ctrl->i2c_client,
 			&conf_array);

@@ -820,7 +820,7 @@ int32_t sr352_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
                 break;
             }
 
-            conf_array.reg_setting = (void *)reg_setting;
+            conf_array.reg_setting = reg_setting;
             rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write_table(
                     s_ctrl->sensor_i2c_client, &conf_array);
             kfree(reg_setting);
@@ -860,7 +860,7 @@ int32_t sr352_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
                 break;
             }
 
-            conf_array.reg_setting = (void *)reg_setting;
+            conf_array.reg_setting = reg_setting;
             rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
                 i2c_write_seq_table(s_ctrl->sensor_i2c_client, &conf_array);
             kfree(reg_setting);
@@ -2077,7 +2077,7 @@ int32_t sr352_sensor_burst_write(struct msm_sensor_ctrl_t *s_ctrl, struct msm_ca
         err = -ENOMEM;
         goto on_error;
     }
-    seq_conf_array.reg_setting = (void *)seq_reg_setting;
+    seq_conf_array.reg_setting = seq_reg_setting;
 
     for (i = 0; i < size; i++) {
 

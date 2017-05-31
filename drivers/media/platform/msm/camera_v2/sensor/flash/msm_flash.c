@@ -148,7 +148,7 @@ static int32_t msm_flash_i2c_write_table(
 	conf_array.addr_type = settings->addr_type;
 	conf_array.data_type = settings->data_type;
 	conf_array.delay = settings->delay;
-	conf_array.reg_setting = (void *)settings->reg_setting_a;
+	conf_array.reg_setting = settings->reg_setting_a;
 	conf_array.size = settings->size;
 
 	return flash_ctrl->flash_i2c_client.i2c_func_tbl->i2c_write_table(

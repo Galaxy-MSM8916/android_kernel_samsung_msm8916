@@ -834,7 +834,7 @@ int msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 				}
 
 				reg_setting[i].reg_burst_data = reg_data;
-				conf_array.reg_setting = (void *)&reg_setting[i];
+				conf_array.reg_setting = &reg_setting[i];
 				rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write_burst_table(
 					s_ctrl->sensor_i2c_client, &conf_array);
 				if (rc < 0) {
@@ -863,7 +863,7 @@ int msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 				break;
 			}
 
-			conf_array.reg_setting = (void *)reg_setting;
+			conf_array.reg_setting = reg_setting;
 			rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write_table(
 				s_ctrl->sensor_i2c_client, &conf_array);
 			kfree(reg_setting);
@@ -959,7 +959,7 @@ int msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			rc = -EFAULT;
 			break;
 		}
-		write_config.conf_array.reg_setting = (void *)reg_setting;
+		write_config.conf_array.reg_setting = reg_setting;
 		write_slave_addr = write_config.slave_addr;
 		if (s_ctrl->sensor_i2c_client->cci_client) {
 			orig_slave_addr =
@@ -1038,7 +1038,7 @@ int msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			break;
 		}
 
-		conf_array.reg_setting = (void *)reg_setting;
+		conf_array.reg_setting = reg_setting;
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
 			i2c_write_seq_table(s_ctrl->sensor_i2c_client,
 			&conf_array);

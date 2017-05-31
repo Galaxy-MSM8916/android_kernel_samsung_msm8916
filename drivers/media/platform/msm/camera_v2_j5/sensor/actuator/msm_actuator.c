@@ -55,7 +55,7 @@ static int32_t msm_actuator_piezo_set_default_focus(
 			a_ctrl->initial_code, 0, 0);
 		a_ctrl->func_tbl->actuator_parse_i2c_params(a_ctrl,
 			a_ctrl->initial_code, 0, 0);
-		reg_setting.reg_setting = (void *)a_ctrl->i2c_reg_tbl;
+		reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
 		reg_setting.data_type = a_ctrl->i2c_data_type;
 		reg_setting.size = a_ctrl->i2c_tbl_index;
 		reg_setting.delay = 0;
@@ -331,7 +331,7 @@ static int32_t msm_actuator_piezo_move_focus(
 		a_ctrl->region_params[0].code_per_step),
 		ringing_params_kernel.hw_params, 0);
 
-	reg_setting.reg_setting = (void *)a_ctrl->i2c_reg_tbl;
+	reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
 	reg_setting.data_type = a_ctrl->i2c_data_type;
 	reg_setting.size = a_ctrl->i2c_tbl_index;
 	reg_setting.delay = 0;
@@ -429,7 +429,7 @@ static int32_t msm_actuator_move_focus(
 	}
 
 	move_params->curr_lens_pos = curr_lens_pos;
-	reg_setting.reg_setting = (void *)a_ctrl->i2c_reg_tbl;
+	reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
 	reg_setting.data_type = a_ctrl->i2c_data_type;
 	reg_setting.size = a_ctrl->i2c_tbl_index;
 	reg_setting.delay = 0;
@@ -618,7 +618,7 @@ static int32_t msm_actuator_vcm_set_position(
       msm_actuator_set_position_tbl(a_ctrl, pos, delay);
    }
 
-   reg_setting.reg_setting = (void *)a_ctrl->i2c_reg_tbl;
+   reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
    reg_setting.data_type = a_ctrl->i2c_data_type;
    reg_setting.size = a_ctrl->i2c_tbl_index;
    rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write_table_w_microdelay(
@@ -830,7 +830,7 @@ static int32_t msm_actuator_vcm_sw_landing(
 
 		/*write i2c */
 		CDBG("%s %d write i2c\n", __func__, __LINE__);
-		reg_setting.reg_setting = (void *)a_ctrl->i2c_reg_tbl;
+		reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
 		reg_setting.data_type = a_ctrl->i2c_data_type;
 		reg_setting.size = a_ctrl->i2c_tbl_index;
 		//reg_setting.delay = 0;
@@ -879,7 +879,7 @@ static int32_t msm_actuator_vcm_sw_landing(
 
 	/*write i2c */
 	CDBG("%s %d write i2c\n", __func__, __LINE__);
-	reg_setting.reg_setting = (void *)a_ctrl->i2c_reg_tbl;
+	reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
 	reg_setting.data_type = a_ctrl->i2c_data_type;
 	reg_setting.size = a_ctrl->i2c_tbl_index;
 	rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write_table_w_microdelay(

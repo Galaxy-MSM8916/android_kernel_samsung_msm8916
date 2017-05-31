@@ -1104,8 +1104,8 @@ static int read_eeprom_memory(struct msm_eeprom_ctrl_t *e_ctrl,
 			pr_err("%s: Bank error : Bank(%d)\n", __func__, OTP_Bank);
 			return -EINVAL;
 		}
-		(struct msm_camera_i2c_reg_array *)(init_read_otp.reg_setting[1]).reg_data = page;
-		(struct msm_camera_i2c_reg_array *)(init_write_otp.reg_setting[7]).reg_data = page;
+		init_read_otp.reg_setting[1].reg_data = page;
+		init_write_otp.reg_setting[7].reg_data = page;
 
 		if (emap[j].mem.valid_size) {
 			rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write_table(

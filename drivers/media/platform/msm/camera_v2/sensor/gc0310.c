@@ -422,7 +422,7 @@ static struct msm_camera_i2c_reg_array gc0310_recommend_setting_list[] = {
 
 static struct msm_camera_i2c_reg_setting gc0310_recommend_setting[] = {
   {
-    .reg_setting = (void *)gc0310_recommend_setting_list,
+    .reg_setting = gc0310_recommend_setting_list,
     .size = ARRAY_SIZE(gc0310_recommend_setting_list),
     .addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
     .data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -447,7 +447,7 @@ static struct msm_camera_i2c_reg_array gc0310_start_settings_list[] = {
 
 static struct msm_camera_i2c_reg_setting gc0310_start_settings[] = {
   {
-    .reg_setting = (void *)gc0310_start_settings_list,
+    .reg_setting = gc0310_start_settings_list,
     .size = ARRAY_SIZE(gc0310_start_settings_list),
     .addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
     .data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -463,7 +463,7 @@ static struct msm_camera_i2c_reg_array gc0310_stop_settings_list[] = {
 
 static struct msm_camera_i2c_reg_setting gc0310_stop_settings[] = {
   {
-    .reg_setting = (void *)gc0310_stop_settings_list,
+    .reg_setting = gc0310_stop_settings_list,
     .size = ARRAY_SIZE(gc0310_stop_settings_list),
     .addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
     .data_type = MSM_CAMERA_I2C_BYTE_DATA,
@@ -725,7 +725,7 @@ int32_t gc0310_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			break;
 		}
 
-		conf_array.reg_setting = (void *)reg_setting;
+		conf_array.reg_setting = reg_setting;
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write_table(
 			s_ctrl->sensor_i2c_client, &conf_array);
 		kfree(reg_setting);
@@ -760,7 +760,7 @@ int32_t gc0310_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			break;
 		}
 
-		conf_array.reg_setting = (void *)reg_setting;
+		conf_array.reg_setting = reg_setting;
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
 			i2c_write_seq_table(s_ctrl->sensor_i2c_client,
 			&conf_array);
@@ -1045,7 +1045,7 @@ int32_t gc0310_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 			break;
 		}
 
-		conf_array.reg_setting = (void *)reg_setting;
+		conf_array.reg_setting = reg_setting;
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write_table(
 			s_ctrl->sensor_i2c_client, &conf_array);
 		kfree(reg_setting);
@@ -1080,7 +1080,7 @@ int32_t gc0310_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 			break;
 		}
 
-		conf_array.reg_setting = (void *)reg_setting;
+		conf_array.reg_setting = reg_setting;
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
 			i2c_write_seq_table(s_ctrl->sensor_i2c_client,
 			&conf_array);

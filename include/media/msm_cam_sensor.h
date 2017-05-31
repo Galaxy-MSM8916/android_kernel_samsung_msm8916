@@ -527,7 +527,11 @@ struct msm_camera_i2c_burst_reg_array {
 };
 
 struct msm_camera_i2c_reg_setting {
+#if defined(CONFIG_SEC_GTEL_PROJECT) || defined(CONFIG_SEC_GTES_PROJECT)
 	void *reg_setting;
+#else
+	struct msm_camera_i2c_reg_array *reg_setting;
+#endif
 	uint16_t size;
 	enum msm_camera_i2c_reg_addr_type addr_type;
 	enum msm_camera_i2c_data_type data_type;
