@@ -26,8 +26,8 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
-#include <soc/qcom/camera2.h>
-#include <media/msm_cam_sensor.h>
+#include "../include/soc/qcom/camera2.h"
+#include "../include/media/msm_cam_sensor.h"
 #include <media/v4l2-subdev.h>
 #include "msm_camera_i2c.h"
 #include "msm_camera_dt_util.h"

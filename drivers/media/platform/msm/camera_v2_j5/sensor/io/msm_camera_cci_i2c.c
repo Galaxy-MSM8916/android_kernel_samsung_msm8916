@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  */
 
-#include <soc/qcom/camera2.h>
+#include "../../include/soc/qcom/camera2.h"
 #include "msm_camera_i2c.h"
 #include "msm_cci.h"
 

@@ -19,6 +19,8 @@
 #include "msm_cci.h"
 #if defined(CONFIG_SR544)
 #include "msm_otp_sr544.h"
+#elif defined(CONFIG_SR552)
+#include "msm_otp_sr552.h"
 #else
 #include "msm_otp_s5k5e3yx.h"
 #endif
@@ -163,7 +165,7 @@ static int msm_eeprom_power_down(struct msm_eeprom_ctrl_t *e_ctrl)
 		e_ctrl->eeprom_device_type, &e_ctrl->i2c_client);
 }
 
-#if defined(CONFIG_SR544)
+#if defined(CONFIG_SR544) || defined(CONFIG_SR552)
 static int prepare_read_write_data(struct msm_eeprom_ctrl_t *e_ctrl, uint8_t addr_h, uint8_t addr_l, enum msm_camera_i2c_data_type data_type, int isWrite)
 {
 	int rc=0;
@@ -238,11 +240,11 @@ static int eeprom_config_read_data(struct msm_eeprom_ctrl_t *e_ctrl,
 	int rc = 0;
 	uint16_t data;
 	int i;
-#if defined(CONFIG_SR544)
+#if defined(CONFIG_SR544) || defined(CONFIG_SR552)
 	uint8_t addr_h, addr_l;
 #endif
 
-#if defined(CONFIG_SR544)
+#if defined(CONFIG_SR544) || defined(CONFIG_SR552)
 	return rc;
 #endif
 
@@ -258,7 +260,7 @@ static int eeprom_config_read_data(struct msm_eeprom_ctrl_t *e_ctrl,
 		goto FREE;
 	}
 
-#if defined(CONFIG_SR544)
+#if defined(CONFIG_SR544) || defined(CONFIG_SR552)
 	addr_h = ((cdata->cfg.read_data.addr)>>8)&0xFF;
 	addr_l = cdata->cfg.read_data.addr&0xFF;
 
@@ -279,7 +281,7 @@ static int eeprom_config_read_data(struct msm_eeprom_ctrl_t *e_ctrl,
 	for(i=0; i<cdata->cfg.read_data.num_bytes; i++) {
 		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
 				&(e_ctrl->i2c_client),
-#if defined(CONFIG_SR544)
+#if defined(CONFIG_SR544) || defined(CONFIG_SR552)
 				r_otp_rdata,
 #else
 				cdata->cfg.read_data.addr+i,
@@ -292,7 +294,7 @@ static int eeprom_config_read_data(struct msm_eeprom_ctrl_t *e_ctrl,
 		buf[i]=data;
 	}
 
-#if !defined(CONFIG_SR544)
+#if !defined(CONFIG_SR544) && !defined(CONFIG_SR552)
 	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write_table(
 			&(e_ctrl->i2c_client), &finish_read_otp);
 	if (rc < 0) {
@@ -350,7 +352,7 @@ static int eeprom_config_read_compressed_data(struct msm_eeprom_ctrl_t *e_ctrl,
 	uint32_t decomp_size;
 	uint16_t data;
 	int i;
-#if defined(CONFIG_SR544)
+#if defined(CONFIG_SR544) || defined(CONFIG_SR552)
 	uint8_t addr_h, addr_l;
 #endif
 
@@ -366,7 +368,7 @@ static int eeprom_config_read_compressed_data(struct msm_eeprom_ctrl_t *e_ctrl,
 		goto FREE;
 	}
 
-#if defined(CONFIG_SR544)
+#if defined(CONFIG_SR544) || defined(CONFIG_SR552)
 	addr_h = ((cdata->cfg.read_data.addr)>>8)&0xFF;
 	addr_l = cdata->cfg.read_data.addr&0xFF;
 
@@ -387,7 +389,7 @@ static int eeprom_config_read_compressed_data(struct msm_eeprom_ctrl_t *e_ctrl,
 	for(i=0; i<cdata->cfg.read_data.comp_size; i++) {
 		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
 				&(e_ctrl->i2c_client),
-#if defined(CONFIG_SR544)
+#if defined(CONFIG_SR544) || defined(CONFIG_SR552)
 				r_otp_rdata,
 #else
 				cdata->cfg.read_data.addr+i,
@@ -400,7 +402,7 @@ static int eeprom_config_read_compressed_data(struct msm_eeprom_ctrl_t *e_ctrl,
 		buf_comp[i]=data;
 	}
 
-#if !defined(CONFIG_SR544)
+#if !defined(CONFIG_SR544) && !defined(CONFIG_SR552)
 	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write_table(
 			&(e_ctrl->i2c_client), &finish_read_otp);
 	if (rc < 0) {
@@ -458,7 +460,7 @@ static int eeprom_config_write_data(struct msm_eeprom_ctrl_t *e_ctrl,
 	uint32_t compressed_size = 0;
 	uint32_t crc = ~0UL;
 	int i;
-#if defined(CONFIG_SR544)
+#if defined(CONFIG_SR544) || defined(CONFIG_SR552)
 	uint8_t addr_h, addr_l;
 #endif
 
@@ -508,7 +510,7 @@ static int eeprom_config_write_data(struct msm_eeprom_ctrl_t *e_ctrl,
 		goto FREE;
 	}
 
-#if defined(CONFIG_SR544)
+#if defined(CONFIG_SR544) || defined(CONFIG_SR552)
 	if (cdata->cfg.write_data.compress) {
 
 		addr_h = ((cdata->cfg.write_data.addr)>>8)&0xFF;
@@ -1040,6 +1042,148 @@ static int read_eeprom_memory(struct msm_eeprom_ctrl_t *e_ctrl,
 	}
 	return rc;
 }
+#elif defined(CONFIG_SR552)
+static int read_eeprom_memory(struct msm_eeprom_ctrl_t *e_ctrl,
+			      struct msm_eeprom_memory_block_t *block)
+{
+	int rc = 0;
+	struct msm_eeprom_memory_map_t *emap = block->map;
+	struct msm_eeprom_board_info *eb_info;
+	uint8_t *memptr = block->mapdata;
+	enum msm_camera_i2c_data_type data_type = MSM_CAMERA_I2C_BYTE_DATA;
+	uint16_t OTP_Bank=0, OTP_Data=0;
+	int i, j;
+	uint16_t start_addr;
+	uint16_t version;
+
+	if (!e_ctrl) {
+		pr_err("%s e_ctrl is NULL", __func__);
+		return -EINVAL;
+	}
+
+	eb_info = e_ctrl->eboard_info;
+
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write_table(
+			&(e_ctrl->i2c_client), &sr552_init);
+	if (rc < 0) {
+		pr_err("%s:(%d) write failed\n", __func__, __LINE__);
+		return rc;
+	}
+
+	rc = prepare_read_write_data(e_ctrl, 0x00, 0x20, MSM_CAMERA_I2C_BYTE_DATA, 0);//version
+	if (rc < 0) {
+		pr_err("%s: failed to prepare read/write on otp\n", __func__);
+		return rc;
+	}
+
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+			&(e_ctrl->i2c_client), r_otp_rdata,
+			&version, data_type);
+	if (rc < 0) {
+		pr_err("%s:(%d) read failed\n", __func__, __LINE__);
+		return rc;
+	}
+	pr_err("%s:(%d) cra_version(0x%02X)",__func__,__LINE__,version);
+
+	rc = prepare_read_write_data(e_ctrl, 0x06, 0x80, MSM_CAMERA_I2C_BYTE_DATA, 0);//bank
+	if (rc < 0) {
+		pr_err("%s: failed to prepare read/write on otp\n", __func__);
+		return rc;
+	}
+
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+			&(e_ctrl->i2c_client), r_otp_rdata,
+			&OTP_Bank, data_type);
+	if (rc < 0) {
+		pr_err("%s:(%d) read failed\n", __func__, __LINE__);
+		return rc;
+	}
+
+	pr_err("%s: read OTP_Bank: %d\n", __func__, OTP_Bank);
+
+	switch(OTP_Bank) {
+	case 0:
+	case 1:
+		start_addr = 0x0690;
+		break;
+	case 3:
+		start_addr = 0x0EE0;
+		break;
+	case 7:
+		start_addr = 0x1730;
+		break;
+	default:
+		pr_err("%s: Bank error : Bank(%d)\n", __func__, OTP_Bank);
+		return -EINVAL;
+	}
+
+	for (j = 0; j < block->num_map; j++) {
+		if (emap[j].saddr.addr) {
+			eb_info->i2c_slaveaddr = emap[j].saddr.addr;
+			e_ctrl->i2c_client.cci_client->sid =
+					eb_info->i2c_slaveaddr >> 1;
+			pr_err("qcom,slave-addr = 0x%X\n",
+				eb_info->i2c_slaveaddr);
+		}
+	}
+
+	pr_err("%s:(%d) e_ctrl->cal_data.num_data : %x\n", __func__, __LINE__, e_ctrl->cal_data.num_data);
+
+	if (e_ctrl->cal_data.num_data)
+	{
+		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+				&(e_ctrl->i2c_client), r_otp_addr_h,
+				((start_addr & 0xFF00) >> 8), data_type);
+		if (rc < 0) {
+			pr_err("%s:(%d) write failed\n", __func__, __LINE__);
+			return rc;
+		}
+
+		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+				&(e_ctrl->i2c_client), r_otp_addr_l,
+				(start_addr & 0x00FF), data_type);
+		if (rc < 0) {
+			pr_err("%s:(%d) write failed\n", __func__, __LINE__);
+			return rc;
+		}
+
+		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+				&(e_ctrl->i2c_client), r_otp_cmd,
+				0x01, data_type);
+		if (rc < 0) {
+			pr_err("%s:(%d) write failed\n", __func__, __LINE__);
+			return rc;
+		}
+
+		for (i=0; i<e_ctrl->cal_data.num_data; i++) {
+			rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+					&(e_ctrl->i2c_client), r_otp_rdata,
+					&OTP_Data, data_type);
+			if (rc < 0) {
+				pr_err("%s:(%d) read failed\n", __func__, __LINE__);
+				return rc;
+			}
+			memptr[i] = OTP_Data;
+		}
+#ifdef EEPROM_MMAP_DEBUG
+		printk("OTP data : ");
+		for (i=0; i<e_ctrl->cal_data.num_data; i++) {
+			printk("[%d:%x], ", i, memptr[i]);
+			if(i%16 == 15)
+				printk("\n");
+		}
+		printk("\n");
+#endif
+
+		// copy CRA information which is read from OTP 0x20 to cal data [0x50] address.
+		memptr[0x50] = version & 0xFF;
+		pr_err("%s: %d version = 0x%02X, memptr[0x50] = 0x%02X\n", __func__, __LINE__ , version, memptr[0x50]);
+
+		memptr += e_ctrl->cal_data.num_data;
+		pr_err("%s: %d   memptr after addition = %p\n", __func__, __LINE__ , memptr);
+	}
+	return rc;
+}
 #else
 static int read_eeprom_memory(struct msm_eeprom_ctrl_t *e_ctrl,
 			      struct msm_eeprom_memory_block_t *block)
@@ -1212,7 +1356,7 @@ static int msm_eeprom_parse_memory_map(struct device_node *of,
 
 	total_size = 0;
 
-#if defined(CONFIG_SR544)
+#if defined(CONFIG_SR544) || defined(CONFIG_SR552)
 	// if total-size is defined at dtsi file.
 	// set num_data as total-size (refer dtsi file of GTA)
 	snprintf(property, PROPERTY_MAXSIZE, "qcom,total-size");
@@ -1908,6 +2052,7 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	cci_client->sid = eb_info->i2c_slaveaddr >> 1;
 	cci_client->retries = 3;
 	cci_client->id_map = 0;
+	cci_client->i2c_freq_mode = I2C_FAST_MODE;
 
 	rc = of_property_read_string(of_node, "qcom,eeprom-name",
 		&eb_info->eeprom_name);

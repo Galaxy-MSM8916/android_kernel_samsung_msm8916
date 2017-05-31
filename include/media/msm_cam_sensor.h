@@ -54,20 +54,7 @@
 #define MAX_NUMBER_OF_STEPS 47
 
 #define MAX_LED_TRIGGERS        3
-
-#define EXT_CAM_SENSOR_MODE     7
-#define EXT_CAM_EXIF            9
-//Focus related enums
-#define EXT_CAM_AF              11
-#define EXT_CAM_FOCUS           12
-#define EXT_CAM_SET_TOUCHAF_POS	13
-#define EXT_CAM_SET_AF_STATUS	14
-#define EXT_CAM_GET_AF_STATUS	15
-#define EXT_CAM_GET_AF_RESULT	16
-#define EXT_CAM_SET_AF_STOP     17
-#define EXT_CAM_FLASH_MODE      18
-#define EXT_CAM_SET_FLASH       19
-#define EXT_CAM_VT_MODE         20
+#define MSM_OIS_VER_SIZE       (6)
 
 
 //************************************* Native functionalities for YUV sensor added
@@ -274,9 +261,9 @@ enum msm_camera_vreg_name_t {
 	CAM_VDIG,
 	CAM_VIO,
 	CAM_VANA,
-	CAM_VANA_VT,
-	CAM_VIO_VT,
 	CAM_VAF,
+	CAM_VDDOIS,/*OIS_VDD_2P8*/
+	CAM_VMOIS,/*OIS_VM_2P8*/
 	CAM_VREG_MAX,
 };
 
@@ -357,6 +344,9 @@ enum sensor_sub_module_t {
 	SUB_MODULE_CSID_3D,
 	SUB_MODULE_CSIPHY,
 	SUB_MODULE_CSIPHY_3D,
+#if defined(CONFIG_OIS)
+	SUB_MODULE_OIS,
+#endif
 	SUB_MODULE_MAX,
 };
 
@@ -420,6 +410,7 @@ enum csid_cfg_type_t {
 	CSID_INIT,
 	CSID_CFG,
 	CSID_RELEASE,
+	CSID_BOOSTOFF,
 };
 
 enum csiphy_cfg_type_t {
@@ -512,10 +503,7 @@ enum i2c_freq_mode_t {
 struct msm_camera_i2c_reg_array {
 	uint16_t reg_addr;
 	uint16_t reg_data;
-	uint8_t *reg_burst_data;
-#if defined(CONFIG_SEC_GTEL_PROJECT) || defined(CONFIG_SEC_GTES_PROJECT)
 	uint8_t  data_type;
-#endif
 	uint32_t delay;
 };
 
@@ -527,11 +515,8 @@ struct msm_camera_i2c_burst_reg_array {
 };
 
 struct msm_camera_i2c_reg_setting {
-#if defined(CONFIG_SEC_GTEL_PROJECT) || defined(CONFIG_SEC_GTES_PROJECT)
 	void *reg_setting;
-#else
-	struct msm_camera_i2c_reg_array *reg_setting;
-#endif
+	  // KK ML ONLY struct msm_camera_i2c_reg_array *reg_setting;
 	uint16_t size;
 	enum msm_camera_i2c_reg_addr_type addr_type;
 	enum msm_camera_i2c_data_type data_type;
@@ -678,6 +663,22 @@ struct csiphy_cfg_data {
 	} cfg;
 };
 
+struct msm_ois_cal_info_t {
+	char  cal_ver[MSM_OIS_VER_SIZE+1];
+	uint16_t  cal_checksum_rumba;
+	uint16_t  cal_checksum_line;
+	uint8_t  is_different_crc;
+};
+struct msm_ois_cfg_data {
+	int cfgtype;
+	uint16_t reg_addr;
+	uint16_t read_data;
+	uint16_t write_data;
+	uint16_t set_mode_value;
+	uint8_t  *version;
+	struct msm_ois_cal_info_t *ois_cal_info;
+};
+
 enum eeprom_cfg_type_t {
 	CFG_EEPROM_GET_INFO,
 	CFG_EEPROM_GET_CAL_DATA,
@@ -728,7 +729,7 @@ struct msm_eeprom_cfg_data {
 	enum eeprom_cfg_type_t cfgtype;
 	uint8_t is_supported;
 	union {
-		char eeprom_name[MAX_SENSOR_NAME];
+		char eeprom_name[MAX_EEPROM_NAME];
 		struct eeprom_get_t get_data;
 		struct eeprom_read_t read_data;
 		struct eeprom_write_t write_data;
@@ -736,6 +737,100 @@ struct msm_eeprom_cfg_data {
 		struct eeprom_get_cmm_t get_cmm_data;
 	} cfg;
 };
+
+#ifdef CONFIG_COMPAT
+struct msm_sensor_power_setting32 {
+	enum msm_sensor_power_seq_type_t seq_type;
+	uint16_t seq_val;
+	compat_uint_t config_val;
+	uint16_t delay;
+	compat_uptr_t data[10];
+};
+
+struct msm_sensor_power_setting_array32 {
+	struct msm_sensor_power_setting32 power_setting_a[MAX_POWER_CONFIG];
+	compat_uptr_t power_setting;
+	uint16_t size;
+	struct msm_sensor_power_setting32
+		power_down_setting_a[MAX_POWER_CONFIG];
+	compat_uptr_t power_down_setting;
+	uint16_t size_down;
+};
+
+struct msm_camera_sensor_slave_info32 {
+	char sensor_name[32];
+	char eeprom_name[32];
+	char actuator_name[32];
+	char ois_name[32];
+	char flash_name[32];
+	enum msm_sensor_camera_id_t camera_id;
+	uint16_t slave_addr;
+	enum i2c_freq_mode_t i2c_freq_mode;
+	enum msm_camera_i2c_reg_addr_type addr_type;
+	struct msm_sensor_id_info_t sensor_id_info;
+	struct msm_sensor_power_setting_array32 power_setting_array;
+	uint8_t  is_init_params_valid;
+	struct msm_sensor_init_params sensor_init_params;
+	uint8_t is_flash_supported;
+	enum msm_sensor_output_format_t output_format;
+};
+
+struct msm_camera_csid_lut_params32 {
+	uint8_t num_cid;
+	struct msm_camera_csid_vc_cfg vc_cfg_a[MAX_CID];
+	compat_uptr_t vc_cfg[MAX_CID];
+};
+
+struct msm_camera_csid_params32 {
+	uint8_t lane_cnt;
+	uint16_t lane_assign;
+	uint8_t phy_sel;
+	uint32_t csi_clk;
+	struct msm_camera_csid_lut_params32 lut_params;
+};
+
+struct msm_camera_csi2_params32 {
+	struct msm_camera_csid_params32 csid_params;
+	struct msm_camera_csiphy_params csiphy_params;
+	uint8_t csi_clk_scale_enable;
+};
+
+struct csid_cfg_data32 {
+	enum csid_cfg_type_t cfgtype;
+	union {
+		uint32_t csid_version;
+		compat_uptr_t csid_params;
+	} cfg;
+};
+
+struct eeprom_read_t32 {
+	compat_uptr_t dbuffer;
+	uint32_t num_bytes;
+};
+
+struct eeprom_write_t32 {
+	compat_uptr_t dbuffer;
+	uint32_t num_bytes;
+};
+
+struct msm_eeprom_cfg_data32 {
+	enum eeprom_cfg_type_t cfgtype;
+	uint8_t is_supported;
+	union {
+		char eeprom_name[MAX_EEPROM_NAME];
+		struct eeprom_get_t get_data;
+		struct eeprom_read_t32 read_data;
+		struct eeprom_write_t32 write_data;
+	} cfg;
+};
+
+struct msm_camera_i2c_seq_reg_setting32 {
+	compat_uptr_t reg_setting;
+	uint16_t size;
+	enum msm_camera_i2c_reg_addr_type addr_type;
+	uint16_t delay;
+};
+#endif
 
 enum msm_sensor_cfg_type_t {
 	CFG_SET_SLAVE_INFO,
@@ -766,6 +861,17 @@ enum msm_sensor_cfg_type_t {
 	CFG_SET_AUTOFOCUS,
 	CFG_CANCEL_AUTOFOCUS,
 	CFG_SET_STREAM_TYPE,
+};
+
+enum msm_ois_cfg_type_t {
+	CFG_OIS_POWERDOWN,
+	CFG_OIS_POWERUP,
+	CFG_OIS_SET_MODE,
+	CFG_OIS_READ_MODULE_VER,
+	CFG_OIS_READ_PHONE_VER,
+	CFG_OIS_READ_CAL_INFO,
+	CFG_OIS_GET_FW_STATUS,
+	CFG_OIS_FW_UPDATE,
 };
 
 enum msm_actuator_cfg_type_t {
@@ -896,9 +1002,7 @@ struct msm_actuator_set_position_t {
 
 struct msm_actuator_cfg_data {
 	int cfgtype;
-#if defined(CONFIG_SEC_GTEL_PROJECT) || defined(CONFIG_SEC_GTES_PROJECT)
 	int sw_landing_type;
-#endif
 	uint8_t is_af_supported;
 	union {
 		struct msm_actuator_move_params_t move;
@@ -939,6 +1043,7 @@ enum msm_camera_led_config_t {
 	MSM_CAMERA_LED_HIGH,
 	MSM_CAMERA_LED_INIT,
 	MSM_CAMERA_LED_RELEASE,
+	MSM_CAMERA_LED_PREFLASH,
 };
 
 struct msm_camera_led_cfg_t {
@@ -1013,6 +1118,10 @@ enum msm_cam_flicker_type {
 
 #define VIDIOC_MSM_SENSOR_NATIVE_CMD \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 11, struct ioctl_native_cmd)
+
+#define VIDIOC_MSM_OIS_IO_CFG \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 12, struct msm_ois_cfg_data)
+
 	
 #define MSM_V4L2_PIX_FMT_META v4l2_fourcc('M', 'E', 'T', 'A') /* META */
 

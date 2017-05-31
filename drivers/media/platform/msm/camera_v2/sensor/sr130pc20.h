@@ -30,5 +30,7 @@ int32_t sr130pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 int32_t sr130pc20_sensor_native_control(struct msm_sensor_ctrl_t *s_ctrl,
 	void __user *argp);
 void sr130pc20_set_default_settings(void);
-int sr130pc20_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl);
+int sr130pc20_sensor_match_id(struct msm_camera_i2c_client *sensor_i2c_client,
+	struct msm_camera_slave_info *slave_info,
+	const char *sensor_name);
 #endif	//__SR130PC20_H__

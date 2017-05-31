@@ -224,12 +224,7 @@ static int32_t msm_cci_data_queue(struct cci_device *cci_dev,
 			cmd_size, i2c_cmd->reg_addr, i2c_cmd->reg_data);
 		delay = i2c_cmd->delay;
 		data[i++] = CCI_I2C_WRITE_CMD;
-		if (i2c_msg->data_type == MSM_CAMERA_I2C_BURST_DATA) {
-			if (i2c_cmd->reg_addr) {
-				reg_addr = i2c_cmd->reg_addr;
-			}
-		}
-		else {
+		if (i2c_cmd->reg_addr) {
 			reg_addr = i2c_cmd->reg_addr;
 		}
 		/* either byte or word addr */

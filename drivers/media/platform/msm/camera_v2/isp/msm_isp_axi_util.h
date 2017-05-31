@@ -50,7 +50,7 @@ void msm_isp_axi_cfg_update(struct vfe_device *vfe_dev);
 void msm_isp_axi_stream_update(struct vfe_device *vfe_dev);
 
 void msm_isp_update_framedrop_reg(struct vfe_device *vfe_dev);
-void msm_isp_sof_notify(struct vfe_device *vfe_dev,
+void msm_isp_notify(struct vfe_device *vfe_dev, uint32_t event_type,
 	enum msm_vfe_input_src frame_src, struct msm_isp_timestamp *ts);
 void msm_isp_process_axi_irq(struct vfe_device *vfe_dev,
 	uint32_t irq_status0, uint32_t irq_status1,

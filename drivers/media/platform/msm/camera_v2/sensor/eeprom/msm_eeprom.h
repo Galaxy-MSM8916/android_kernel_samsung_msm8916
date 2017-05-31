@@ -30,6 +30,18 @@ struct msm_eeprom_ctrl_t;
 #define PROPERTY_MAXSIZE 32
 #define EEPROM_FW_VERSION_OFFSET 48
 
+#if defined(CONFIG_SEC_J5X_PROJECT)
+#define EEPROM_CRC_DATA_BLOCKS_NUM		4
+
+struct msm_eeprom_crc_check
+{
+	u32 data_addr;
+	u32 data_size;
+	u32 check_range_start;
+	u32 check_range_end;
+};
+#endif
+
 struct msm_eeprom_ctrl_t {
 	struct platform_device *pdev;
 	struct mutex *eeprom_mutex;
@@ -42,9 +54,11 @@ struct msm_eeprom_ctrl_t {
 
 	struct msm_camera_i2c_client i2c_client;
 	struct msm_eeprom_memory_block_t cal_data;
-	uint8_t is_supported;
+	uint16_t is_supported;
 	struct msm_eeprom_board_info *eboard_info;
 	uint32_t subdev_id;
+	int pvdd_en;
+	int pvdd_is_en;
 };
 
 #endif
