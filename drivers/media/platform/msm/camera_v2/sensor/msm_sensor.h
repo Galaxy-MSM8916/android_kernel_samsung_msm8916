@@ -110,8 +110,4 @@ int32_t msm_sensor_get_dt_gpio_set_tbl(struct device_node *of_node,
 int32_t msm_sensor_init_gpio_pin_tbl(struct device_node *of_node,
 	struct msm_camera_gpio_conf *gconf, uint16_t *gpio_array,
 	uint16_t gpio_array_size);
-#if defined(CONFIG_FLED_LM3632) || defined(CONFIG_FLED_KTD2692)
-int32_t msm_sensor_flash_native_control(struct msm_sensor_ctrl_t *s_ctrl,
-	void __user *argp);
-#endif
 #endif
