@@ -182,8 +182,6 @@ source "drivers/irqchip/Kconfig"
 
 source "drivers/ipack/Kconfig"
 
-source "drivers/gud/Kconfig"
-
 source "drivers/reset/Kconfig"
 
 source "drivers/coresight/Kconfig"
@@ -202,6 +200,6 @@ source "drivers/soc/Kconfig"
 
 source "drivers/firmware/Kconfig"
 
-source "drivers/gator/Kconfig"
+source "drivers/gator/Kconfig"r
 
 endmenu
