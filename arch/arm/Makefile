@@ -256,6 +256,7 @@ core-$(CONFIG_VFP)		+= arch/arm/vfp/
 core-$(CONFIG_XEN)		+= arch/arm/xen/
 core-$(CONFIG_KVM_ARM_HOST) 	+= arch/arm/kvm/
 core-$(CONFIG_INTELLI_PLUG)	+= arch/arm/hotplug/intelliplug/
+core-$(CONFIG_ALUCARD_HOTPLUG)	+= arch/arm/hotplug/alucard/
 
 # If we have a machine-specific directory, then include it in the build.
 core-y				+= arch/arm/kernel/ arch/arm/mm/ arch/arm/common/

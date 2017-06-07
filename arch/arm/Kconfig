@@ -1412,6 +1412,8 @@ endmenu
 
 source "arch/arm/common/Kconfig"
 
+source "arch/arm/hotplug/alucard/Kconfig"
+
 source "arch/arm/hotplug/intelliplug/Kconfig"
 
 menu "Bus support"
