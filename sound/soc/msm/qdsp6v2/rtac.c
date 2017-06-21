@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -75,6 +75,7 @@ static struct rtac_apr_data	rtac_voice_apr_data[RTAC_VOICE_MODES];
 struct rtac_popp_data {
 	uint32_t	popp;
 	uint32_t	popp_topology;
+	uint32_t	app_type;
 };
 
 struct rtac_adm_data {
@@ -376,7 +377,7 @@ done:
 
 
 /* ADM Info */
-void add_popp(u32 dev_idx, u32 port_id, u32 popp_id)
+void add_popp(u32 dev_idx, u32 port_id, u32 popp_id, u32 app_type)
 {
 	u32 i = 0;
 
@@ -392,8 +393,11 @@ void add_popp(u32 dev_idx, u32 port_id, u32 popp_id)
 	rtac_adm_data.device[dev_idx].popp[
 		rtac_adm_data.device[dev_idx].num_of_popp].popp = popp_id;
 	rtac_adm_data.device[dev_idx].popp[
-		rtac_adm_data.device[dev_idx].num_of_popp++].popp_topology =
+		rtac_adm_data.device[dev_idx].num_of_popp].popp_topology =
 		q6asm_get_asm_topology();
+	rtac_adm_data.device[dev_idx].popp[
+		rtac_adm_data.device[dev_idx].num_of_popp++].app_type =
+		app_type;
 done:
 	return;
 }
@@ -416,7 +420,7 @@ void rtac_add_adm_device(u32 port_id, u32 copp_id, u32 path_id, u32 popp_id,
 		for (; i < rtac_adm_data.num_of_dev; i++) {
 			if (rtac_adm_data.device[i].afe_port == port_id &&
 			    rtac_adm_data.device[i].copp == copp_id) {
-				add_popp(i, port_id, popp_id);
+				add_popp(i, port_id, popp_id, app_type);
 				goto done;
 			}
 			if (rtac_adm_data.device[i].num_of_popp ==
@@ -439,8 +443,10 @@ void rtac_add_adm_device(u32 port_id, u32 copp_id, u32 path_id, u32 popp_id,
 	rtac_adm_data.device[i].popp[
 		rtac_adm_data.device[i].num_of_popp].popp = popp_id;
 	rtac_adm_data.device[i].popp[
-		rtac_adm_data.device[i].num_of_popp++].popp_topology =
+		rtac_adm_data.device[i].num_of_popp].popp_topology =
 		q6asm_get_asm_topology();
+	rtac_adm_data.device[i].popp[
+		rtac_adm_data.device[i].num_of_popp++].app_type = app_type;
 done:
 	mutex_unlock(&rtac_adm_mutex);
 	return;
@@ -469,10 +475,15 @@ static void shift_popp(u32 copp_idx, u32 popp_idx)
 			&rtac_adm_data.device[copp_idx].popp[popp_idx + 1].
 			popp_topology,
 			sizeof(uint32_t));
+		memcpy(&rtac_adm_data.device[copp_idx].popp[popp_idx].app_type,
+			&rtac_adm_data.device[copp_idx].popp[popp_idx + 1].
+			app_type, sizeof(uint32_t));
 		memset(&rtac_adm_data.device[copp_idx].popp[popp_idx + 1].
 			popp, 0, sizeof(uint32_t));
 		memset(&rtac_adm_data.device[copp_idx].popp[popp_idx + 1].
 			popp_topology, 0, sizeof(uint32_t));
+		memset(&rtac_adm_data.device[copp_idx].popp[popp_idx + 1].
+			app_type, 0, sizeof(uint32_t));
 	}
 }
 
@@ -514,6 +525,9 @@ void rtac_remove_popp_from_adm_devices(u32 popp_id)
 				rtac_adm_data.device[i].popp[j].popp = 0;
 				rtac_adm_data.device[i].popp[j].
 					popp_topology = 0;
+				rtac_adm_data.device[i].popp[j].
+					app_type = 0;
+
 				rtac_adm_data.device[i].num_of_popp--;
 				shift_popp(i, j);
 			}
