@@ -59,7 +59,7 @@
 		battery,recharge_check_count = <2>;
 		battery,recharge_condition_type = <4>; /* SEC_BATTERY_RECHARGE_CONDITION_VCELL */
 		battery,recharge_condition_soc = <98>;
-		battery,recharge_condition_vcell = <4350>;
+		battery,recharge_condition_vcell = <4360>;
 
 		battery,charging_total_time = <21600>;
 		battery,recharging_total_time = <5400>;
