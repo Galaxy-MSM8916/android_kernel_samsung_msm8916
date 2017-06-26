@@ -40,7 +40,11 @@ endif # SEC_FORTUNA_PROJECT
 if MACH_J5LTE_CHN_CMCC
 source "drivers/media/platform/msm/camera_v2_j5/Kconfig"
 endif # SEC_J5_PROJECT
-if !(SEC_FORTUNA_PROJECT || MACH_J5LTE_CHN_CMCC)
+if SEC_J7_PROJECT
+source "drivers/media/platform/msm/camera_v2_j7lte/Kconfig"
+endif # SEC_J7_PROJECT
+
+if !(SEC_FORTUNA_PROJECT || MACH_J5LTE_CHN_CMCC || SEC_J7_PROJECT)
 source "drivers/media/platform/msm/camera_v2/Kconfig"
 endif # SEC_FORTUNA_PROJECT
 endif # MSMB_CAMERA
