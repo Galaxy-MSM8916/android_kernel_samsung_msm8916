@@ -224,7 +224,7 @@
 			label = "sdc2-clk";
 			sdc2_clk_on: clk_on {
 				bias-disable; /* NO pull */
-				drive-strength = <10>; /* 10 MA */
+				drive-strength = <16>; /* 16 MA */
 			};
 			sdc2_clk_off: clk_off {
 				bias-disable; /* NO pull */
@@ -238,7 +238,7 @@
 			label = "sdc2-cmd";
 			sdc2_cmd_on: cmd_on {
 				bias-pull-up; /* pull up */
-				drive-strength = <8>; /* 8 MA */
+				drive-strength = <10>; /* 10 MA */
 			};
 			sdc2_cmd_off: cmd_off {
 				bias-pull-up; /* pull up */
@@ -252,7 +252,7 @@
 			label = "sdc2-data";
 			sdc2_data_on: data_on {
 				bias-pull-up; /* pull up */
-				drive-strength = <8>; /* 8 MA */
+				drive-strength = <10>; /* 10 MA */
 			};
 			sdc2_data_off: data_off {
 				bias-pull-up; /* pull up */
@@ -277,23 +277,6 @@
 			};
 		};
 
-		pmx_i2c_21 {
-			qcom,pins = <&gp 10>, <&gp 11>; /* SDA, SCL */
-			qcom,num-grp-pins = <2>;
-			qcom,pin-func = <2>;
-			label = "pmx_i2c_21";
-
-			i2c_21_active: i2c_21_active {
-				drive-strength = <4>;
-				bias-disable = <0>; /* No PULL */
-			};
-
-			i2c_21_sleep: i2c_21_sleep {
-				drive-strength = <4>;
-				bias-disable = <0>; /* No PULL */
-			};
-		};
-
 		pmx_i2c_4 {
 			qcom,pins = <&gp 14>, <&gp 15>; /* SDA, SCL */
 			qcom,num-grp-pins = <2>;
@@ -308,6 +291,23 @@
 			i2c_4_sleep: i2c_4_sleep {
 				drive-strength = <2>;
 				bias-disable;
+			};
+		};
+
+		pmx_i2c_21 {
+			qcom,pins = <&gp 10>, <&gp 11>; /* SDA, SCL */
+			qcom,num-grp-pins = <2>;
+			qcom,pin-func = <2>;
+			label = "pmx_i2c_21";
+
+			i2c_21_active: i2c_21_active {
+				drive-strength = <4>;
+				bias-disable = <0>; /* No PULL */
+			};
+
+			i2c_21_sleep: i2c_21_sleep {
+				drive-strength = <4>;
+				bias-disable = <0>; /* No PULL */
 			};
 		};
 
@@ -496,7 +496,7 @@
                 };
 
 		tlmm_gpio_key {
-			qcom,pins = <&gp 107>,<&gp 109>;
+			qcom,pins = <&gp 107>, <&gp 109>;
 			qcom,pin-func = <0>;
 			qcom,num-grp-pins = <2>;
 			label = "tlmm_gpio_key";
@@ -507,6 +507,21 @@
 			gpio_key_suspend: gpio_key_suspend {
 				drive-strength = <2>;
 				bias-pull-up;
+			};
+		};
+
+		pmx_hall_ic {
+			qcom,pins = <&gp 52>;
+			qcom,pin-func = <0>;
+			qcom,num-grp-pins = <1>;
+			label = "pmx_flip_cover";
+			hall_int_active: hall_int_active {
+				drive-strength = <2>;
+				bias-disable = <0>; /* No PULL */
+			};
+			hall_int_suspend: hall_int_suspend {
+				drive-strength = <2>;
+				bias-disable = <0>; /* No PULL */
 			};
 		};
 
@@ -557,70 +572,6 @@
 			};
 		};
 
-		tkey_en_gpio_active {
-			qcom,pins = <&gp 89>;
-			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <0>;
-			label = "tkey_en_gpio_active";
-			tkey_en_active: tkey_en_active {
-				drive-strength = <2>;
-				bias-disable;
-			};
-		};
-
-		tkey_en_gpio_suspend {
-			qcom,pins = <&gp 89>;
-			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <0>;
-			label = "tkey_en_gpio_suspend";
-			tkey_en_suspend: tkey_en_suspend {
-				drive-strength = <2>;
-				bias-disable;
-			};
-		};
-
-		tkey_i2c_gpio_active {
-                        qcom,pins = <&gp 6>, <&gp 7>;
-                        qcom,num-grp-pins = <2>;
-                        qcom,pin-func = <0>;
-                        label = "tkey_i2c_gpio_active";
-                        tkey_i2c_active: tkey_i2c_active {
-                                drive-strength = <2>;
-                                bias-disable = <0>; /* No PULL */
-                                input-enable;
-                        };
-                        tkey_i2c_suspend: tkey_i2c_suspend {
-                                drive-strength = <2>;
-                                bias-disable = <0>; /* No PULL */
-                                output-low;
-                        };
-                };
-
-		/* add pingrp for touchscreen */
-		pmx_tkey_int_active {
-			qcom,pins = <&gp 118>;
-			qcom,pin-func = <0>;
-			qcom,num-grp-pins = <1>;
-			label = "pmx_tkey_int_active";
-
-			tkey_int_active: tkey_int_active {
-				drive-strength = <16>;
-				bias-disable = <0>; /* No PULL */
-			};
-		};
-
-		pmx_tkey_int_suspend {
-			qcom,pins = <&gp 118>;
-			qcom,pin-func = <0>;
-			qcom,num-grp-pins = <1>;
-			label = "pmx_tkey_int_suspend";
-
-			tkey_int_suspend: tkey_int_suspend {
-				drive-strength = <2>;
-				bias-disable = <0>; /* No PULL */
-			};
-		};
-
 		pmx_ts_reset_active {
 			qcom,pins = <&gp 12>;
 			qcom,pin-func = <0>;
@@ -642,19 +593,6 @@
 			ts_reset_suspend: ts_reset_suspend {
 				drive-strength = <2>;
 				bias-pull-down;
-			};
-		};
-
-		/*Hall IC pingroup*/
-		pmx_hall_ic_pin {
-			qcom,pins = <&gp 112>;
-			qcom,pin-func = <0>;
-			qcom,num-grp-pins = <1>;
-			label = "pmx_hall_ic_pin";
-
-			hall_ic_pin: default {
-				drive-strength = <2>;
-				bias-disable;
 			};
 		};
 
@@ -806,8 +744,8 @@
 
 		ext-cdc-tlmm-lines {
 			qcom,pins = <&gp 116>, <&gp 112>, <&gp 117>,
-					<&gp 119>;
-			qcom,num-grp-pins = <4>;
+					<&gp 118>, <&gp 119>;
+			qcom,num-grp-pins = <5>;
 			qcom,pin-func = <1>;
 			label = "ext-cdc-tlmm-lines";
 			ext_cdc_tlmm_lines_act: tlmm_lines_on {
@@ -879,13 +817,14 @@
 			mdss_dsi_suspend: suspend {
 				drive-strength = <2>; /* 2 mA */
 				bias-pull-down; /* pull down */
+				output-low;
 			};
 		};
 
 		pmx_bl: pmx_bl {
 			label = "bl-pins";
-			qcom,num-grp-pins = <1>;
-			qcom,pins = <&gp 20>;
+			qcom,num-grp-pins = <4>;
+			qcom,pins = <&gp 50>, <&gp 51>, <&gp 98>, <&gp 20>;
 			qcom,pin-func = <0>;
 			bl_active: active {
 				drive-strength = <2>; /* 2 mA */
@@ -895,6 +834,21 @@
 				drive-strength = <2>; /* 2 mA */
 				bias-disable = <0>; /* no pull */
 				output-low;
+			};
+		};
+
+		pmx_bl_i2c: pmx_bl_i2c {
+			label = "bl-pins";
+			qcom,num-grp-pins = <2>;
+			qcom,pins = <&gp 101>, <&gp 102>;
+			qcom,pin-func = <0>;
+			bl_i2c_active: active {
+				drive-strength = <2>; /* 2 mA */
+				bias-disable = <0>; /* no pull */
+			};
+			bl_i2c_suspend: suspend {
+				drive-strength = <2>; /* 2 mA */
+				bias-disable = <0>; /* no pull */
 			};
 		};
 
@@ -910,6 +864,21 @@
 				drive-strength = <2>; /* 2 mA */
 				bias-pull-down; /* pull down */
 				input-debounce = <0>;
+			};
+		};
+
+		pmx_lcd_esd_det: pmx_lcd_esd_det {
+			qcom,num-grp-pins = <1>;
+			qcom,pins = <&gp 60>;
+			qcom,pin-func = <0>;
+			label = "lcd-esd-det-pin";
+			lcd_esd_det_active: active {
+				drive-strength = <2>;
+				bias-disable = <0>; /* no pull */
+			};
+			lcd_esd_det_suspend: suspend {
+				drive-strength = <2>;
+				bias-disable = <0>; /* no pull */
 			};
 		};
 
@@ -1246,8 +1215,8 @@
 		};
 
 		front_cam_flash {
-			qcom,pins =  <&gp 90>;
-			qcom,num-grp-pins = <1>;
+			qcom,pins =  <&gp 89>, <&gp 90>;
+			qcom,num-grp-pins = <2>;
 			qcom,pin-func = <0>;
 			label = "front_cam_flash";
 
