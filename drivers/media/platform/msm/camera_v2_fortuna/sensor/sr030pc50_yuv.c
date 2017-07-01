@@ -79,7 +79,7 @@ int sr030pc50_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 	slave_info = s_ctrl->sensordata->slave_info;
 	sensor_name = s_ctrl->sensordata->sensor_name; 
 	if (!sensor_i2c_client || !slave_info || !sensor_name) {
-        pr_err("%s:%d failed: %p %p %p\n",__func__, __LINE__,
+        pr_err("%s:%d failed: %pK %pK %pK\n",__func__, __LINE__,
             sensor_i2c_client, slave_info,sensor_name);
         return -EINVAL;
     }
