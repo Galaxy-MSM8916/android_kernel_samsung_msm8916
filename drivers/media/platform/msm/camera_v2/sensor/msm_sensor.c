@@ -68,6 +68,7 @@ int32_t msm_sensor_flash_native_control(struct msm_sensor_ctrl_t *s_ctrl,
 	}
 	return 0;
     }else{
+	#if defined(CONFIG_FLED_LM3632)
 	struct ioctl_native_cmd *cam_info = (struct ioctl_native_cmd *)argp;
 
 	if(s_ctrl->sensordata->slave_info->sensor_id == 0x5e30){
@@ -81,6 +82,7 @@ int32_t msm_sensor_flash_native_control(struct msm_sensor_ctrl_t *s_ctrl,
 			pr_err("%s : Invalid LED value\n", __func__);
 		}
 	}
+	#endif
 	return 0;
 }
 }
