@@ -13,6 +13,10 @@
 #ifndef	__S5K4ECGX_REGS_H__
 #define __S5K4ECGX_REGS_H__
 
+#if defined(CONFIG_SEC_GTES_PROJECT) || defined(CONFIG_SEC_GTEL_PROJECT)
+#define FLICKER_DEFAULT
+#endif
+
 static struct msm_camera_i2c_reg_conf s5k4ecgx_init_regs[] = {
 
 //===============================================================
@@ -6033,25 +6037,6 @@ static struct msm_camera_i2c_reg_conf  s5k4ecgx_fps_30[] = {
 {0x0F12, 0x0001,},	/*REG_TC_GP_PrevConfigChanged */
 };
 
-static struct msm_camera_i2c_reg_conf  s5k4ecgx_fps_15[] = {
-{0xFCFC, 0xD000,},
-{0x0028, 0x7000,},
-{0x002A, 0x02B4,},
-{0x0F12, 0x0012,},
-{0x002A, 0x02BE,},
-{0x0F12, 0x0000,}, //REG_0TC_PCFG_usFrTimeType
-{0x0F12, 0x0001,}, //REG_0TC_PCFG_FrRateQualityType
-{0x0F12, 0x029A,}, //REG_0TC_PCFG_usMaxFrTimeMsecMult10 //029Ah:15fps
-{0x0F12, 0x029A,}, //REG_0TC_PCFG_usMinFrTimeMsecMult10 //029Ah:15fps
-{0x002A, 0x0266,},
-{0x0F12, 0x0000,}, //REG_TC_GP_ActivePrevConfig
-{0x002A, 0x026A,},
-{0x0F12, 0x0001,}, //REG_TC_GP_PrevOpenAfterChange
-{0x002A, 0x024E,},
-{0x0F12, 0x0001,}, //REG_TC_GP_NewConfigSync
-{0x002A, 0x0268,},
-{0x0F12, 0x0001,}, //REG_TC_GP_PrevConfigChanged
-};
 
 static struct msm_camera_i2c_reg_conf  s5k4ecgx_reset_touchaf[] = {
 //AF Window Settings
@@ -6067,16 +6052,14 @@ static struct msm_camera_i2c_reg_conf  s5k4ecgx_reset_touchaf[] = {
 {0x0F12, 0x0001,},	//REG_TC_AF_WinSizesUpdated
 };
 
-/*
-* S5E4ECGX sensor has a known issue of non-performance in 60 Hz.
-* Make the setting same as 50Hz
-*/
+
+#if !defined(FLICKER_DEFAULT)
 static struct msm_camera_i2c_reg_conf  s5k4ecgx_anti_banding_60hz_auto[]=
 {
 {0x002A, 0x0F30,},
 {0x0F12, 0x0001,}, ///*AFC_D_ConvAccelerPower */
 {0x002A, 0x0F2A,},
-{0x0F12, 0x0000,}, ///*AFC_Default BIT[0] 1:60Hz 0:50Hz */
+{0x0F12, 0x0001,}, ///*AFC_Default BIT[0] 1:60Hz 0:50Hz */
 };
 
 static struct msm_camera_i2c_reg_conf  s5k4ecgx_anti_banding_50hz_auto[]=
@@ -6086,6 +6069,7 @@ static struct msm_camera_i2c_reg_conf  s5k4ecgx_anti_banding_50hz_auto[]=
 {0x002A, 0x0F2A,},
 {0x0F12, 0x0000,}, ///*AFC_Default BIT[0] 1:60Hz 0:50Hz */
 };
+#endif
 
 static struct msm_camera_i2c_reg_conf  s5k4ecgx_vendor_id_read_prep[] = {
 // OTP read mode

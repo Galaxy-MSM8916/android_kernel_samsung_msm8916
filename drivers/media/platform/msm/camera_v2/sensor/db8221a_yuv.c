@@ -38,7 +38,6 @@ static exif_data_t db8221a_exif;
 
 static int32_t streamon = 0;
 static int32_t resolution = MSM_SENSOR_RES_FULL;
-static int32_t prev_fps = 0;
 
 #if defined CONFIG_SEC_CAMERA_TUNING
 #define FILENAME "/data/db8221a_yuv.h"
@@ -196,33 +195,10 @@ int32_t db8221a_set_resolution(struct msm_sensor_ctrl_t *s_ctrl, int mode)
 	CDBG("CAM-SETTING-- resolution is %d", mode);
 	switch (mode) {
 	case MSM_SENSOR_RES_FULL:
-		if (db8221a_ctrl.fixed_fps_val == 24000) {
-			DB8221A_WRITE_LIST(db8221a_Capture_1600_1200_for_24fps);
-		}
-		else {
-			DB8221A_WRITE_LIST(db8221a_Capture_1600_1200);
-		}
+		DB8221A_WRITE_LIST(db8221a_Capture_1600_1200);
 		break;
 	case MSM_SENSOR_RES_QTR:
-#if defined(CONFIG_MACH_J3LTE_USA_VZW) || defined(CONFIG_MACH_J3LTE_USA_USC)
-		if (db8221a_ctrl.fixed_fps_val == 24000) {
-			DB8221A_WRITE_LIST(db8221a_24fps_Camcoder);
-		} else {
-			if (24000 == prev_fps) {	// from 24fps to auto fps
-				CDBG("prev_fps is 24!");
-				DB8221A_WRITE_LIST(db8221a_Init_Reg);
-				DB8221A_WRITE_LIST(db8221a_anti_banding_flicker_60Hz);
-			}
-			DB8221A_WRITE_LIST(db8221a_preview_640_480);
-		}
-#else
-		if (db8221a_ctrl.fixed_fps_val == 24000) {
-			DB8221A_WRITE_LIST(db8221a_24fps_Camcoder_800_600);
-		}
-		else {
-			DB8221A_WRITE_LIST(db8221a_preview_800_600);
-		}
-#endif
+		DB8221A_WRITE_LIST(db8221a_preview_800_600);
 		break;
 	case MSM_SENSOR_RES_2:
 		DB8221A_WRITE_LIST(db8221a_preview_640_480);
@@ -573,7 +549,6 @@ int32_t db8221a_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 	}
 
 	case CFG_POWER_UP:
-		prev_fps = 0;
 		streamon = 0;
 		db8221a_ctrl.op_mode = CAMERA_MODE_INIT;
 		db8221a_ctrl.prev_mode = CAMERA_MODE_INIT;
@@ -686,11 +661,6 @@ int32_t db8221a_sensor_native_control(struct msm_sensor_ctrl_t *s_ctrl,
 		break;
 	case EXT_CAM_VT_MODE:
 		db8221a_ctrl.vtcall_mode = cam_info->value_1;
-		break;
-	case EXT_CAM_FPS_RANGE:
-		CDBG("Prev_fps %d EXT_CAM_FPS_RANGE %d", db8221a_ctrl.fixed_fps_val, cam_info->value_1);
-		prev_fps = db8221a_ctrl.fixed_fps_val;
-		db8221a_ctrl.fixed_fps_val = cam_info->value_1;
 		break;
 	default:
 		pr_err("%s: %d unsupport mode : %d\n", __func__, __LINE__, cam_info->mode);

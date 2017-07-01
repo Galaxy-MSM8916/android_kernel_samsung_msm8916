@@ -37,7 +37,6 @@ struct yuv_ctrl {
     int vtcall_mode;
     int exif_iso;
     int exif_shutterspeed;
-    int fixed_fps_val;
 };
 
 

@@ -95,7 +95,7 @@ static int msm_csiphy_lane_config(struct csiphy_device *csiphy_dev,
 			val |= csiphy_params->csid_core;
 		}
 		msm_camera_io_w(val, csiphy_dev->clk_mux_base);
-		CDBG("%s clk mux addr %p val 0x%x\n", __func__,
+		CDBG("%s clk mux addr %pK val 0x%x\n", __func__,
 			csiphy_dev->clk_mux_base, val);
 		mb();
 	}
@@ -501,7 +501,7 @@ static int msm_csiphy_release(struct csiphy_device *csiphy_dev, void *arg)
 				mipi_csiphy_lnn_cfg2_addr + 0x40*i);
 	} else {
 		if (!csi_lane_params) {
-			pr_err("%s:%d failed: csi_lane_params %p\n", __func__,
+			pr_err("%s:%d failed: csi_lane_params %pK\n", __func__,
 				__LINE__, csi_lane_params);
 			return -EINVAL;
 		}
@@ -586,7 +586,7 @@ static int msm_csiphy_release(struct csiphy_device *csiphy_dev, void *arg)
 				mipi_csiphy_lnn_cfg2_addr + 0x40*i);
 	} else {
 		if (!csi_lane_params) {
-			pr_err("%s:%d failed: csi_lane_params %p\n", __func__,
+			pr_err("%s:%d failed: csi_lane_params %pK\n", __func__,
 				__LINE__, csi_lane_params);
 			return -EINVAL;
 		}

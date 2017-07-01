@@ -30,7 +30,8 @@
 #define EEPROM_CAM_PIN_USE
 #endif
 
-#if defined(CONFIG_EEPROM_CAMERA_QUP_I2C)
+#if defined(CONFIG_SEC_A8_PROJECT) || defined(CONFIG_SEC_A7X_PROJECT) || \
+    defined(CONFIG_SEC_A5X_PROJECT) || defined(CONFIG_SEC_J7_PROJECT) || defined(CONFIG_SEC_J5X_PROJECT)
 #define EEPROM_QUP_I2C
 #define MAX_READ_SIZE 3824
 #endif
@@ -741,15 +742,21 @@ static int msm_eeprom_config(struct msm_eeprom_ctrl_t *e_ctrl,
 	struct msm_eeprom_cfg_data *cdata =
 		(struct msm_eeprom_cfg_data *)argp;
 	int rc = 0;
+	size_t length = 0;
 
 	CDBG("%s:%d: subdevid: %d",__func__,__LINE__,e_ctrl->subdev_id);
 	switch (cdata->cfgtype) {
 	case CFG_EEPROM_GET_INFO:
 		CDBG("%s E CFG_EEPROM_GET_INFO\n", __func__);
 		cdata->is_supported = e_ctrl->is_supported;
-		memcpy(cdata->cfg.eeprom_name,
-			e_ctrl->eboard_info->eeprom_name,
-			sizeof(cdata->cfg.eeprom_name));
+		length = strlen(e_ctrl->eboard_info->eeprom_name) + 1;
+		if (length > MAX_EEPROM_NAME) {
+			pr_err("%s:%d invalid eeprom_name length %d\n",
+				__func__, __LINE__, (int)length);
+			rc = -EINVAL;
+			break;
+		}
+		memcpy(cdata->cfg.eeprom_name, e_ctrl->eboard_info->eeprom_name, length);
 		break;
 	case CFG_EEPROM_GET_CAL_DATA:
 		CDBG("%s E CFG_EEPROM_GET_CAL_DATA\n", __func__);
@@ -836,7 +843,7 @@ static long msm_eeprom_subdev_ioctl(struct v4l2_subdev *sd,
 	struct msm_eeprom_ctrl_t *e_ctrl = v4l2_get_subdevdata(sd);
 	void __user *argp = (void __user *)arg;
 	CDBG("%s E\n", __func__);
-	CDBG("%s:%d a_ctrl %p argp %p\n", __func__, __LINE__, e_ctrl, argp);
+	CDBG("%s:%d a_ctrl %pK argp %pK\n", __func__, __LINE__, e_ctrl, argp);
 	switch (cmd) {
 	case VIDIOC_MSM_SENSOR_GET_SUBDEV_ID:
 		return msm_eeprom_get_subdev_id(e_ctrl, argp);
