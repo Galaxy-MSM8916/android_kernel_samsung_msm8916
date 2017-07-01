@@ -1341,7 +1341,7 @@ static long msm_ois_subdev_ioctl(struct v4l2_subdev *sd,
 {
     struct msm_ois_ctrl_t *a_ctrl = v4l2_get_subdevdata(sd);
     void __user *argp = (void __user *)arg;
-    CDBG_I("%s:%d a_ctrl %pK argp %pK\n", __func__, __LINE__, a_ctrl, argp);
+    CDBG_I("%s:%d a_ctrl %p argp %p\n", __func__, __LINE__, a_ctrl, argp);
     switch (cmd) {
     case VIDIOC_MSM_SENSOR_GET_SUBDEV_ID:
         return msm_ois_get_subdev_id(a_ctrl, argp);
@@ -1566,7 +1566,7 @@ static int32_t msm_ois_i2c_probe(struct i2c_client *client,
         }
         ois_ctrl_t->dev = &client->dev;
 
-        CDBG("client = 0x%pK\n",  client);
+        CDBG("client = 0x%p\n",  client);
 
         rc = of_property_read_u32(client->dev.of_node, "cell-index",
             &ois_ctrl_t->subdev_id);
