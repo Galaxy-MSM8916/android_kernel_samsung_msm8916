@@ -502,7 +502,7 @@ static int eeprom_config_read_data(struct msm_eeprom_ctrl_t *e_ctrl,
 	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read_seq(
 			&(e_ctrl->i2c_client), cdata->cfg.read_data.addr,
 			buf, cdata->cfg.read_data.num_bytes);
-	CDBG("%s:  read data, rc addr = 0x%p %d %d\n", __func__, (void*)cdata->cfg.read_data.addr, cdata->cfg.read_data.num_bytes, rc);
+	CDBG("%s:  read data, rc addr = 0x%pK %d %d\n", __func__, (void*)cdata->cfg.read_data.addr, cdata->cfg.read_data.num_bytes, rc);
 	if (rc < 0) {
 		pr_err("%s: failed to read data, rc %d\n", __func__, rc);
 		goto POWER_DOWN;
@@ -836,7 +836,7 @@ static long msm_eeprom_subdev_ioctl(struct v4l2_subdev *sd,
 	struct msm_eeprom_ctrl_t *e_ctrl = v4l2_get_subdevdata(sd);
 	void __user *argp = (void __user *)arg;
 	CDBG("%s E\n", __func__);
-	CDBG("%s:%d a_ctrl %p argp %p\n", __func__, __LINE__, e_ctrl, argp);
+	CDBG("%s:%d a_ctrl %pK argp %pK\n", __func__, __LINE__, e_ctrl, argp);
 	switch (cmd) {
 	case VIDIOC_MSM_SENSOR_GET_SUBDEV_ID:
 		return msm_eeprom_get_subdev_id(e_ctrl, argp);
