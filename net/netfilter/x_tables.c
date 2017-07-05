@@ -677,8 +677,9 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
 {
 	struct xt_table_info *newinfo;
 	int cpu;
+	size_t sz = sizeof(*newinfo) + size;
 
-	if (sz < sizeof(*info))
+	if (sz < sizeof(*newinfo))
 		return NULL;
 
 	/* Pedantry: prevent them from hitting BUG() in vmalloc.c --RR */
