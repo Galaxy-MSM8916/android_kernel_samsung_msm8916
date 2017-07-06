@@ -44,6 +44,13 @@ static struct clock_data cd = {
 	.mult	= NSEC_PER_SEC / HZ,
 };
 
+static u32 __read_mostly (*read_sched_clock_32)(void);
+
+static u64 notrace read_sched_clock_32_wrapper(void)
+{
+	return read_sched_clock_32();
+}
+
 static u64 __read_mostly sched_clock_mask;
 
 static u64 notrace jiffy_sched_clock_read(void)
@@ -53,13 +60,6 @@ static u64 notrace jiffy_sched_clock_read(void)
 	 * because we register with BITS_PER_LONG
 	 */
 	return (u64)(jiffies - INITIAL_JIFFIES);
-}
-
-static u32 __read_mostly (*read_sched_clock_32)(void);
-
-static u64 notrace read_sched_clock_32_wrapper(void)
-{
-	return read_sched_clock_32();
 }
 
 static u64 __read_mostly (*read_sched_clock)(void) = jiffy_sched_clock_read;
@@ -93,9 +93,9 @@ static unsigned long long notrace sched_clock_32(void)
         local = epoch_ns + cyc_to_ns(cyc, cd.mult, cd.shift);
         sec_debug_save_last_ns(local);
         return local;
-#endif
-
+#else
 	return epoch_ns + cyc_to_ns(cyc, cd.mult, cd.shift);
+#endif
 }
 
 /*

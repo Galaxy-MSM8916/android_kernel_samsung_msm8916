@@ -1796,6 +1796,8 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			present = 1;
 	}
 
+	present = mmc_gpio_get_cd(host->mmc);
+
 	spin_lock_irqsave(&host->lock, flags);
 
 	WARN_ON(host->mrq != NULL);
