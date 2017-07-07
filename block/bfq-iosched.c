@@ -80,7 +80,14 @@ static const int bfq_back_max = 16 * 1024;
 static const int bfq_back_penalty = 2;
 
 /* Idling period duration, in jiffies. */
-static int bfq_slice_idle = HZ / 125;
+/* Explicitly set bfq_slice_idle to 0
+ * CFQ slice idle should be 0 since
+ * we do not have a SATA or other spinning disk type storage.
+ * From the documentation "Setting slice_idle to 0 will remove
+ * all the idling on queues/service tree level and one should
+ * see an overall improved throughput on faster storage devices"
+ */
+static int bfq_slice_idle = 0;
 
 /* Default maximum budget values, in sectors and number of requests. */
 static const int bfq_default_max_budget = 16 * 1024;
@@ -4173,8 +4180,11 @@ static int __init bfq_init(void)
 	/*
 	 * Can be 0 on HZ < 1000 setups.
 	 */
+        /* Do not touch bfq_slice_idle if it is zero */
+        /*
 	if (bfq_slice_idle == 0)
 		bfq_slice_idle = 1;
+	*/
 
 	if (bfq_timeout_async == 0)
 		bfq_timeout_async = 1;
