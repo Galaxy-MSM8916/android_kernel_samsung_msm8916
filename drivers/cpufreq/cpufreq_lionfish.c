@@ -348,7 +348,7 @@ static void lf_check_cpu(struct lf_gdbs_data *dbs_data, int cpu)
 static void lf_dbs_timer(struct work_struct *work)
 {
 	struct lf_cpu_dbs_info_s *dbs_info = container_of(work,
-			struct lf_cpu_dbs_info_s, cdbs.work.work);
+			struct lf_cpu_dbs_info_s, cdbs.dwork.work);
 	unsigned int cpu = dbs_info->cdbs.cur_policy->cpu;
 	struct lf_cpu_dbs_info_s *core_dbs_info = &per_cpu(lf_cpu_dbs_info,
 			cpu);
@@ -614,7 +614,7 @@ static inline void __lf_gov_queue_work(int cpu, struct lf_gdbs_data *dbs_data,
 {
 	struct cpu_dbs_common_info *cdbs = &per_cpu(lf_cpu_dbs_info, cpu).cdbs;
 
-	mod_delayed_work_on(cpu, system_wq, &cdbs->work, delay);
+	mod_delayed_work_on(cpu, system_wq, &cdbs->dwork, delay);
 }
 
 static void lf_gov_queue_work(struct lf_gdbs_data *dbs_data,
@@ -648,7 +648,7 @@ static inline void lf_gov_cancel_work(struct lf_gdbs_data *dbs_data,
 
 	for_each_cpu(i, policy->cpus) {
 		cdbs = &per_cpu(lf_cpu_dbs_info, i).cdbs;
-		cancel_delayed_work_sync(&cdbs->work);
+		cancel_delayed_work_sync(&cdbs->dwork);
 	}
 }
 
@@ -809,7 +809,7 @@ static int lf_cpufreq_governor_dbs(struct cpufreq_policy *policy,
 					kcpustat_cpu(j).cpustat[CPUTIME_NICE];
 
 			mutex_init(&j_cdbs->timer_mutex);
-			INIT_DEFERRABLE_WORK(&j_cdbs->work, lf_dbs_timer);
+			INIT_DEFERRABLE_WORK(&j_cdbs->dwork, lf_dbs_timer);
 		}
 
 		lf_dbs_info->up_ticks = 0;
