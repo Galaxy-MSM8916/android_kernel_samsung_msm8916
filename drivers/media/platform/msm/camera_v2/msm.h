@@ -30,29 +30,12 @@
 #include <media/videobuf2-msm-mem.h>
 #include <media/msmb_camera.h>
 
-#if defined CONFIG_SEC_CAMERA_TUNING
-#define MSM_POST_EVT_TIMEOUT 40000
-#else
 #define MSM_POST_EVT_TIMEOUT 5000
-#endif
-
-#if defined CONFIG_SEC_CAMERA_TUNING
-enum CAMERA_TUNING
-{
-NORMAL_MODE,
-REAR_TUNING,
-FRONT_TUNING,
-REAR_FRONT_TUNING
-};
-#endif
-
 #define MSM_POST_EVT_NOTIMEOUT 0xFFFFFFFF
 #define MSM_CAMERA_STREAM_CNT_BITS  32
 
-#if !defined(CONFIG_ARCH_MSM8939) && !defined(CONFIG_ARCH_MSM8929)
-#define CAMERA_DISABLE_PC_LATENCY 200
+#define CAMERA_DISABLE_PC_LATENCY 100
 #define CAMERA_ENABLE_PC_LATENCY PM_QOS_DEFAULT_VALUE
-#endif
 
 struct msm_video_device {
 	struct video_device *vdev;
@@ -123,11 +106,8 @@ struct msm_session {
 	struct mutex lock_q;
 };
 
-#if !defined(CONFIG_ARCH_MSM8939) && !defined(CONFIG_ARCH_MSM8929)
 void msm_pm_qos_update_request(int val);
-#endif
 
-int msm_cam_get_module_init_status(void);
 int msm_post_event(struct v4l2_event *event, int timeout);
 int  msm_create_session(unsigned int session, struct video_device *vdev);
 int msm_destroy_session(unsigned int session_id);

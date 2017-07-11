@@ -19,8 +19,7 @@
 #include <media/msmb_ispif.h>
 #include "msm_sd.h"
 
-#define ISPIF_CLK_INFO_MAX 16
-#define ISPIF_AHB_CLK_INFO 2
+#define ISPIF_CLK_INFO_MAX 24
 
 struct ispif_irq_status {
 	uint32_t ispifIrqStatus0;
@@ -63,7 +62,8 @@ struct ispif_device {
 	struct clk *ahb_clk[ISPIF_CLK_INFO_MAX];
 	struct completion reset_complete[VFE_MAX];
 	uint32_t hw_num_isps;
-	uint32_t num_clk;
+	uint32_t num_ahb_clk;
 	uint32_t clk_idx;
+	uint32_t ispif_sof_debug;
 };
 #endif
