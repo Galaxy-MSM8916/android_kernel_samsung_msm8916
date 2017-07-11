@@ -1014,18 +1014,16 @@ static int ext_mi2s_clk_ctl(struct snd_pcm_substream *substream, bool enable)
 	int ret = 0;
 	int port_id = 0;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+#ifdef CONFIG_AUDIO_SPEAKER_OUT_NXP_AMP_ENABLE
+	struct snd_soc_card *card = rtd->card;
+	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
+#endif /* CONFIG_AUDIO_SPEAKER_OUT_NXP_AMP_ENABLE */
 
 	port_id = msm8x16_get_port_id(rtd->dai_link->be_id);
 	if (port_id < 0) {
 		pr_err("%s: Invalid port_id\n", __func__);
 		return -EINVAL;
 	}
-
-#ifdef CONFIG_AUDIO_SPEAKER_OUT_NXP_AMP_ENABLE
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_card *card = rtd->card;
-	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
-#endif /* CONFIG_AUDIO_SPEAKER_OUT_NXP_AMP_ENABLE */
 
 	if (enable) {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
