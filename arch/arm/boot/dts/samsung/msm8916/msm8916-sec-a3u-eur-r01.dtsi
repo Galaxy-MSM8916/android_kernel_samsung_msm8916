@@ -283,6 +283,7 @@
 
 	/* Over-riding model specific changes */
 	sound {
+		qcom,msm-micbias1-ext-cap;
 		qcom,msm-ext-pa = "quaternary";
 		qcom,audio-routing =
 			"RX_BIAS", "MCLK",
