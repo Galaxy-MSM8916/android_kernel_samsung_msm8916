@@ -56,6 +56,9 @@
 #include <linux/usb/input.h>
 #include <linux/hid.h>
 
+#if defined(CONFIG_TOUCH_DISABLER)
+#include <linux/input/touch_disabler.h>
+#endif
 
 #define DRIVER_VERSION		"v0.6"
 #define DRIVER_AUTHOR		"Daniel Ritz <daniel.ritz@gmx.ch>"
@@ -1696,7 +1699,9 @@ static int usbtouch_probe(struct usb_interface *intf,
 			goto out_unregister_input;
 		}
 	}
-
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(input_dev);
+#endif
 	return 0;
 
 out_unregister_input:
@@ -1724,7 +1729,9 @@ static void usbtouch_disconnect(struct usb_interface *intf)
 
 	dev_dbg(&intf->dev,
 		"%s - usbtouch is initialized, cleaning up\n", __func__);
-
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(NULL);
+#endif
 	usb_set_intfdata(intf, NULL);
 	/* this will stop IO via close */
 	input_unregister_device(usbtouch->input);

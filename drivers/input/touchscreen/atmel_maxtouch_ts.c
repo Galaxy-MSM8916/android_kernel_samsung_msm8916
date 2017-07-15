@@ -52,6 +52,10 @@
 #include <linux/clk.h>
 #endif
 
+#if defined(CONFIG_TOUCH_DISABLER)
+#include <linux/input/touch_disabler.h>
+#endif
+
 /* Configuration file */
 #define MXT_CFG_MAGIC		"OBP_RAW V1"
 
@@ -2183,6 +2187,9 @@ static int mxt_acquire_irq(struct mxt_data *data)
 
 static void mxt_free_input_device(struct mxt_data *data)
 {
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(NULL);
+#endif
 	if (data->input_dev) {
 		input_unregister_device(data->input_dev);
 		data->input_dev = NULL;
@@ -2925,6 +2932,9 @@ static int mxt_create_input_dev(struct mxt_data *data)
 
 	data->input_dev = input_dev;
 
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(input_dev);
+#endif
 	return 0;
 
 err_free_mem:
