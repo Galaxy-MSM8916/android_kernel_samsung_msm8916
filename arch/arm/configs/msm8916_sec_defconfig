@@ -714,6 +714,9 @@ CONFIG_SECCOMP=y
 # TTL
 CONFIG_NETFILTER_XT_TARGET_HL=y
 
+#Touch Disabler
+CONFIG_TOUCH_DISABLER=y
+
 #
 # Qualcomm Atheros Prima WLAN module
 #
