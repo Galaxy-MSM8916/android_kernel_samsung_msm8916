@@ -28,6 +28,10 @@
 
 #include <mach/tnetv107x.h>
 
+#if defined(CONFIG_TOUCH_DISABLER)
+#include <linux/input/touch_disabler.h>
+#endif
+
 #define TSC_PENUP_POLL		(HZ / 5)
 #define IDLE_TIMEOUT		100 /* msec */
 
@@ -337,7 +341,9 @@ static int tsc_probe(struct platform_device *pdev)
 		dev_err(dev, "failed input device registration\n");
 		goto error_reg;
 	}
-
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(ts->input_dev);
+#endif
 	return 0;
 
 error_reg:
@@ -360,7 +366,9 @@ error_res:
 static int tsc_remove(struct platform_device *pdev)
 {
 	struct tsc_data *ts = platform_get_drvdata(pdev);
-
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(NULL);
+#endif
 	input_unregister_device(ts->input_dev);
 	free_irq(ts->tsc_irq, ts);
 	clk_put(ts->clk);

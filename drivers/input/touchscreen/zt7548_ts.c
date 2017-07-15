@@ -20,6 +20,9 @@
 #include <linux/muic/muic.h>
 #include <linux/muic/muic_notifier.h>
 
+#if defined(CONFIG_TOUCH_DISABLER)
+#include <linux/input/touch_disabler.h>
+#endif
 
 u32 BUTTON_MAPPING_KEY[MAX_SUPPORTED_BUTTON_NUM] = {KEY_RECENT, KEY_BACK};
 
@@ -5313,6 +5316,9 @@ static int zt7548_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
 	dev_info(&client->dev, "zinitix touch probe done.\n");
 
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(info->input_dev);
+#endif
 	return 0;
 
 #ifdef SEC_FACTORY_TEST
@@ -5370,6 +5376,10 @@ static int zt7548_ts_remove(struct i2c_client *client)
 		printk("%s: zinitix not register!\n", __func__);
 		return -ENODEV;
 	}
+#endif
+
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(NULL);
 #endif
 
 	disable_irq(info->irq);

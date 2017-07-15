@@ -22,6 +22,10 @@
 #include <linux/ctype.h>
 #include <linux/delay.h>
 
+#if defined(CONFIG_TOUCH_DISABLER)
+#include <linux/input/touch_disabler.h>
+#endif
+
 #define DRIVER_DESC	"Wacom W8001 serial touchscreen driver"
 
 MODULE_AUTHOR("Jaya Kumar <jayakumar.lkml@gmail.com>");
@@ -500,7 +504,9 @@ static int w8001_setup(struct w8001 *w8001)
 static void w8001_disconnect(struct serio *serio)
 {
 	struct w8001 *w8001 = serio_get_drvdata(serio);
-
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(NULL);
+#endif
 	serio_close(serio);
 
 	input_unregister_device(w8001->dev);
@@ -558,7 +564,9 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	err = input_register_device(w8001->dev);
 	if (err)
 		goto fail3;
-
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(input_dev);
+#endif
 	return 0;
 
 fail3:
