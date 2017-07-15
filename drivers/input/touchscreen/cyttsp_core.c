@@ -36,6 +36,10 @@
 
 #include "cyttsp_core.h"
 
+#if defined(CONFIG_TOUCH_DISABLER)
+#include <linux/input/touch_disabler.h>
+#endif
+
 /* Bootloader number of command keys */
 #define CY_NUM_BL_KEYS		8
 
@@ -609,6 +613,9 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 		goto err_free_irq;
 	}
 
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(input_dev);
+#endif
 	return ts;
 
 err_free_irq:
@@ -626,6 +633,9 @@ EXPORT_SYMBOL_GPL(cyttsp_probe);
 
 void cyttsp_remove(struct cyttsp *ts)
 {
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(NULL);
+#endif
 	free_irq(ts->irq, ts);
 	input_unregister_device(ts->input);
 	if (ts->pdata->exit)

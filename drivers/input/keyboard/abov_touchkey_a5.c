@@ -40,6 +40,10 @@
 #include <linux/of_gpio.h>
 #endif
 
+#if defined(CONFIG_TOUCH_DISABLER)
+#include <linux/input/touch_disabler.h>
+#endif
+
 /* registers */
 #define ABOV_BTNSTATUS		0x00
 #define ABOV_FW_VER			0x01
@@ -1653,6 +1657,9 @@ static int abov_tk_probe(struct i2c_client *client,
 	}
 #endif
 
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_tk_dev(input_dev);
+#endif
 
 	dev_dbg(&client->dev, "%s done\n", __func__);
 	return 0;

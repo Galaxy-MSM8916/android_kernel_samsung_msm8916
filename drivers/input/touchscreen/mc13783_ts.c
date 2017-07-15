@@ -20,6 +20,10 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 
+#if defined(CONFIG_TOUCH_DISABLER)
+#include <linux/input/touch_disabler.h>
+#endif
+
 #define MC13783_TS_NAME	"mc13783-ts"
 
 #define DEFAULT_SAMPLE_TOLERANCE 300
@@ -219,6 +223,9 @@ static int __init mc13783_ts_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, priv);
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(idev);
+#endif
 	return 0;
 
 err_destroy_wq:
@@ -232,7 +239,9 @@ err_free_mem:
 static int mc13783_ts_remove(struct platform_device *pdev)
 {
 	struct mc13783_ts_priv *priv = platform_get_drvdata(pdev);
-
+#if defined(CONFIG_TOUCH_DISABLER)
+	touch_disabler_set_ts_dev(NULL);
+#endif
 	platform_set_drvdata(pdev, NULL);
 
 	destroy_workqueue(priv->workq);
