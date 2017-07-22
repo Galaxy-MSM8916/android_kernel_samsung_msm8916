@@ -25,10 +25,14 @@
 
 typedef struct touch_disabler_data {
 	struct class *disabler_class;
+	struct class *touch_screen_class;
+	struct class *touch_key_class;
 	struct input_dev *ts_dev;
 	struct input_dev *tk_dev;
-	int enabled; /* enable (1) or disable (0) touch devices */
-	int control;    /* driver control, between auto (0) and manual (1) */
+	int tk_enabled; /* enable (1) or disable (0) touch key */
+	int tk_control;    /* driver control, between auto (0) and manual (1) */
+	int ts_enabled; /* enable (1) or disable (0) touch panel */
+	int ts_control;    /* driver control, between auto (0) and manual (1) */
 } touch_disabler_data_t;
 
 void touch_disabler_set_tk_dev(struct input_dev *ts_dev);
