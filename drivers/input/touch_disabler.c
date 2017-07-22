@@ -26,9 +26,12 @@
 
 #include <linux/input/touch_disabler.h>
 
+#include "../base/base.h"
+
 static struct touch_disabler_data *g_data;
 
-static void _touch_disabler_set_touch_status(bool status);
+static void _touch_disabler_set_tk_status(bool status);
+static void _touch_disabler_set_ts_status(bool status);
 
 
 /*
@@ -58,40 +61,40 @@ void touch_disabler_set_tk_dev(struct input_dev *tk_dev)
 }
 
 /*
- * Prints the string equivalent of the value of g_data->enabled to buf.
+ * Prints the string equivalent of the value of g_data->tk_enabled to buf.
  *
  * Returns the number of bytes printed to buf.
  *
  */
-static ssize_t touch_disabler_get_enabled(struct class *dev,
+static ssize_t touch_disabler_get_tk_enabled(struct class *dev,
 		struct class_attribute *attr, char *buf)
 {
-	if (g_data->enabled) {
+	if (g_data->tk_enabled) {
 		return sprintf(buf, "%s\n", "true");
 	}
 	return sprintf(buf, "%s\n", "false");
 }
 
 /*
- * Sets g_data->enabled to the status passed in buf.
+ * Sets g_data->tk_enabled to the status passed in buf.
  *
  * Returns the number of bytes read from buf, or -EINVAL if
  * invalid input is passed.
  *
  */
-static ssize_t touch_disabler_set_enabled(struct class *dev,
+static ssize_t touch_disabler_set_tk_enabled(struct class *dev,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	/* only set the variable if control is set to manual */
-	if (g_data->control) {
+	if (g_data->tk_control) {
 		if (!strncmp(buf, "true", 4) || !strncmp(buf, "1", 1)) {
-			pr_info("%s: touch devices are enabled.\n", __func__);
-			_touch_disabler_set_touch_status(true);
+			pr_info("%s: touch key is enabled.\n", __func__);
+			_touch_disabler_set_tk_status(true);
 			return count;
 		}
 		else if (!strncmp(buf, "false", 5) || !strncmp(buf, "0", 1)) {
-			pr_info("%s: touch devices are disabled.\n", __func__);
-			_touch_disabler_set_touch_status(false);
+			pr_info("%s: touch key is disabled.\n", __func__);
+			_touch_disabler_set_tk_status(false);
 			return count;
 		} else {
 			pr_err("%s: Invalid input passed\n", __func__);
@@ -102,51 +105,146 @@ static ssize_t touch_disabler_set_enabled(struct class *dev,
 	return -EINVAL;
 }
 
-static CLASS_ATTR(enabled, S_IRUGO | S_IWUSR, touch_disabler_get_enabled, touch_disabler_set_enabled);
+struct class_attribute class_attr_tk_enabled = __ATTR(enabled,  S_IRUGO | S_IWUSR,
+		touch_disabler_get_tk_enabled, touch_disabler_set_tk_enabled);
 
 
 /*
- * Prints the string equivalent of the value of g_data->control to buf.
+ * Prints the string equivalent of the value of g_data->ts_enabled to buf.
  *
  * Returns the number of bytes printed to buf.
  *
  */
-static ssize_t touch_disabler_get_control(struct class *dev,
+static ssize_t touch_disabler_get_ts_enabled(struct class *dev,
 		struct class_attribute *attr, char *buf)
 {
-	if (g_data->control) {
+	if (g_data->ts_enabled) {
+		return sprintf(buf, "%s\n", "true");
+	}
+	return sprintf(buf, "%s\n", "false");
+}
+
+/*
+ * Sets g_data->ts_enabled to the status passed in buf.
+ *
+ * Returns the number of bytes read from buf, or -EINVAL if
+ * invalid input is passed.
+ *
+ */
+static ssize_t touch_disabler_set_ts_enabled(struct class *dev,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	/* only set the variable if control is set to manual */
+	if (g_data->ts_control) {
+		if (!strncmp(buf, "true", 4) || !strncmp(buf, "1", 1)) {
+			pr_info("%s: touch panel is enabled.\n", __func__);
+			_touch_disabler_set_ts_status(true);
+			return count;
+		}
+		else if (!strncmp(buf, "false", 5) || !strncmp(buf, "0", 1)) {
+			pr_info("%s: touch panel is disabled.\n", __func__);
+			_touch_disabler_set_ts_status(false);
+			return count;
+		} else {
+			pr_err("%s: Invalid input passed\n", __func__);
+			return -EINVAL;
+		}
+	}
+	pr_warn("%s: Input ignored since auto control is enabled.\n", __func__);
+	return -EINVAL;
+}
+
+struct class_attribute class_attr_ts_enabled = __ATTR(enabled,  S_IRUGO | S_IWUSR,
+		touch_disabler_get_ts_enabled, touch_disabler_set_ts_enabled);
+
+/*
+ * Prints the string equivalent of the value of g_data->tk_control to buf.
+ *
+ * Returns the number of bytes printed to buf.
+ *
+ */
+static ssize_t touch_disabler_get_tk_control(struct class *dev,
+		struct class_attribute *attr, char *buf)
+{
+	if (g_data->tk_control) {
 		return sprintf(buf, "%s\n", CONTROL_MANUAL);
 	}
 	return sprintf(buf, "%s\n", CONTROL_AUTO);
 }
 
 /*
- * Sets g_data->control to the control passed in buf.
+ * Sets g_data->tk_control to the control passed in buf.
  *
  * Returns the number of bytes read from buf, or -EINVAL if
  * invalid input is passed.
  *
  */
-static ssize_t touch_disabler_set_control(struct class *dev,
+static ssize_t touch_disabler_set_tk_control(struct class *dev,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	if (!strncmp(buf, CONTROL_MANUAL, strlen(CONTROL_MANUAL)) ||
 			!strncmp(buf, "1", 1)) {
-		pr_info("%s: manual control is enabled.\n", __func__);
-		g_data->control = 1;
+		pr_info("%s: manual touch key control is enabled.\n", __func__);
+		g_data->tk_control = 1;
 		return count;
 	}
 	else if (!strncmp(buf, CONTROL_AUTO, strlen(CONTROL_AUTO)) ||
 			!strncmp(buf, "0", 1)) {
-		pr_info("%s: auto control is enabled.\n", __func__);
-		g_data->control = 0;
+		pr_info("%s: auto touch key control is enabled.\n", __func__);
+		g_data->tk_control = 0;
 		return count;
 	}
 	pr_err("%s: Invalid input passed\n", __func__);
 	return -EINVAL;
 }
 
-static CLASS_ATTR(control, S_IRUGO | S_IWUSR, touch_disabler_get_control, touch_disabler_set_control);
+struct class_attribute class_attr_tk_control = __ATTR(control,  S_IRUGO | S_IWUSR,
+		touch_disabler_get_tk_control, touch_disabler_set_tk_control);
+
+
+/*
+ * Prints the string equivalent of the value of g_data->ts_control to buf.
+ *
+ * Returns the number of bytes printed to buf.
+ *
+ */
+static ssize_t touch_disabler_get_ts_control(struct class *dev,
+		struct class_attribute *attr, char *buf)
+{
+	if (g_data->ts_control) {
+		return sprintf(buf, "%s\n", CONTROL_MANUAL);
+	}
+	return sprintf(buf, "%s\n", CONTROL_AUTO);
+}
+
+/*
+ * Sets g_data->ts_control to the control passed in buf.
+ *
+ * Returns the number of bytes read from buf, or -EINVAL if
+ * invalid input is passed.
+ *
+ */
+static ssize_t touch_disabler_set_ts_control(struct class *dev,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	if (!strncmp(buf, CONTROL_MANUAL, strlen(CONTROL_MANUAL)) ||
+			!strncmp(buf, "1", 1)) {
+		pr_info("%s: manual touch panel control is enabled.\n", __func__);
+		g_data->ts_control = 1;
+		return count;
+	}
+	else if (!strncmp(buf, CONTROL_AUTO, strlen(CONTROL_AUTO)) ||
+			!strncmp(buf, "0", 1)) {
+		pr_info("%s: auto touch panel control is enabled.\n", __func__);
+		g_data->ts_control = 0;
+		return count;
+	}
+	pr_err("%s: Invalid input passed\n", __func__);
+	return -EINVAL;
+}
+
+struct class_attribute class_attr_ts_control = __ATTR(control,  S_IRUGO | S_IWUSR,
+		touch_disabler_get_ts_control, touch_disabler_set_ts_control);
 
 
 /*
@@ -159,37 +257,26 @@ static CLASS_ATTR(control, S_IRUGO | S_IWUSR, touch_disabler_get_control, touch_
 void touch_disabler_set_touch_status(bool status)
 {
 	/* let mdss trigger the enaling/disabling */
-	if (g_data && !g_data->control) {
-		_touch_disabler_set_touch_status(status);
+	if (g_data && !g_data->tk_control) {
+		_touch_disabler_set_tk_status(status);
+	}
+
+	if (g_data && !g_data->ts_control) {
+		_touch_disabler_set_ts_status(status);
 	}
 }
 
 /*
- * Enables or disables the touch key/panel depending on value of status.
+ * Enables or disables the touch key depending on value of status.
  *
  * This function is called internally.
  *
  */
-static void _touch_disabler_set_touch_status(bool status)
+static void _touch_disabler_set_tk_status(bool status)
 {
-	/* set the enabled variable */
+	/* set the tk_enabled variable */
 	if (g_data) {
-		g_data->enabled = status;
-	}
-
-	/* check if the struct has been initialised by the touch driver */
-	if (g_data && g_data->ts_dev) {
-		if (status) {
-			pr_info("%s: Enabling %s touch panel...\n", __func__,
-					g_data->ts_dev->name);
-			g_data->ts_dev->open(g_data->ts_dev);
-		} else {
-			pr_info("%s: Disabling %s touch panel...\n", __func__,
-					g_data->ts_dev->name);
-			g_data->ts_dev->close(g_data->ts_dev);
-		}
-	} else {
-		pr_warn("%s: Touch panel data struct is uninitialised!\n", __func__);
+		g_data->tk_enabled = status;
 	}
 
 	if (g_data && g_data->tk_dev) {
@@ -208,7 +295,36 @@ static void _touch_disabler_set_touch_status(bool status)
 }
 
 /*
- * Initialises sysfs interfaces specified (enabled and control).
+ * Enables or disables the touch panel depending on value of status.
+ *
+ * This function is called internally.
+ *
+ */
+static void _touch_disabler_set_ts_status(bool status)
+{
+	/* set the ts_enabled variable */
+	if (g_data) {
+		g_data->ts_enabled = status;
+	}
+
+	/* check if the struct has been initialised by the touch driver */
+	if (g_data && g_data->ts_dev) {
+		if (status) {
+			pr_info("%s: Enabling %s touch panel...\n", __func__,
+					g_data->ts_dev->name);
+			g_data->ts_dev->open(g_data->ts_dev);
+		} else {
+			pr_info("%s: Disabling %s touch panel...\n", __func__,
+					g_data->ts_dev->name);
+			g_data->ts_dev->close(g_data->ts_dev);
+		}
+	} else {
+		pr_warn("%s: Touch panel data struct is uninitialised!\n", __func__);
+	}
+}
+
+/*
+ * Initialises sysfs interfaces specified (tk_enabled and control).
  *
  */
 static int touch_disabler_init_sysfs(void)
@@ -224,39 +340,95 @@ static int touch_disabler_init_sysfs(void)
 	}
 
 	/* initialise data variables */
-	data->enabled = 0;
-	data->control = 0;
+	data->ts_control = 0;
 	data->ts_dev = NULL;
+	data->ts_enabled = 0;
+
+	data->tk_control = 0;
 	data->tk_dev = NULL;
+	data->tk_enabled = 0;
+
 	g_data = data;
 
 	data->disabler_class = class_create(THIS_MODULE, TOUCH_DISABLER_NAME);
 	if (IS_ERR(data->disabler_class)) {
 		pr_err("%s: Failed to create class\n", __func__);
 		ret = IS_ERR(data->disabler_class);
-		goto err_create_class;
+		goto err_create_main_class;
 	}
 
-	ret = class_create_file(data->disabler_class, &class_attr_enabled);
-	if (ret) {
-		pr_err("%s: Failed to create enabled\n", __func__);
-		goto err_create_enabled;
+	data->touch_screen_class = class_create(THIS_MODULE, "touch_screen");
+	if (IS_ERR(data->touch_screen_class)) {
+		pr_err("%s: Failed to create class\n", __func__);
+		ret = IS_ERR(data->touch_screen_class);
+		goto err_create_ts_class;
 	}
 
-	ret = class_create_file(data->disabler_class, &class_attr_control);
+	data->touch_key_class = class_create(THIS_MODULE, "touch_key");
+	if (IS_ERR(data->touch_key_class)) {
+		pr_err("%s: Failed to create class\n", __func__);
+		ret = IS_ERR(data->touch_key_class);
+		goto err_create_tk_class;
+	}
+
+	ret = class_create_file(data->touch_key_class, &class_attr_tk_enabled);
 	if (ret) {
-		pr_err("%s: Failed to create control\n", __func__);
-		goto err_create_control;
+		pr_err("%s: Failed to create tk_enabled\n", __func__);
+		goto err_create_tk_enabled;
+	}
+
+	ret = class_create_file(data->touch_screen_class, &class_attr_ts_enabled);
+	if (ret) {
+		pr_err("%s: Failed to create ts_enabled\n", __func__);
+		goto err_create_ts_enabled;
+	}
+
+	ret = class_create_file(data->touch_key_class, &class_attr_tk_control);
+	if (ret) {
+		pr_err("%s: Failed to create tk_control\n", __func__);
+		goto err_create_tk_control;
+	}
+
+	ret = class_create_file(data->touch_screen_class, &class_attr_ts_control);
+	if (ret) {
+		pr_err("%s: Failed to create ts_control\n", __func__);
+		goto err_create_ts_control;
+	}
+
+	ret = sysfs_create_link(&data->disabler_class->p->subsys.kobj,
+			&data->touch_key_class->p->subsys.kobj, "touch_key");
+	if (ret) {
+		pr_err("%s: Failed to create touch_key symlink\n", __func__);
+		goto err_create_tk_symlink;
+	}
+
+	ret = sysfs_create_link(&data->disabler_class->p->subsys.kobj,
+			&data->touch_screen_class->p->subsys.kobj, "touch_screen");
+	if (ret) {
+		pr_err("%s: Failed to create touch_screen symlink\n", __func__);
+		goto err_create_ts_symlink;
 	}
 
 	pr_debug("%s: Initialised sysfs interface.\n", __func__);
 	return 0;
 
-err_create_control:
-	class_remove_file(data->disabler_class, &class_attr_enabled);
-err_create_enabled:
+err_create_ts_symlink:
+	sysfs_remove_link(&data->disabler_class->p->subsys.kobj, "touch_key");
+err_create_tk_symlink:
+	class_remove_file(data->touch_screen_class, &class_attr_ts_control);
+err_create_ts_control:
+	class_remove_file(data->touch_key_class, &class_attr_tk_control);
+err_create_tk_control:
+	class_remove_file(data->touch_screen_class, &class_attr_ts_enabled);
+err_create_ts_enabled:
+	class_remove_file(data->touch_key_class, &class_attr_tk_enabled);
+err_create_tk_enabled:
+	class_destroy(data->touch_key_class);
+err_create_tk_class:
+	class_destroy(data->touch_screen_class);
+err_create_ts_class:
 	class_destroy(data->disabler_class);
-err_create_class:
+err_create_main_class:
 	kfree(data);
 	g_data = NULL;
 err_alloc_data:
@@ -272,8 +444,17 @@ static void touch_disabler_free_sysfs(void)
 {
 	struct touch_disabler_data *data = g_data;
 
-	class_remove_file(data->disabler_class, &class_attr_enabled);
-	class_remove_file(data->disabler_class, &class_attr_control);
+	class_remove_file(data->touch_key_class, &class_attr_tk_enabled);
+	class_remove_file(data->touch_key_class, &class_attr_tk_control);
+
+	class_remove_file(data->touch_screen_class, &class_attr_ts_enabled);
+	class_remove_file(data->touch_screen_class, &class_attr_ts_control);
+
+	sysfs_remove_link(&data->disabler_class->p->subsys.kobj, "touch_key");
+	sysfs_remove_link(&data->disabler_class->p->subsys.kobj, "touch_screen");
+
+	class_destroy(data->touch_key_class);
+	class_destroy(data->touch_screen_class);
 	class_destroy(data->disabler_class);
 
 	kfree(data);
