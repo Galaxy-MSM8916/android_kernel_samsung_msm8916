@@ -24,10 +24,6 @@
 #include "cyttsp5_regs.h"
 #include <linux/input/mt.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #ifdef TSP_BOOSTER
 #include <linux/cpufreq.h>
 #define DVFS_STAGE_DUAL		2
@@ -961,9 +957,6 @@ int cyttsp5_mt_probe(struct device *dev)
 #endif
 
 	dev_dbg(dev, "%s:done\n", __func__);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(md->input);
-#endif
 	return 0;
 
 error_init_input:
@@ -989,10 +982,6 @@ int cyttsp5_mt_release(struct device *dev)
 		pm_runtime_get_noresume(dev);*/
 
 	unregister_early_suspend(&md->es);
-#endif
-
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
 #endif
 
 	if (md->input_device_registered) {

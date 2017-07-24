@@ -20,10 +20,6 @@
 #include <linux/ioport.h>
 #include <linux/dmi.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 MODULE_AUTHOR("Pau Oliva Fora <pau@eslack.org>");
 MODULE_DESCRIPTION("HTC Shift touchscreen driver");
 MODULE_LICENSE("GPL");
@@ -161,9 +157,7 @@ static int htcpen_isa_probe(struct device *dev, unsigned int id)
 		goto input_register_failed;
 
 	dev_set_drvdata(dev, htcpen_dev);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(htcpen_dev);
-#endif
+
 	return 0;
 
  input_register_failed:
@@ -183,9 +177,7 @@ static int htcpen_isa_probe(struct device *dev, unsigned int id)
 static int htcpen_isa_remove(struct device *dev, unsigned int id)
 {
 	struct input_dev *htcpen_dev = dev_get_drvdata(dev);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	input_unregister_device(htcpen_dev);
 
 	free_irq(HTCPEN_IRQ, htcpen_dev);

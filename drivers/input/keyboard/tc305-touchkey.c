@@ -36,10 +36,6 @@
 #include <linux/wakelock.h>
 #include <linux/completion.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #ifdef CONFIG_TOUCHKEY_GRIP
 #define FEATURE_GRIP_FOR_SAR
 #endif
@@ -2947,10 +2943,6 @@ static int tc300k_probe(struct i2c_client *client,
 		dev_info(&client->dev, "%s: mode %d, sar %d\n",
 				__func__, ret, data->sar_enable);
 	}
-#endif
-
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_tk_dev(input_dev);
 #endif
 
 	dev_err(&client->dev, "[TK] %s done\n", __func__);

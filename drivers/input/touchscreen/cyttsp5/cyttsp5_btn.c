@@ -21,10 +21,6 @@
  *
  */
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #include "cyttsp5_regs.h"
 int tsp_keycodes[2] = {
 	KEY_MENU,
@@ -342,9 +338,6 @@ int cyttsp5_btn_probe(struct device *dev)
 	register_early_suspend(&bd->es);
 #endif
 
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_tk_dev(bd->input);
-#endif
 	return 0;
 
 error_init_input:
@@ -370,10 +363,6 @@ int cyttsp5_btn_release(struct device *dev)
 		pm_runtime_get_noresume(dev);
 
 	unregister_early_suspend(&bd->es);
-#endif
-
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_data.tk_dev = NULL;
 #endif
 
 	if (bd->input_device_registered) {

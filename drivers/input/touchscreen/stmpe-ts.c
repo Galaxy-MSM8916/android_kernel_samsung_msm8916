@@ -27,10 +27,6 @@
 
 #include <linux/mfd/stmpe.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 /* Register layouts and functionalities are identical on all stmpexxx variants
  * with touchscreen controller
  */
@@ -373,18 +369,14 @@ static int stmpe_input_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Could not register input device\n");
 		return error;
 	}
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(idev);
-#endif
+
 	return 0;
 }
 
 static int stmpe_ts_remove(struct platform_device *pdev)
 {
 	struct stmpe_touch *ts = platform_get_drvdata(pdev);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	stmpe_disable(ts->stmpe, STMPE_BLOCK_TOUCHSCREEN);
 
 	return 0;

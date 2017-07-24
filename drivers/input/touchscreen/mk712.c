@@ -45,10 +45,6 @@
 #include <linux/input.h>
 #include <asm/io.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 MODULE_AUTHOR("Daniel Quinlan <quinlan@pathname.com>, Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("ICS MicroClock MK712 TouchScreen driver");
 MODULE_LICENSE("GPL");
@@ -203,9 +199,7 @@ static int __init mk712_init(void)
 	err = input_register_device(mk712_dev);
 	if (err)
 		goto fail2;
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(mk712_dev);
-#endif
+
 	return 0;
 
  fail2:	free_irq(mk712_irq, mk712_dev);
@@ -216,9 +210,6 @@ static int __init mk712_init(void)
 
 static void __exit mk712_exit(void)
 {
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
 	input_unregister_device(mk712_dev);
 	free_irq(mk712_irq, mk712_dev);
 	release_region(mk712_io, 8);

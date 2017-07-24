@@ -20,10 +20,6 @@
 #include <linux/mfd/da9052/reg.h>
 #include <linux/mfd/da9052/da9052.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #define TSI_PEN_DOWN_STATUS 0x40
 
 struct da9052_tsi {
@@ -307,9 +303,7 @@ static int da9052_ts_probe(struct platform_device *pdev)
 		goto err_free_datardy_irq;
 
 	platform_set_drvdata(pdev, tsi);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input_dev);
-#endif
+
 	return 0;
 
 err_free_datardy_irq:
@@ -326,9 +320,7 @@ err_free_mem:
 static int  da9052_ts_remove(struct platform_device *pdev)
 {
 	struct da9052_tsi *tsi = platform_get_drvdata(pdev);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	da9052_reg_write(tsi->da9052, DA9052_LDO9_REG, 0x19);
 
 	da9052_free_irq(tsi->da9052, DA9052_IRQ_TSIREADY, tsi);

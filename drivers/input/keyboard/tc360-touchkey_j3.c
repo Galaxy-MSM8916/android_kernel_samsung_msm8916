@@ -38,10 +38,6 @@
 #include <linux/uaccess.h>
 #include <linux/regulator/consumer.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 
 #define TC300K_FW_NAME "tc360_j3"
 #define TC360_FW_NAME_J3	TC300K_FW_NAME
@@ -2524,13 +2520,6 @@ static void tc300k_destroy_interface(struct tc300k_data *data)
 		schedule_delayed_work(&data->led_twinkle_work, msecs_to_jiffies(400));
 	}
 #endif
-
-#ifdef USE_OPEN_CLOSE
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_tk_dev(input_dev);
-#endif
-#endif
-
 	dev_info(&client->dev, "successfully probed.\n");
 
 	return 0;

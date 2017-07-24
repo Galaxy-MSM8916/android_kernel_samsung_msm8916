@@ -22,10 +22,6 @@
 #include <linux/input.h>
 #include <linux/mfd/ezx-pcap.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 struct pcap_ts {
 	struct pcap_chip *pcap;
 	struct input_dev *input;
@@ -192,9 +188,7 @@ static int pcap_ts_probe(struct platform_device *pdev)
 			pcap_ts_event_touch, 0, "Touch Screen", pcap_ts);
 	if (err)
 		goto fail_register;
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input_dev);
-#endif
+
 	return 0;
 
 fail_register:
@@ -211,9 +205,7 @@ fail:
 static int pcap_ts_remove(struct platform_device *pdev)
 {
 	struct pcap_ts *pcap_ts = platform_get_drvdata(pdev);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	free_irq(pcap_to_irq(pcap_ts->pcap, PCAP_IRQ_TS), pcap_ts);
 	cancel_delayed_work_sync(&pcap_ts->work);
 

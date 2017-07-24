@@ -56,10 +56,6 @@ u8* m_firmware_data;
 //#include "bt432_firmware_00.h"
 #endif
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #ifdef SUPPORTED_USE_DUAL_FW
 #define TSP_TYPE_COUNT	2
 u8 *m_pFirmware [TSP_TYPE_COUNT] = {(u8*)m_firmware_data_00,(u8*)m_firmware_data_01,};
@@ -6291,11 +6287,7 @@ static int bt432_ts_probe(struct i2c_client *client,
 		goto err_kthread_create_failed;
 	}
 #endif
-#ifdef USE_OPEN_CLOSE
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input_dev);
-#endif
-#endif
+
 	return 0;
 
 #ifdef SEC_FACTORY_TEST
@@ -6334,11 +6326,7 @@ static int bt432_ts_remove(struct i2c_client *client)
 {
 	struct bt432_ts_info *info = i2c_get_clientdata(client);
 	struct bt432_ts_platform_data *pdata = info->pdata;
-#ifdef USE_OPEN_CLOSE
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
-#endif
+
 	disable_irq(info->irq);
 	down(&info->work_lock);
 

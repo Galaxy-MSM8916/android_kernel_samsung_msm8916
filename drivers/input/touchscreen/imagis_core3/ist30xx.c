@@ -51,10 +51,6 @@
 #include <linux/of_gpio.h>
 #endif
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #define MAX_ERR_CNT             (100)
 
 #define USE_OPEN_CLOSE
@@ -1743,12 +1739,7 @@ static int ist30xx_probe(struct i2c_client *client,
 	ist30xx_initialized = 1;
 	tsp_err("%s: Probe end\n", __func__);
 	ist30xx_dbg_level = prev_dbg_level;
-#if defined(USE_OPEN_CLOSE)
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input_dev);
-#endif
 
-#endif
 	return 0;
 
 err_irq:
@@ -1779,9 +1770,7 @@ err_alloc_dev:
 static int ist30xx_remove(struct i2c_client *client)
 {
 	struct ist30xx_data *data = i2c_get_clientdata(client);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	ist30xx_disable_irq(data);
 	free_irq(client->irq, data);
 	ist30xx_power_off();

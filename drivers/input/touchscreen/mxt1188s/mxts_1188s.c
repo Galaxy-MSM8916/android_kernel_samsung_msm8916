@@ -35,10 +35,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/qpnp/pin.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 static int mxt_power_onoff(struct mxt_data *data, bool enabled);
 
 #if ENABLE_TOUCH_KEY
@@ -2943,11 +2939,7 @@ static int  mxt_probe(struct i2c_client *client,
 */
 
 	printk(KERN_ERR "%s Completed", __func__);//psb added
-#if defined(USE_OPEN_CLOSE)
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input_dev);
-#endif
-#endif
+
 	return 0;
 
 err_touch_init:
@@ -2977,12 +2969,7 @@ err_allocate_input_device:
 static int mxt_remove(struct i2c_client *client)
 {
 	struct mxt_data *data = i2c_get_clientdata(client);
-#if defined(USE_OPEN_CLOSE)
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input_dev);
-#endif
 
-#endif
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&data->early_suspend);
 #endif

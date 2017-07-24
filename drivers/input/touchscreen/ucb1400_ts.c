@@ -28,10 +28,6 @@
 #include <linux/interrupt.h>
 #include <linux/ucb1400.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #define UCB1400_TS_POLL_PERIOD	10 /* ms */
 
 static bool adcsync;
@@ -391,9 +387,6 @@ static int ucb1400_ts_probe(struct platform_device *pdev)
 	if (error)
 		goto err_free_irq;
 
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(ucb->ts_idev);
-#endif
 	return 0;
 
 err_free_irq:
@@ -407,9 +400,7 @@ err:
 static int ucb1400_ts_remove(struct platform_device *pdev)
 {
 	struct ucb1400_ts *ucb = pdev->dev.platform_data;
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	free_irq(ucb->irq, ucb);
 	input_unregister_device(ucb->ts_idev);
 
