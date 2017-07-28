@@ -54,7 +54,9 @@ void end_swap_bio_write(struct bio *bio, int err)
 {
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct page *page = bio->bi_io_vec[0].bv_page;
+#ifndef CONFIG_VNSWAP
 	static unsigned long swap_error_rs_time;
+#endif
 
 	if (!uptodate) {
 		SetPageError(page);
@@ -67,12 +69,14 @@ void end_swap_bio_write(struct bio *bio, int err)
 		 * Also clear PG_reclaim to avoid rotate_reclaimable_page()
 		 */
 		set_page_dirty(page);
+#ifndef CONFIG_VNSWAP
 		if (printk_timed_ratelimit(&swap_error_rs_time,
 					   SWAP_ERROR_LOG_RATE_MS))
 			printk(KERN_ALERT "Write-error on swap-device (%u:%u:%Lu)\n",
 				imajor(bio->bi_bdev->bd_inode),
 				iminor(bio->bi_bdev->bd_inode),
 				(unsigned long long)bio->bi_sector);
+#endif
 		ClearPageReclaim(page);
 	}
 	end_page_writeback(page);
@@ -253,7 +257,13 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
 		end_page_writeback(page);
 		goto out;
 	}
+#ifdef CONFIG_VNSWAP
+	set_page_dirty(page);
+	ClearPageReclaim(page);
+	unlock_page(page);
+#else
 	ret = __swap_writepage(page, wbc, end_swap_bio_write);
+#endif
 out:
 	return ret;
 }
