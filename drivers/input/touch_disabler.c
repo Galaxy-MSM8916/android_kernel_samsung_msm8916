@@ -69,7 +69,7 @@ void touch_disabler_set_tk_dev(struct input_dev *tk_dev)
 static ssize_t touch_disabler_get_tk_enabled(struct class *dev,
 		struct class_attribute *attr, char *buf)
 {
-	if (g_data->tk_enabled) {
+	if (g_data->tk_dev && g_data->tk_enabled) {
 		return sprintf(buf, "%s\n", "true");
 	}
 	return sprintf(buf, "%s\n", "false");
@@ -85,23 +85,25 @@ static ssize_t touch_disabler_get_tk_enabled(struct class *dev,
 static ssize_t touch_disabler_set_tk_enabled(struct class *dev,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	/* only set the variable if control is set to manual */
-	if (g_data->tk_control) {
-		if (!strncmp(buf, "true", 4) || !strncmp(buf, "1", 1)) {
-			pr_info("%s: touch key is enabled.\n", __func__);
-			_touch_disabler_set_tk_status(true);
-			return count;
+	if (g_data->tk_dev) {
+		/* only set the variable if control is set to manual */
+		if (g_data->tk_control) {
+			if (!strncmp(buf, "true", 4) || !strncmp(buf, "1", 1)) {
+				pr_info("%s: touch key is enabled.\n", __func__);
+				_touch_disabler_set_tk_status(true);
+				return count;
+			}
+			else if (!strncmp(buf, "false", 5) || !strncmp(buf, "0", 1)) {
+				pr_info("%s: touch key is disabled.\n", __func__);
+				_touch_disabler_set_tk_status(false);
+				return count;
+			} else {
+				pr_err("%s: Invalid input passed\n", __func__);
+				return -EINVAL;
+			}
 		}
-		else if (!strncmp(buf, "false", 5) || !strncmp(buf, "0", 1)) {
-			pr_info("%s: touch key is disabled.\n", __func__);
-			_touch_disabler_set_tk_status(false);
-			return count;
-		} else {
-			pr_err("%s: Invalid input passed\n", __func__);
-			return -EINVAL;
-		}
+		pr_warn("%s: Input ignored since auto control is enabled.\n", __func__);
 	}
-	pr_warn("%s: Input ignored since auto control is enabled.\n", __func__);
 	return -EINVAL;
 }
 
@@ -118,7 +120,7 @@ struct class_attribute class_attr_tk_enabled = __ATTR(enabled,  S_IRUGO | S_IWUS
 static ssize_t touch_disabler_get_ts_enabled(struct class *dev,
 		struct class_attribute *attr, char *buf)
 {
-	if (g_data->ts_enabled) {
+	if (g_data->ts_dev && g_data->ts_enabled) {
 		return sprintf(buf, "%s\n", "true");
 	}
 	return sprintf(buf, "%s\n", "false");
@@ -134,23 +136,25 @@ static ssize_t touch_disabler_get_ts_enabled(struct class *dev,
 static ssize_t touch_disabler_set_ts_enabled(struct class *dev,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	/* only set the variable if control is set to manual */
-	if (g_data->ts_control) {
-		if (!strncmp(buf, "true", 4) || !strncmp(buf, "1", 1)) {
-			pr_info("%s: touch panel is enabled.\n", __func__);
-			_touch_disabler_set_ts_status(true);
-			return count;
+	if (g_data->ts_dev) {
+		/* only set the variable if control is set to manual */
+		if (g_data->ts_control) {
+			if (!strncmp(buf, "true", 4) || !strncmp(buf, "1", 1)) {
+				pr_info("%s: touch panel is enabled.\n", __func__);
+				_touch_disabler_set_ts_status(true);
+				return count;
+			}
+			else if (!strncmp(buf, "false", 5) || !strncmp(buf, "0", 1)) {
+				pr_info("%s: touch panel is disabled.\n", __func__);
+				_touch_disabler_set_ts_status(false);
+				return count;
+			} else {
+				pr_err("%s: Invalid input passed\n", __func__);
+				return -EINVAL;
+			}
 		}
-		else if (!strncmp(buf, "false", 5) || !strncmp(buf, "0", 1)) {
-			pr_info("%s: touch panel is disabled.\n", __func__);
-			_touch_disabler_set_ts_status(false);
-			return count;
-		} else {
-			pr_err("%s: Invalid input passed\n", __func__);
-			return -EINVAL;
-		}
+		pr_warn("%s: Input ignored since auto control is enabled.\n", __func__);
 	}
-	pr_warn("%s: Input ignored since auto control is enabled.\n", __func__);
 	return -EINVAL;
 }
 
@@ -166,7 +170,7 @@ struct class_attribute class_attr_ts_enabled = __ATTR(enabled,  S_IRUGO | S_IWUS
 static ssize_t touch_disabler_get_tk_control(struct class *dev,
 		struct class_attribute *attr, char *buf)
 {
-	if (g_data->tk_control) {
+	if (g_data->tk_dev && g_data->tk_control) {
 		return sprintf(buf, "%s\n", CONTROL_MANUAL);
 	}
 	return sprintf(buf, "%s\n", CONTROL_AUTO);
@@ -182,19 +186,21 @@ static ssize_t touch_disabler_get_tk_control(struct class *dev,
 static ssize_t touch_disabler_set_tk_control(struct class *dev,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	if (!strncmp(buf, CONTROL_MANUAL, strlen(CONTROL_MANUAL)) ||
-			!strncmp(buf, "1", 1)) {
-		pr_info("%s: manual touch key control is enabled.\n", __func__);
-		g_data->tk_control = 1;
-		return count;
+	if (g_data->tk_dev) {
+		if (!strncmp(buf, CONTROL_MANUAL, strlen(CONTROL_MANUAL)) ||
+				!strncmp(buf, "1", 1)) {
+			pr_info("%s: manual touch key control is enabled.\n", __func__);
+			g_data->tk_control = 1;
+			return count;
+		}
+		else if (!strncmp(buf, CONTROL_AUTO, strlen(CONTROL_AUTO)) ||
+				!strncmp(buf, "0", 1)) {
+			pr_info("%s: auto touch key control is enabled.\n", __func__);
+			g_data->tk_control = 0;
+			return count;
+		}
+		pr_err("%s: Invalid input passed\n", __func__);
 	}
-	else if (!strncmp(buf, CONTROL_AUTO, strlen(CONTROL_AUTO)) ||
-			!strncmp(buf, "0", 1)) {
-		pr_info("%s: auto touch key control is enabled.\n", __func__);
-		g_data->tk_control = 0;
-		return count;
-	}
-	pr_err("%s: Invalid input passed\n", __func__);
 	return -EINVAL;
 }
 
@@ -211,7 +217,7 @@ struct class_attribute class_attr_tk_control = __ATTR(control,  S_IRUGO | S_IWUS
 static ssize_t touch_disabler_get_ts_control(struct class *dev,
 		struct class_attribute *attr, char *buf)
 {
-	if (g_data->ts_control) {
+	if (g_data->ts_dev && g_data->ts_control) {
 		return sprintf(buf, "%s\n", CONTROL_MANUAL);
 	}
 	return sprintf(buf, "%s\n", CONTROL_AUTO);
@@ -227,19 +233,21 @@ static ssize_t touch_disabler_get_ts_control(struct class *dev,
 static ssize_t touch_disabler_set_ts_control(struct class *dev,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	if (!strncmp(buf, CONTROL_MANUAL, strlen(CONTROL_MANUAL)) ||
-			!strncmp(buf, "1", 1)) {
-		pr_info("%s: manual touch panel control is enabled.\n", __func__);
-		g_data->ts_control = 1;
-		return count;
+	if (g_data->ts_dev) {
+		if (!strncmp(buf, CONTROL_MANUAL, strlen(CONTROL_MANUAL)) ||
+				!strncmp(buf, "1", 1)) {
+			pr_info("%s: manual touch panel control is enabled.\n", __func__);
+			g_data->ts_control = 1;
+			return count;
+		}
+		else if (!strncmp(buf, CONTROL_AUTO, strlen(CONTROL_AUTO)) ||
+				!strncmp(buf, "0", 1)) {
+			pr_info("%s: auto touch panel control is enabled.\n", __func__);
+			g_data->ts_control = 0;
+			return count;
+		}
+		pr_err("%s: Invalid input passed\n", __func__);
 	}
-	else if (!strncmp(buf, CONTROL_AUTO, strlen(CONTROL_AUTO)) ||
-			!strncmp(buf, "0", 1)) {
-		pr_info("%s: auto touch panel control is enabled.\n", __func__);
-		g_data->ts_control = 0;
-		return count;
-	}
-	pr_err("%s: Invalid input passed\n", __func__);
 	return -EINVAL;
 }
 
@@ -257,12 +265,14 @@ struct class_attribute class_attr_ts_control = __ATTR(control,  S_IRUGO | S_IWUS
 void touch_disabler_set_touch_status(bool status)
 {
 	/* let mdss trigger the enaling/disabling */
-	if (g_data && !g_data->tk_control) {
-		_touch_disabler_set_tk_status(status);
-	}
+	if (g_data) {
+		if (g_data->tk_dev && !g_data->tk_control) {
+			_touch_disabler_set_tk_status(status);
+		}
 
-	if (g_data && !g_data->ts_control) {
-		_touch_disabler_set_ts_status(status);
+		if (g_data->ts_dev && !g_data->ts_control) {
+			_touch_disabler_set_ts_status(status);
+		}
 	}
 }
 
@@ -275,22 +285,16 @@ void touch_disabler_set_touch_status(bool status)
 static void _touch_disabler_set_tk_status(bool status)
 {
 	/* set the tk_enabled variable */
-	if (g_data) {
-		g_data->tk_enabled = status;
-	}
+	g_data->tk_enabled = status;
 
-	if (g_data && g_data->tk_dev) {
-		if (status) {
-			pr_info("%s: Enabling %s touch keys...\n", __func__,
-					g_data->tk_dev->name);
-			g_data->tk_dev->open(g_data->tk_dev);
-		} else {
-			pr_info("%s: Disabling %s touch keys...\n", __func__,
-					g_data->tk_dev->name);
-			g_data->tk_dev->close(g_data->tk_dev);
-		}
+	if (status) {
+		pr_info("%s: Enabling %s touch keys...\n", __func__,
+				g_data->tk_dev->name);
+		g_data->tk_dev->open(g_data->tk_dev);
 	} else {
-		pr_warn("%s: Touch key data struct is uninitialised!\n", __func__);
+		pr_info("%s: Disabling %s touch keys...\n", __func__,
+				g_data->tk_dev->name);
+		g_data->tk_dev->close(g_data->tk_dev);
 	}
 }
 
@@ -303,23 +307,16 @@ static void _touch_disabler_set_tk_status(bool status)
 static void _touch_disabler_set_ts_status(bool status)
 {
 	/* set the ts_enabled variable */
-	if (g_data) {
-		g_data->ts_enabled = status;
-	}
+	g_data->ts_enabled = status;
 
-	/* check if the struct has been initialised by the touch driver */
-	if (g_data && g_data->ts_dev) {
-		if (status) {
-			pr_info("%s: Enabling %s touch panel...\n", __func__,
-					g_data->ts_dev->name);
-			g_data->ts_dev->open(g_data->ts_dev);
-		} else {
-			pr_info("%s: Disabling %s touch panel...\n", __func__,
-					g_data->ts_dev->name);
-			g_data->ts_dev->close(g_data->ts_dev);
-		}
+	if (status) {
+		pr_info("%s: Enabling %s touch panel...\n", __func__,
+				g_data->ts_dev->name);
+		g_data->ts_dev->open(g_data->ts_dev);
 	} else {
-		pr_warn("%s: Touch panel data struct is uninitialised!\n", __func__);
+		pr_info("%s: Disabling %s touch panel...\n", __func__,
+				g_data->ts_dev->name);
+		g_data->ts_dev->close(g_data->ts_dev);
 	}
 }
 
