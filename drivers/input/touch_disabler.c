@@ -254,6 +254,43 @@ static ssize_t touch_disabler_set_ts_control(struct class *dev,
 struct class_attribute class_attr_ts_control = __ATTR(control,  S_IRUGO | S_IWUSR,
 		touch_disabler_get_ts_control, touch_disabler_set_ts_control);
 
+/*
+ *
+ * Returns "available" if a touch key device is registered with
+ * the driver, or "unavailable" otherwise.
+ *
+ */
+static ssize_t touch_disabler_get_tk_status(struct class *dev,
+		struct class_attribute *attr, char *buf)
+{
+	if (g_data->tk_dev) {
+		return sprintf(buf, "%s\n", "available");
+	}
+	return sprintf(buf, "%s\n", "unavailable");
+}
+
+struct class_attribute class_attr_tk_status = __ATTR(status, S_IRUGO,
+		touch_disabler_get_tk_status, NULL);
+
+
+/*
+ *
+ * Returns "true" if a touch screen device is registered with
+ * the driver, or "false" otherwise.
+ *
+ */
+static ssize_t touch_disabler_get_ts_status(struct class *dev,
+		struct class_attribute *attr, char *buf)
+{
+	if (g_data->ts_dev) {
+		return sprintf(buf, "%s\n", "available");
+	}
+	return sprintf(buf, "%s\n", "unavailable");
+}
+
+struct class_attribute class_attr_ts_status = __ATTR(status, S_IRUGO,
+		touch_disabler_get_ts_status, NULL);
+
 
 /*
  * Enables or disables the touch key/panel depending on value of status.
@@ -392,6 +429,18 @@ static int touch_disabler_init_sysfs(void)
 		goto err_create_ts_control;
 	}
 
+	ret = class_create_file(data->touch_key_class, &class_attr_tk_status);
+	if (ret) {
+		pr_err("%s: Failed to create tk status\n", __func__);
+		goto err_create_tk_status;
+	}
+
+	ret = class_create_file(data->touch_screen_class, &class_attr_ts_status);
+	if (ret) {
+		pr_err("%s: Failed to create ts status\n", __func__);
+		goto err_create_ts_status;
+	}
+
 	ret = sysfs_create_link(&data->disabler_class->p->subsys.kobj,
 			&data->touch_key_class->p->subsys.kobj, "touch_key");
 	if (ret) {
@@ -412,6 +461,10 @@ static int touch_disabler_init_sysfs(void)
 err_create_ts_symlink:
 	sysfs_remove_link(&data->disabler_class->p->subsys.kobj, "touch_key");
 err_create_tk_symlink:
+	class_remove_file(data->touch_screen_class, &class_attr_ts_status);
+err_create_ts_status:
+	class_remove_file(data->touch_key_class, &class_attr_tk_status);
+err_create_tk_status:
 	class_remove_file(data->touch_screen_class, &class_attr_ts_control);
 err_create_ts_control:
 	class_remove_file(data->touch_key_class, &class_attr_tk_control);
@@ -443,9 +496,11 @@ static void touch_disabler_free_sysfs(void)
 
 	class_remove_file(data->touch_key_class, &class_attr_tk_enabled);
 	class_remove_file(data->touch_key_class, &class_attr_tk_control);
+	class_remove_file(data->touch_key_class, &class_attr_tk_status);
 
 	class_remove_file(data->touch_screen_class, &class_attr_ts_enabled);
 	class_remove_file(data->touch_screen_class, &class_attr_ts_control);
+	class_remove_file(data->touch_screen_class, &class_attr_ts_status);
 
 	sysfs_remove_link(&data->disabler_class->p->subsys.kobj, "touch_key");
 	sysfs_remove_link(&data->disabler_class->p->subsys.kobj, "touch_screen");
