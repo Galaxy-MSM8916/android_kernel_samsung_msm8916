@@ -33,8 +33,8 @@
 //#define DEBUG_INTELLI_PLUG
 #undef DEBUG_INTELLI_PLUG
 
-#define INTELLI_PLUG_MAJOR_VERSION	3
-#define INTELLI_PLUG_MINOR_VERSION	9
+#define INTELLI_PLUG_MAJOR_VERSION	4
+#define INTELLI_PLUG_MINOR_VERSION	0
 
 #define DEF_SAMPLING_MS			(268)
 
@@ -53,13 +53,15 @@ static struct workqueue_struct *intelliplug_wq;
 static struct workqueue_struct *intelliplug_boost_wq;
 
 static unsigned int intelli_plug_active = 0;
-module_param(intelli_plug_active, uint, 0644);
 
 static unsigned int touch_boost_active = 1;
-module_param(touch_boost_active, uint, 0644);
+module_param(touch_boost_active, uint, 0664);
 
 static unsigned int nr_run_profile_sel = 0;
-module_param(nr_run_profile_sel, uint, 0644);
+module_param(nr_run_profile_sel, uint, 0664);
+
+static unsigned int min_online_cpus = 2;
+module_param(min_online_cpus, uint, 0664);
 
 //default to something sane rather than zero
 static unsigned int sampling_time = DEF_SAMPLING_MS;
@@ -77,11 +79,13 @@ struct ip_cpu_info {
 static DEFINE_PER_CPU(struct ip_cpu_info, ip_info);
 
 static unsigned int screen_off_max = UINT_MAX;
-module_param(screen_off_max, uint, 0644);
+module_param(screen_off_max, uint, 0664);
 
 #define CAPACITY_RESERVE	50
 
-#if defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_APQ8064) || \
+#if defined(CONFIG_ARCH_APQ8084) || defined(CONFIG_ARM64)
+#define THREAD_CAPACITY (430 - CAPACITY_RESERVE)
+#elif defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_APQ8064) || \
 defined(CONFIG_ARCH_MSM8974)
 #define THREAD_CAPACITY	(339 - CAPACITY_RESERVE)
 #elif defined(CONFIG_ARCH_MSM8226) || defined (CONFIG_ARCH_MSM8926) || \
@@ -151,10 +155,10 @@ static unsigned int nr_possible_cores;
 module_param(nr_possible_cores, uint, 0444);
 
 static unsigned int cpu_nr_run_threshold = CPU_NR_THRESHOLD;
-module_param(cpu_nr_run_threshold, uint, 0644);
+module_param(cpu_nr_run_threshold, uint, 0664);
 
 static unsigned int nr_run_hysteresis = NR_RUN_HYSTERESIS_QUAD;
-module_param(nr_run_hysteresis, uint, 0644);
+module_param(nr_run_hysteresis, uint, 0664);
 
 static unsigned int nr_run_last;
 
@@ -264,7 +268,11 @@ static void __ref intelli_plug_work_fn(struct work_struct *work)
 #ifdef DEBUG_INTELLI_PLUG
 		pr_info("nr_run_stat: %u\n", nr_run_stat);
 #endif
-		cpu_count = nr_run_stat;
+
+		if (unlikely(min_online_cpus > 4))
+			min_online_cpus = 4;
+
+		cpu_count = nr_run_stat < min_online_cpus ? min_online_cpus : nr_run_stat;
 		nr_cpus = num_online_cpus();
 
 		if (!suspended) {
@@ -327,9 +335,9 @@ static void __ref intelli_plug_work_fn(struct work_struct *work)
 		else
 			pr_info("intelli_plug is suspened!\n");
 #endif
-	}
 	queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
 		msecs_to_jiffies(sampling_time));
+	}
 }
 
 #if defined(CONFIG_POWERSUSPEND) || defined(CONFIG_HAS_EARLYSUSPEND)
@@ -390,6 +398,45 @@ void __ref intelli_plug_perf_boost(bool on)
 		}
 	}
 }
+
+/* sysfs interface for performance boost (BEGIN) */
+static ssize_t intelli_plug_perf_boost_store(struct kobject *kobj,
+			struct kobj_attribute *attr, const char *buf,
+			size_t count)
+{
+
+	int boost_req;
+
+	sscanf(buf, "%du", &boost_req);
+
+	switch(boost_req) {
+		case 0:
+			intelli_plug_perf_boost(0);
+			return count;
+		case 1:
+			intelli_plug_perf_boost(1);
+			return count;
+		default:
+			return -EINVAL;
+	}
+}
+
+static struct kobj_attribute intelli_plug_perf_boost_attribute =
+	__ATTR(perf_boost, 0220,
+		NULL,
+		intelli_plug_perf_boost_store);
+
+static struct attribute *intelli_plug_perf_boost_attrs[] = {
+	&intelli_plug_perf_boost_attribute.attr,
+	NULL,
+};
+
+static struct attribute_group intelli_plug_perf_boost_attr_group = {
+	.attrs = intelli_plug_perf_boost_attrs,
+};
+
+static struct kobject *intelli_plug_perf_boost_kobj;
+/* sysfs interface for performance boost (END) */
 
 #ifdef CONFIG_POWERSUSPEND
 static void intelli_plug_suspend(struct power_suspend *handler)
@@ -547,6 +594,57 @@ static struct input_handler intelli_plug_input_handler = {
 	.name           = "intelliplug_handler",
 	.id_table       = intelli_plug_ids,
 };
+
+static int __ref active_show(char *buf,
+		       const struct kernel_param *kp __attribute__ ((unused)))
+{
+	return sprintf(buf, "%d", intelli_plug_active);
+}
+
+static int __ref active_store(const char *buf,
+			const struct kernel_param *kp __attribute__ ((unused)))
+{
+	int r, active, cpu;
+
+	r = kstrtoint(buf, 0, &active);
+	if (r)
+		return -EINVAL;
+	active = active ? 1 : 0;
+
+	if (active == intelli_plug_active)
+		return 0;
+
+	intelli_plug_active = active;
+
+	for_each_possible_cpu(cpu) {
+		if (!cpu_online(cpu))
+			cpu_up(cpu);
+	}
+
+	if (active) {
+#ifdef DEBUG_INTELLI_PLUG
+		pr_info("activating intelliplug\n");
+#endif
+		queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
+			msecs_to_jiffies(10));
+	} else {
+#ifdef DEBUG_INTELLI_PLUG
+		pr_info("disabling intelliplug\n");
+#endif
+		cancel_delayed_work(&intelli_plug_work);
+		flush_workqueue(intelliplug_wq);
+	}
+
+	return 0;
+}
+
+static const struct kernel_param_ops param_ops_active = {
+	.set = active_store,
+	.get = active_show
+};
+
+module_param_cb(intelli_plug_active, &param_ops_active,
+		&intelli_plug_active, 0664);
 
 int __init intelli_plug_init(void)
 {
