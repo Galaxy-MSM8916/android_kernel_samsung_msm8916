@@ -928,7 +928,7 @@ static void udp6_hwcsum_outgoing(struct sock *sk, struct sk_buff *skb,
 		offset = skb_transport_offset(skb);
 		skb->csum = skb_checksum(skb, offset, skb->len - offset, 0);
 
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		skb_queue_walk(&sk->sk_write_queue, skb) {
 			csum = csum_add(csum, skb->csum);
