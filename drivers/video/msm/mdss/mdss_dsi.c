@@ -2027,6 +2027,14 @@ int dsi_panel_device_register(struct device_node *pan_node,
 	else pr_debug("%s:%d, lcd_select_gpio (%d)",__func__, __LINE__,ctrl_pdata->lcd_select_gpio);
 
 #endif
+#if defined(CONFIG_MACH_FORTUNA_CTC)
+	ctrl_pdata->disp_en_gpio_1p8v = of_get_named_gpio(ctrl_pdev->dev.of_node,
+		"qcom,platform-enable-1p8-gpio", 0);
+
+	if (!gpio_is_valid(ctrl_pdata->disp_en_gpio_1p8v))
+		pr_err("%s:%d, disp_en_gpio_1p8v gpio not specified\n",
+						__func__, __LINE__);
+#endif
 
 	ctrl_pdata->bklt_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 		"qcom,platform-bklight-en-gpio", 0);

@@ -340,6 +340,16 @@ ifeq ($(CONFIG_SEC_FORTUNA_PROJECT),y)
 		dtb-y += msm8916-sec-fortuna-r09.dtb
 		dtb-y += msm8916-sec-fortuna-r10.dtb
 		dtb-y += msm8916-sec-fortuna-r11.dtb
+	else ifeq ($(CONFIG_MACH_FORTUNA_CTC),y)
+		dtb-y += msm8916-sec-fortuna-r00.dtb
+		dtb-y += msm8916-sec-fortuna-r01.dtb
+		dtb-y += msm8916-sec-fortuna-r03.dtb
+		dtb-y += msm8916-sec-fortuna-r04.dtb
+		dtb-y += msm8916-sec-fortuna-r06.dtb
+		dtb-y += msm8916-sec-fortuna-r07.dtb
+		dtb-y += msm8916-sec-fortuna-r09.dtb
+		dtb-y += msm8916-sec-fortuna-r10.dtb
+		dtb-y += msm8916-sec-fortuna-r11.dtb
 	else ifeq ($(CONFIG_MACH_FORTUNA),y)
 		dtb-y += msm8916-sec-fortuna-r00.dtb
 		dtb-y += msm8916-sec-fortuna-r01.dtb

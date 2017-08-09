@@ -393,6 +393,9 @@ struct mdss_dsi_ctrl_pdata {
 	int disp_te_gpio;
 	int rst_gpio;
 	int disp_en_gpio;
+#if defined(CONFIG_MACH_FORTUNA_CTC)
+	int disp_en_gpio_1p8v;
+#endif
 	int bklt_en_gpio;
 	int mode_gpio;
 	int bklt_ctrl;	/* backlight ctrl */
