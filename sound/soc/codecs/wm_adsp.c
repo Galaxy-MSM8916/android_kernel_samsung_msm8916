@@ -2953,7 +2953,12 @@ err_raw_capt_buf:
 	kfree(adsp->raw_capt_buf);
 err_capt_buf:
 	vfree(adsp->capt_buf.buf);
-
+out_fw:
+	regmap_async_complete(regmap);
+	release_firmware(firmware);
+	wm_adsp_buf_free(&buf_list);
+out:
+	kfree(file);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_stream_alloc);
