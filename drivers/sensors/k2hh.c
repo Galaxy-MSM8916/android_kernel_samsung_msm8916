@@ -1267,6 +1267,92 @@ err_register_input_dev:
 	return ret;
 }
 
+#if defined (CONFIG_MACH_FORTUNA_CTC)
+static int k2hh_parse2_dt(struct k2hh_p *data, struct device *dev)
+{
+	struct device_node *dNode = dev->of_node;
+	enum of_gpio_flags flags;
+	int ret;
+	u32 temp;
+
+	if (dNode == NULL)
+		return -ENODEV;
+
+	data->acc_int1 = of_get_named_gpio_flags(dNode, "stm,irq_gpio", 0,
+		&flags);
+	if (data->acc_int1 < 0) {
+		pr_err("%s - get acc_int1 error\n", __func__);
+		return -ENODEV;
+	}
+
+	data->sda_gpio = of_get_named_gpio_flags(dNode, "stm,sda", 0, &flags);
+	data->scl_gpio = of_get_named_gpio_flags(dNode, "stm,scl", 0, &flags);
+
+	pr_info("%s sda_gpio:%d\n", __func__, data->sda_gpio);
+	pr_info("%s scl_gpio:%d\n", __func__, data->scl_gpio);
+
+	ret = of_property_read_string(dNode, "stm,reg_vdd", &data->str_vdd);
+	if (ret)
+		pr_err("%s: invalid vdd\n", __func__);
+	else
+		pr_info("%s: vdd:%s\n", __func__, data->str_vdd);
+
+	ret = of_property_read_string(dNode, "stm,reg_vio", &data->str_vio);
+	if (ret)
+		pr_err("%s: invalid vio\n", __func__);
+	else
+		pr_info("%s: vio:%s\n", __func__, data->str_vio);
+
+	ret = of_property_read_u32(dNode, "stm,axis_map2_x", &temp);
+	if ((data->axis_map_x > 2) || (ret < 0)) {
+		pr_err("%s: invalid x axis_map value %u\n",
+			__func__, data->axis_map_x);
+		data->axis_map_x = 0;
+	} else
+		data->axis_map_x = (u8)temp;
+
+	ret = of_property_read_u32(dNode, "stm,axis_map2_y", &temp);
+	if ((data->axis_map_y > 2) || (ret < 0)) {
+		pr_err("%s: invalid y axis_map value %u\n",
+			__func__, data->axis_map_y);
+		data->axis_map_y = 1;
+	} else
+		data->axis_map_y = (u8)temp;
+
+	ret = of_property_read_u32(dNode, "stm,axis_map2_z", &temp);
+	if ((data->axis_map_z > 2) || (ret < 0)) {
+		pr_err("%s: invalid z axis_map value %u\n",
+			__func__, data->axis_map_z);
+		data->axis_map_z = 2;
+	} else
+		data->axis_map_z = (u8)temp;
+
+	ret = of_property_read_u32(dNode, "stm,negate2_x", &temp);
+	if ((data->negate_x > 1) || (ret < 0)) {
+		pr_err("%s: invalid x axis_map value %u\n",
+			__func__, data->negate_x);
+		data->negate_x = 0;
+	} else
+		data->negate_x = (u8)temp;
+
+	ret = of_property_read_u32(dNode, "stm,negate2_y", &temp);
+	if ((data->negate_y > 1) || (ret < 0)) {
+		pr_err("%s: invalid y axis_map value %u\n",
+			__func__, data->negate_y);
+		data->negate_y = 0;
+	} else
+		data->negate_y = (u8)temp;
+
+	ret = of_property_read_u32(dNode, "stm,negate2_z", &temp);
+	if ((data->negate_z > 1) || (ret < 0)) {
+		pr_err("%s: invalid z axis_map value %u\n",
+			__func__, data->negate_z);
+		data->negate_z = 0;
+	} else
+		data->negate_z = (u8)temp;
+	return 0;
+}
+#else
 static int k2hh_parse_dt(struct k2hh_p *data, struct device *dev)
 {
 	struct device_node *dNode = dev->of_node;
@@ -1335,6 +1421,7 @@ static int k2hh_parse_dt(struct k2hh_p *data, struct device *dev)
 	return 0;
 }
 
+#endif
 static int k2hh_regulator_onoff(struct k2hh_p *data, bool onoff)
 {
 	int ret = 0;
@@ -1446,7 +1533,11 @@ static int k2hh_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, data);
 	data->client = client;
 
+#if defined (CONFIG_MACH_FORTUNA_CTC)
+	ret = k2hh_parse2_dt(data, &client->dev);
+#else
 	ret = k2hh_parse_dt(data, &client->dev);
+#endif
 	if (ret < 0) {
 		SENSOR_ERR(" of_node error\n");
 		ret = -ENODEV;
