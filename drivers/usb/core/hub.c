@@ -138,6 +138,10 @@ struct usb_hub *usb_hub_to_struct_hub(struct usb_device *hdev)
 
 static int usb_device_supports_lpm(struct usb_device *udev)
 {
+	/* Some devices have trouble with LPM */
+	if (udev->quirks & USB_QUIRK_NO_LPM)
+		return 0;
+
 	/* USB 2.1 (and greater) devices indicate LPM support through
 	 * their USB 2.0 Extended Capabilities BOS descriptor.
 	 */
@@ -888,6 +892,25 @@ static int hub_usb3_port_disable(struct usb_hub *hub, int port1)
 	if (!hub_is_superspeed(hub->hdev))
 		return -EINVAL;
 
+	ret = hub_port_status(hub, port1, &portstatus, &portchange);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * USB controller Advanced Micro Devices, Inc. [AMD] FCH USB XHCI
+	 * Controller [1022:7814] will have spurious result making the following
+	 * usb 3.0 device hotplugging route to the 2.0 root hub and recognized
+	 * as high-speed device if we set the usb 3.0 port link state to
+	 * Disabled. Since it's already in USB_SS_PORT_LS_RX_DETECT state, we
+	 * check the state here to avoid the bug.
+	 */
+	if ((portstatus & USB_PORT_STAT_LINK_STATE) ==
+				USB_SS_PORT_LS_RX_DETECT) {
+		dev_dbg(&hub->ports[port1 - 1]->dev,
+			 "Not disabling port; link state is RxDetect\n");
+		return ret;
+	}
+
 	ret = hub_set_port_link_state(hub, port1, USB_SS_PORT_LS_SS_DISABLED);
 	if (ret)
 		return ret;
@@ -1161,7 +1184,8 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 			/* Tell khubd to disconnect the device or
 			 * check for a new connection
 			 */
-			if (udev || (portstatus & USB_PORT_STAT_CONNECTION))
+			if (udev || (portstatus & USB_PORT_STAT_CONNECTION) ||
+			    (portstatus & USB_PORT_STAT_OVERCURRENT))
 				set_bit(port1, hub->change_bits);
 
 		} else if (portstatus & USB_PORT_STAT_ENABLE) {
@@ -1706,8 +1730,14 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * - Change autosuspend delay of hub can avoid unnecessary auto
 	 *   suspend timer for hub, also may decrease power consumption
 	 *   of USB bus.
+	 *
+	 * - If user has indicated to prevent autosuspend by passing
+	 *   usbcore.autosuspend = -1 then keep autosuspend disabled.
 	 */
-	pm_runtime_set_autosuspend_delay(&hdev->dev, 0);
+#ifdef CONFIG_PM_RUNTIME
+	if (hdev->dev.power.autosuspend_delay >= 0)
+		pm_runtime_set_autosuspend_delay(&hdev->dev, 0);
+#endif
 
 	/*
 	 * Hubs have proper suspend/resume support, except for root hubs
@@ -1961,8 +1991,10 @@ void usb_set_device_state(struct usb_device *udev,
 					|| new_state == USB_STATE_SUSPENDED)
 				;	/* No change to wakeup settings */
 			else if (new_state == USB_STATE_CONFIGURED)
-				wakeup = udev->actconfig->desc.bmAttributes
-					 & USB_CONFIG_ATT_WAKEUP;
+				wakeup = (udev->quirks &
+					USB_QUIRK_IGNORE_REMOTE_WAKEUP) ? 0 :
+					udev->actconfig->desc.bmAttributes &
+					USB_CONFIG_ATT_WAKEUP;
 			else
 				wakeup = 0;
 		}
@@ -2628,8 +2660,15 @@ static int hub_port_wait_reset(struct usb_hub *hub, int port1,
 		if (ret < 0)
 			return ret;
 
-		/* The port state is unknown until the reset completes. */
-		if (!(portstatus & USB_PORT_STAT_RESET))
+		/*
+		 * The port state is unknown until the reset completes.
+		 *
+		 * On top of that, some chips may require additional time
+		 * to re-establish a connection after the reset is complete,
+		 * so also wait for the connection to be re-established.
+		 */
+		if (!(portstatus & USB_PORT_STAT_RESET) &&
+		    (portstatus & USB_PORT_STAT_CONNECTION))
 			break;
 
 		/* switch to the long delay after two short delay failures */
@@ -3265,6 +3304,43 @@ static int finish_port_resume(struct usb_device *udev)
 }
 
 /*
+ * There are some SS USB devices which take longer time for link training.
+ * XHCI specs 4.19.4 says that when Link training is successful, port
+ * sets CSC bit to 1. So if SW reads port status before successful link
+ * training, then it will not find device to be present.
+ * USB Analyzer log with such buggy devices show that in some cases
+ * device switch on the RX termination after long delay of host enabling
+ * the VBUS. In few other cases it has been seen that device fails to
+ * negotiate link training in first attempt. It has been
+ * reported till now that few devices take as long as 2000 ms to train
+ * the link after host enabling its VBUS and termination. Following
+ * routine implements a 2000 ms timeout for link training. If in a case
+ * link trains before timeout, loop will exit earlier.
+ *
+ * FIXME: If a device was connected before suspend, but was removed
+ * while system was asleep, then the loop in the following routine will
+ * only exit at timeout.
+ *
+ * This routine should only be called when persist is enabled for a SS
+ * device.
+ */
+static int wait_for_ss_port_enable(struct usb_device *udev,
+		struct usb_hub *hub, int *port1,
+		u16 *portchange, u16 *portstatus)
+{
+	int status = 0, delay_ms = 0;
+
+	while (delay_ms < 2000) {
+		if (status || *portstatus & USB_PORT_STAT_CONNECTION)
+			break;
+		msleep(20);
+		delay_ms += 20;
+		status = hub_port_status(hub, *port1, portstatus, portchange);
+	}
+	return status;
+}
+
+/*
  * usb_port_resume - re-activate a suspended usb device's upstream port
  * @udev: device to re-activate, not a root hub
  * Context: must be able to sleep; device not locked; pm locks held
@@ -3339,10 +3415,10 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 		dev_dbg(hub->intfdev, "can't resume port %d, status %d\n",
 				port1, status);
 	} else {
-		/* drive resume for at least 20 msec */
+		/* drive resume for USB_RESUME_TIMEOUT msec */
 		dev_dbg(&udev->dev, "usb %sresume\n",
 				(PMSG_IS_AUTO(msg) ? "auto-" : ""));
-		msleep(25);
+		msleep(USB_RESUME_TIMEOUT);
 
 		/* Virtual root hubs can trigger on GET_PORT_STATUS to
 		 * stop resume signaling.  Then finish the resume
@@ -3369,6 +3445,10 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 	}
 
 	clear_bit(port1, hub->busy_bits);
+
+	if (udev->persist_enabled && hub_is_superspeed(hub->hdev))
+		status = wait_for_ss_port_enable(udev, hub, &port1, &portchange,
+				&portstatus);
 
 	status = check_port_resume_type(udev,
 			hub, port1, status, portchange, portstatus);
@@ -4225,7 +4305,13 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 						r = -EPROTO;
 					break;
 				}
-				if (r == 0)
+				/*
+				 * Some devices time out if they are powered on
+				 * when already connected. They need a second
+				 * reset. But only on the first attempt,
+				 * lest we get into a time out/reset loop
+				 */
+				if (r == 0  || (r == -ETIMEDOUT && j == 0))
 					break;
 			}
 			udev->descriptor.bMaxPacketSize0 =
@@ -4362,6 +4448,8 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 			retval = -ENOMSG;
 		goto fail;
 	}
+
+	usb_detect_quirks(udev);
 
 	if (udev->wusb == 0 && le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0201) {
 		retval = usb_get_bos_descriptor(udev);
@@ -4604,7 +4692,6 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		if (status < 0)
 			goto loop;
 
-		usb_detect_quirks(udev);
 		if (udev->quirks & USB_QUIRK_DELAY_INIT)
 			msleep(1000);
 

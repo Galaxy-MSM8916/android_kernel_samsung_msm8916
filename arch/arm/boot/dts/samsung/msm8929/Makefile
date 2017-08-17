@@ -45,6 +45,13 @@ ifeq ($(CONFIG_MACH_J7_USA_SPR),y)
 	dtb-y += msm8929-sec-j7-spr-r00.dtb
 endif
 
+ifeq ($(CONFIG_MACH_J7_CHN_CMCC),y)
+	dtb-y += msm8929-sec-j7-chn-r00.dtb
+	dtb-y += msm8929-sec-j7-chn-r01.dtb
+	dtb-y += msm8929-sec-j7-chn-r02.dtb
+	dtb-y += msm8929-sec-j7-chn-r04.dtb
+endif
+
 endif
 
 dtb-$(CONFIG_ARCH_MSM8226) += msm8226-sim.dtb \

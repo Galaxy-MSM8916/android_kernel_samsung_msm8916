@@ -424,6 +424,9 @@ int __trace_puts(unsigned long ip, const char *str, int size)
 	struct print_entry *entry;
 	unsigned long irq_flags;
 	int alloc;
+	int pc;
+
+	pc = preempt_count();
 
 	if (unlikely(tracing_selftest_running || tracing_disabled))
 		return 0;
@@ -433,7 +436,7 @@ int __trace_puts(unsigned long ip, const char *str, int size)
 	local_save_flags(irq_flags);
 	buffer = global_trace.trace_buffer.buffer;
 	event = trace_buffer_lock_reserve(buffer, TRACE_PRINT, alloc, 
-					  irq_flags, preempt_count());
+					  irq_flags, pc);
 	if (!event)
 		return 0;
 
@@ -453,6 +456,7 @@ int __trace_puts(unsigned long ip, const char *str, int size)
 	}
 
 	__buffer_unlock_commit(buffer, event);
+	ftrace_trace_stack(buffer, irq_flags, 4, pc);
 
 	return size;
 }
@@ -470,6 +474,9 @@ int __trace_bputs(unsigned long ip, const char *str)
 	struct bputs_entry *entry;
 	unsigned long irq_flags;
 	int size = sizeof(struct bputs_entry);
+	int pc;
+
+	pc = preempt_count();
 
 	if (unlikely(tracing_selftest_running || tracing_disabled))
 		return 0;
@@ -477,7 +484,7 @@ int __trace_bputs(unsigned long ip, const char *str)
 	local_save_flags(irq_flags);
 	buffer = global_trace.trace_buffer.buffer;
 	event = trace_buffer_lock_reserve(buffer, TRACE_BPUTS, size,
-					  irq_flags, preempt_count());
+					  irq_flags, pc);
 	if (!event)
 		return 0;
 
@@ -487,6 +494,7 @@ int __trace_bputs(unsigned long ip, const char *str)
 	stm_log(OST_ENTITY_TRACE_PRINTK, entry->str, strlen(entry->str)+1);
 
 	__buffer_unlock_commit(buffer, event);
+	ftrace_trace_stack(buffer, irq_flags, 4, pc);
 
 	return 1;
 }
@@ -738,7 +746,7 @@ static struct {
 	{ trace_clock_local,	"local",	1 },
 	{ trace_clock_global,	"global",	1 },
 	{ trace_clock_counter,	"counter",	0 },
-	{ trace_clock_jiffies,	"uptime",	1 },
+	{ trace_clock_jiffies,	"uptime",	0 },
 	{ trace_clock,		"perf",		1 },
 	ARCH_TRACE_CLOCKS
 };
@@ -4120,13 +4128,6 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	struct trace_array *tr = iter->tr;
 	ssize_t sret;
 
-	/* return any leftover data */
-	sret = trace_seq_to_user(&iter->seq, ubuf, cnt);
-	if (sret != -EBUSY)
-		return sret;
-
-	trace_seq_init(&iter->seq);
-
 	/* copy the tracer to avoid using a global lock all around */
 	mutex_lock(&trace_types_lock);
 	if (unlikely(iter->trace->name != tr->current_trace->name))
@@ -4139,6 +4140,14 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	 * is protected.
 	 */
 	mutex_lock(&iter->mutex);
+
+	/* return any leftover data */
+	sret = trace_seq_to_user(&iter->seq, ubuf, cnt);
+	if (sret != -EBUSY)
+		goto out;
+
+	trace_seq_init(&iter->seq);
+
 	if (iter->trace->read) {
 		sret = iter->trace->read(iter, filp, ubuf, cnt, ppos);
 		if (sret)
@@ -4350,7 +4359,10 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 
 	spd.nr_pages = i;
 
-	ret = splice_to_pipe(pipe, &spd);
+	if (i)
+		ret = splice_to_pipe(pipe, &spd);
+	else
+		ret = 0;
 out:
 	splice_shrink_spd(&spd);
 	return ret;
@@ -5167,11 +5179,6 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 	}
 #endif
 
-	if (splice_grow_spd(pipe, &spd)) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
 	if (*ppos & (PAGE_SIZE - 1)) {
 		ret = -EINVAL;
 		goto out;
@@ -5183,6 +5190,11 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 			goto out;
 		}
 		len &= PAGE_MASK;
+	}
+
+	if (splice_grow_spd(pipe, &spd)) {
+		ret = -ENOMEM;
+		goto out;
 	}
 
  again:
@@ -5240,21 +5252,22 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 	if (!spd.nr_pages) {
 		if ((file->f_flags & O_NONBLOCK) || (flags & SPLICE_F_NONBLOCK)) {
 			ret = -EAGAIN;
-			goto out;
+			goto out_shrink;
 		}
 		mutex_unlock(&trace_types_lock);
 		ret = iter->trace->wait_pipe(iter);
 		mutex_lock(&trace_types_lock);
 		if (ret)
-			goto out;
+			goto out_shrink;
 		if (signal_pending(current)) {
 			ret = -EINTR;
-			goto out;
+			goto out_shrink;
 		}
 		goto again;
 	}
 
 	ret = splice_to_pipe(pipe, &spd);
+out_shrink:
 	splice_shrink_spd(&spd);
 out:
 	mutex_unlock(&trace_types_lock);
@@ -5465,11 +5478,13 @@ ftrace_trace_snapshot_callback(struct ftrace_hash *hash,
 		return ret;
 
  out_reg:
+	ret = alloc_snapshot(&global_trace);
+	if (ret < 0)
+		goto out;
+
 	ret = register_ftrace_function_probe(glob, ops, count);
 
-	if (ret >= 0)
-		alloc_snapshot(&global_trace);
-
+ out:
 	return ret < 0 ? ret : 0;
 }
 
@@ -6065,7 +6080,7 @@ static int instance_mkdir (struct inode *inode, struct dentry *dentry, umode_t m
 	int ret;
 
 	/* Paranoid: Make sure the parent is the "instances" directory */
-	parent = hlist_entry(inode->i_dentry.first, struct dentry, d_alias);
+	parent = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
 	if (WARN_ON_ONCE(parent != trace_instance_dir))
 		return -ENOENT;
 
@@ -6092,7 +6107,7 @@ static int instance_rmdir(struct inode *inode, struct dentry *dentry)
 	int ret;
 
 	/* Paranoid: Make sure the parent is the "instances" directory */
-	parent = hlist_entry(inode->i_dentry.first, struct dentry, d_alias);
+	parent = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
 	if (WARN_ON_ONCE(parent != trace_instance_dir))
 		return -ENOENT;
 

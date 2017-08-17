@@ -879,7 +879,6 @@
 			mdss_dsi_suspend: suspend {
 				drive-strength = <2>; /* 2 mA */
 				bias-pull-down; /* pull down */
-				output-low;
 			};
 		};
 

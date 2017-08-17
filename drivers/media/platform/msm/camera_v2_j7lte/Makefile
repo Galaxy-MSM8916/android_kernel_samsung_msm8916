@@ -1,0 +1,19 @@
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_j7lte
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_j7lte/sensor
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_j7lte/codecs
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_j7lte/isps
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_j7lte/pproc
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_j7lte/msm_vb2
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_j7lte/camera
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_j7lte/jpeg_10
+
+obj-$(CONFIG_MSMB_CAMERA) += msm.o
+obj-$(CONFIG_MSMB_CAMERA) += cam_dummy.o
+obj-$(CONFIG_MSMB_CAMERA) += camera/
+obj-$(CONFIG_MSMB_CAMERA) += msm_vb2/
+obj-$(CONFIG_MSMB_CAMERA) += sensor/
+obj-$(CONFIG_MSMB_CAMERA) += pproc/
+obj-$(CONFIG_MSMB_CAMERA) += isp/
+obj-$(CONFIG_MSMB_CAMERA) += ispif/
+obj-$(CONFIG_MSMB_JPEG) += jpeg_10/
+obj-$(CONFIG_MSMB_CAMERA) += msm_buf_mgr/

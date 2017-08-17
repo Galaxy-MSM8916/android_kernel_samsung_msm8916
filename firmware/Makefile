@@ -185,9 +185,14 @@ fw-shipped-$(CONFIG_TOUCHSCREEN_IST30XXC_CMCS) += tsp_imagis/ist3038c_j5x.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_IST30XXC_CMCS) += tsp_imagis/ist3038c_j5x_cmcs.bin
 fw-shipped-$(CONFIG_KEYBOARD_TC360_TKEY_J5X) += tkey/tc350k_j5x.fw
 endif
-ifdef CONFIG_SEC_J7_PROJECT
+ifdef CONFIG_MACH_J7_USA_SPR
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MMS438) += tsp_melfas/mms438_j7.fw
 fw-shipped-$(CONFIG_KEYBOARD_TC360_TKEY_J7) += tkey/tc350k_j7.fw
+endif
+ifdef CONFIG_MACH_J7_CHN_CMCC
+fw-shipped-$(CONFIG_TOUCHSCREEN_IST30XXC) += tsp_imagis/ist3038c_j7.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_IST30XXC) += tsp_imagis/ist3038c_j7_cmcs.bin
+fw-shipped-$(CONFIG_TOUCHSCREEN_IST30XXC) += tsp_imagis/ist3038c_j7_pv2.fw
 endif
 ifdef CONFIG_SEC_J5_PROJECT
 fw-shipped-$(CONFIG_TOUCHSCREEN_IST30XXC) += tsp_imagis/ist3038c_j5.fw

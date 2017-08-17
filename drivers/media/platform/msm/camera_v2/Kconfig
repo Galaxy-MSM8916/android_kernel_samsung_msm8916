@@ -134,6 +134,13 @@ config SENSOR_8_BPP
         ---help---
           8 bits per pixel YUV sensor output.
 
+config IMX219
+	bool "Sensor IMX219 (BAYER 8M)"
+	depends on MSMB_CAMERA
+	---help---
+		Sony 8 MP Bayer Sensor with auto focus, uses
+		4 mipi lanes full resolution @30fps.
+
 config IMX134
 	bool "Sensor IMX134 (BAYER 8M)"
 	depends on MSMB_CAMERA

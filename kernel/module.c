@@ -945,11 +945,15 @@ void symbol_put_addr(void *addr)
 	if (core_kernel_text(a))
 		return;
 
-	/* module_text_address is safe here: we're supposed to have reference
-	 * to module from symbol_get, so it can't go away. */
+	/*
+	 * Even though we hold a reference on the module; we still need to
+	 * disable preemption in order to safely traverse the data structure.
+	 */
+	preempt_disable();
 	modaddr = __module_text_address(a);
 	BUG_ON(!modaddr);
 	module_put(modaddr);
+	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(symbol_put_addr);
 
@@ -1869,7 +1873,9 @@ static void free_module(struct module *mod)
 
 	/* We leave it in list to prevent duplicate loads, but make sure
 	 * that noone uses it while it's being deconstructed. */
+	mutex_lock(&module_mutex);
 	mod->state = MODULE_STATE_UNFORMED;
+	mutex_unlock(&module_mutex);
 
 	/* Remove dynamic debug info */
 	ddebug_remove_module(mod->name);
@@ -2475,13 +2481,18 @@ static inline void kmemleak_load_module(const struct module *mod,
 #endif
 
 #ifdef CONFIG_MODULE_SIG
-static int module_sig_check(struct load_info *info)
+static int module_sig_check(struct load_info *info, int flags)
 {
 	int err = -ENOKEY;
 	const unsigned long markerlen = sizeof(MODULE_SIG_STRING) - 1;
 	const void *mod = info->hdr;
 
-	if (info->len > markerlen &&
+	/*
+	 * Require flags == 0, as a module with version information
+	 * removed is no longer the module that was signed
+	 */
+	if (flags == 0 &&
+	    info->len > markerlen &&
 	    memcmp(mod + info->len - markerlen, MODULE_SIG_STRING, markerlen) == 0) {
 		/* We truncate the module to discard the signature */
 		info->len -= markerlen;
@@ -2503,7 +2514,7 @@ static int module_sig_check(struct load_info *info)
 	return err;
 }
 #else /* !CONFIG_MODULE_SIG */
-static int module_sig_check(struct load_info *info)
+static int module_sig_check(struct load_info *info, int flags)
 {
 	return 0;
 }
@@ -3258,7 +3269,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	struct module *mod;
 	long err;
 
-	err = module_sig_check(info);
+	err = module_sig_check(info, flags);
 	if (err)
 		goto free_copy;
 
