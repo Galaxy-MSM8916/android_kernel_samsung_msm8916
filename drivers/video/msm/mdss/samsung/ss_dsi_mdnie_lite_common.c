@@ -600,9 +600,6 @@ static ssize_t sensorRGB_store(struct device *dev,
 		if (!vdd)
 			vdd = mdnie_tune_state->vdd;
 
-		if ((mdnie_tune_state->mdnie_accessibility == ACCESSIBILITY_OFF) && (mdnie_tune_state->mdnie_mode == AUTO_MODE) && \
-			((mdnie_tune_state->mdnie_app == BROWSER_APP) || (mdnie_tune_state->mdnie_app == eBOOK_APP))) {
-
 				mdnie_tune_state->scr_white_red =(char)white_red;
 				mdnie_tune_state->scr_white_green = (char)white_green;
 				mdnie_tune_state->scr_white_blue= (char)white_blue;
@@ -640,7 +637,6 @@ static ssize_t sensorRGB_store(struct device *dev,
 						mdnie_data.DSI1_RGB_SENSOR_MDNIE_2[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_BLUE_OFFSET]] = white_blue;
 					}
 				}
-		}
 	}
 
 	send_dsi_tcon_mdnie_register(vdd, tune_data_dsi0, tune_data_dsi1, real_mdnie_tune_state);
