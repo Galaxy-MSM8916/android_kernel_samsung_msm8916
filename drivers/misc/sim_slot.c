@@ -29,7 +29,7 @@ static int check_simslot_count_dt(struct seq_file *m, void *v)
 	if (simslot_pin < 0)
 	{
 		pr_err("***** Make a forced kernel panic because can't get pin number from sim-slot node ******\n");
-		panic("kernel panic");
+		//panic("kernel panic");
 		return -EINVAL;
 	}
 	printk("%s:simslot_pin : %d\n", __func__, simslot_pin);  //temp log for checking GPIO Setting correctly applyed or not
@@ -44,14 +44,14 @@ static int check_simslot_count_dt(struct seq_file *m, void *v)
 	if (retval) {
 		pr_err("%s:Failed to reqeust GPIO, code = %d.\n",
 			__func__, retval);
-		panic("kernel panic");
+		//panic("kernel panic");
 	}
 
 	retval = gpio_direction_input(simslot_pin);
 	if (retval){
 		pr_err("%s:Failed to set direction of GPIO, code = %d.\n",
 			__func__, retval);
-		panic("kernel panic");
+		//panic("kernel panic");
 	}
 	
 	/* If the value of sim-slot gpio is 'low' in 'dual sim' device, you must set 'low-is-dual' boolean property at simslot node in dt.*/
@@ -101,7 +101,7 @@ static int check_simslot_count_dt(struct seq_file *m, void *v)
 	if(support_number_of_simslot < 0)
 	{
 		pr_err("******* Make a forced kernel panic because can't check simslot count******\n");
-		panic("kernel panic");
+		//panic("kernel panic");
 	}
 
 	seq_printf(m, "%u\n", support_number_of_simslot);
@@ -163,7 +163,7 @@ static int check_simslot_count(struct seq_file *m, void *v)
 	if(support_number_of_simslot < 0)
 	{
 		pr_err("******* Make a forced kernel panic because can't check simslot count******\n");
-		panic("kernel panic");
+		//panic("kernel panic");
 	}
 
 	seq_printf(m, "%u\n", support_number_of_simslot);
@@ -194,7 +194,7 @@ static int __init simslot_count_init(void)
 	if(!proc_create("simslot_count",0,NULL,&check_simslot_count_fops))
 	{
 		pr_err("***** Make a forced kernel panic because can't make a simslot_count file node ******\n");
-		panic("kernel panic");
+		//panic("kernel panic");
 		return -ENOMEM;
 	}
 	else return 0;
