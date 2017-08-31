@@ -40,3 +40,14 @@
 	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
 	qcom,platform-bklight-en-gpio = <&msm_gpio 37 0>;
 };
+
+&soc {
+	i2c@78b9000 { /* BLSP1 QUP5 */
+		synaptics@20 {
+			synaptics,display-coords = <0 0 479 479>;
+			/delete-property/ synaptics,power-down;
+			/delete-property/ synaptics,disable-gpios;
+			synaptics,is_wake;
+		};
+	};
+};
