@@ -855,6 +855,7 @@ struct msm_actuator_set_position_t {
 
 struct msm_actuator_cfg_data {
 	int cfgtype;
+	int sw_landing_type;
 	uint8_t is_af_supported;
 	union {
 		struct msm_actuator_move_params_t move;
@@ -863,6 +864,11 @@ struct msm_actuator_cfg_data {
 		struct msm_actuator_set_position_t setpos;
 		enum af_camera_name cam_name;
 	} cfg;
+};
+
+enum msm_actuator_sw_landing_type {
+	MSM_ACTUATOR_DEFAULT_SW_LANDING,
+	MSM_ACTUATOR_MULTI_TASKING_SW_LANDING,
 };
 
 enum msm_actuator_write_type {

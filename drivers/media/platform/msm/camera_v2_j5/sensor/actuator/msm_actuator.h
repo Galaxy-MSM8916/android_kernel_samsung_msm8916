@@ -56,7 +56,7 @@ struct msm_actuator_func_tbl {
 	int32_t (*actuator_set_position)(struct msm_actuator_ctrl_t *,
 		struct msm_actuator_set_position_t *);
 	int32_t (*actuator_sw_landing)(struct msm_actuator_ctrl_t *,
-		struct msm_actuator_move_params_t *);
+		struct msm_actuator_move_params_t *, int);
 };
 
 struct msm_actuator {
