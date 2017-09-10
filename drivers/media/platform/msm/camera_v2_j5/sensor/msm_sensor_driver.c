@@ -64,16 +64,6 @@ static struct msm_sensor_fn_t sr200pc20_sensor_func_tbl = {
 };
 #endif
 
-#if defined(CONFIG_FLED_LM3632) || defined(CONFIG_FLED_KTD2692)
-static struct msm_sensor_fn_t front_flash_func_tbl = {
-	.sensor_config = msm_sensor_config,
-	.sensor_power_up = msm_sensor_power_up,
-	.sensor_power_down = msm_sensor_power_down,
-	.sensor_match_id = msm_sensor_match_id,
-	.sensor_native_control = msm_sensor_flash_native_control,
-};
-#endif
-
 int32_t msm_sensor_remove_dev_node_for_eeprom(int id,int remove);
 
 static int msm_sensor_platform_remove(struct platform_device *pdev)
@@ -435,10 +425,6 @@ int32_t msm_sensor_driver_probe(void *setting)
 #if defined(CONFIG_SR200PC20)
 	if(slave_info->camera_id == CAMERA_2){
 		s_ctrl->func_tbl = &sr200pc20_sensor_func_tbl ;
-	}
-#elif defined(CONFIG_FLED_LM3632) || defined(CONFIG_FLED_KTD2692)
-	if(slave_info->camera_id == CAMERA_1){
-		s_ctrl->func_tbl = &front_flash_func_tbl ;
 	}
 #endif
 

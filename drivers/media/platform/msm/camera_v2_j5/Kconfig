@@ -339,3 +339,19 @@ config CAM_USE_GPIO_I2C
 	---help---
 	  Board use controlled by GPIO.
 
+config SW_LANDING_FOR_MULTI_TASKING
+	bool "SW Landing is applied during multi tasking"
+	depends on ACTUATOR
+	default n
+	help
+	  If Camera exit while multi tasking with call, actuator makes big noise.
+	  SW landing is applied during multi tasking only.
+
+config FRONT_FLASH
+	bool "Rear LEd and Front LED both USING"
+	depends on MSMB_CAMERA
+	default n
+	---help---
+		ONLY for Front FLASH Model using.
+		Front LED for LM3632 or KTD2692 Rear LED SM5703
+

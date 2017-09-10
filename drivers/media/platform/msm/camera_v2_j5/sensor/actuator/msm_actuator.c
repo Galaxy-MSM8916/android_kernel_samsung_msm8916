@@ -27,6 +27,9 @@ DEFINE_MSM_MUTEX(msm_actuator_mutex);
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 #endif
 
+#define LENS_POSITION_CENTER_10BIT    500
+#define LENS_POSITION_BOTTOM_10BIT    10
+
 static int32_t msm_actuator_power_up(struct msm_actuator_ctrl_t *a_ctrl);
 static int32_t msm_actuator_power_down(struct msm_actuator_ctrl_t *a_ctrl);
 
@@ -770,7 +773,7 @@ static int32_t msm_actuator_set_param(struct msm_actuator_ctrl_t *a_ctrl,
 
 static int32_t msm_actuator_vcm_sw_landing(
 	struct msm_actuator_ctrl_t *a_ctrl,
-	struct msm_actuator_move_params_t *move_params)
+	struct msm_actuator_move_params_t *move_params, int sw_landing_type)
 {
 	int32_t rc = 0;
 	struct msm_camera_i2c_reg_setting reg_setting;
@@ -807,8 +810,14 @@ static int32_t msm_actuator_vcm_sw_landing(
 		pr_err("Step pos greater than total steps = %d\n", pos_index);
 		return -EFAULT;
 	}
-	First_damping_lens_pos = a_ctrl->step_position_table[pos_index];//
-	Second_damping_lens_pos =  (First_damping_lens_pos>>2) ; //  for old version
+
+	if (sw_landing_type == MSM_ACTUATOR_MULTI_TASKING_SW_LANDING) {
+		First_damping_lens_pos = LENS_POSITION_CENTER_10BIT;
+		Second_damping_lens_pos = LENS_POSITION_BOTTOM_10BIT;
+	} else {
+		First_damping_lens_pos = a_ctrl->step_position_table[pos_index];//
+		Second_damping_lens_pos =  (First_damping_lens_pos>>2) ; //  for old version
+	}
 
 	CDBG("%s %d First damping index =%d, First_damping_lens_pos=%d, Second_damping_lens_pos=%d\n",
 			__func__,__LINE__, pos_index, First_damping_lens_pos, Second_damping_lens_pos);
@@ -972,7 +981,7 @@ static int32_t msm_actuator_config(struct msm_actuator_ctrl_t *a_ctrl,
 
 	case CFG_SET_ACTUATOR_SW_LANDING:
 		if (a_ctrl && a_ctrl->func_tbl && a_ctrl->func_tbl->actuator_sw_landing) {
-			rc = a_ctrl->func_tbl->actuator_sw_landing(a_ctrl, &cdata->cfg.move);
+			rc = a_ctrl->func_tbl->actuator_sw_landing(a_ctrl, &cdata->cfg.move, cdata->sw_landing_type);
 			if (rc < 0)
 				pr_err("actuator_sw_landing failed %d\n", rc);
 		}
