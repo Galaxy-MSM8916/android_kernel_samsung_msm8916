@@ -12,7 +12,7 @@
 
 #include "msm8916.dtsi"
 #include "msm8916-pinctrl-sec-rossaspr-r02.dtsi"
-#include "dsi_panel_hx8369b_tft_wvga_video.dtsi"
+#include "../../../../../../drivers/video/msm/mdss/samsung/HX8369B_BV045WVM/dsi_panel_HX8369B_BV045WVM_wvga_video.dtsi"
 #include "msm8916-camera.dtsi"
 #include "msm8916-camera-sensor-cdp-rossa.dtsi"
 #include "msm8916-sec-rossaspr-battery-r00.dtsi"
