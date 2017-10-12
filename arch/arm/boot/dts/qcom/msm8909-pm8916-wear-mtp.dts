@@ -1,0 +1,53 @@
+/*
+ * Copyright (c) 2017, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+
+#include "msm8909-mtp.dtsi"
+#include "msm8909-pm8916.dtsi"
+#include "msm8909-pm8916-mtp.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. MSM8909-PM8916 512MB WEAR MTP";
+	compatible = "qcom,msm8909-mtp", "qcom,msm8909", "qcom,mtp";
+	qcom,board-id = <8 0x111>;
+};
+
+&modem_adsp_mem {
+	reg = <0x0 0x88000000 0x0 0x04e00000>;
+};
+
+&peripheral_mem {
+	reg = <0x0 0x8ce00000 0x0 0x0700000>;
+};
+
+&mdss_dsi0 {
+	qcom,dsi-pref-prim-pan = <&dsi_hx8394d_480_vid>;
+	pinctrl-names = "mdss_default", "mdss_sleep";
+	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
+	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
+	qcom,platform-te-gpio = <&msm_gpio 24 0>;
+	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
+	qcom,platform-bklight-en-gpio = <&msm_gpio 37 0>;
+};
+
+&soc {
+	i2c@78b9000 { /* BLSP1 QUP5 */
+		synaptics@20 {
+			synaptics,display-coords = <0 0 479 479>;
+			/delete-property/ synaptics,power-down;
+			/delete-property/ synaptics,disable-gpios;
+			synaptics,is_wake;
+		};
+	};
+};
