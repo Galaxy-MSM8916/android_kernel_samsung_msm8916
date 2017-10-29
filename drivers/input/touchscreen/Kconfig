@@ -1213,3 +1213,4 @@ source "drivers/input/touchscreen/sec_ts/Kconfig"
 endif
 source "drivers/input/touchscreen/zinitix_j1/Kconfig"
 source "drivers/input/touchscreen/zinitix_bt432/Kconfig"
+source "drivers/input/touchscreen/atmel_mxt/Kconfig"
