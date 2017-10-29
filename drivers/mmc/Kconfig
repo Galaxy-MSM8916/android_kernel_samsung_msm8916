@@ -34,6 +34,13 @@ config SEC_HYBRID_TRAY
 	help
 	  Support for Samsung HYBRID TRAY Project
 
+config NO_DETECT_PIN
+	bool "Samsung No DETECT PIN Project"
+	depends on MMC != n
+	default n
+	help
+	  Support for Samsung NO DETECT PIN Project
+
 config MMC_DS_TOOL
 	bool "MMC drive strength tool"
 	depends on MMC != n
