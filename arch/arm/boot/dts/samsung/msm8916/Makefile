@@ -244,6 +244,20 @@ ifeq ($(CONFIG_SEC_MATISSEVE_PROJECT),y)
 	endif
 endif
 
+ifeq ($(CONFIG_SEC_SERRANOVE_PROJECT),y)
+	ifeq ($(CONFIG_MACH_SERRANOVELTE_EUR_OPEN),y)
+		dtb-y += msm8916-sec-serranovelte-eur-r00.dtb
+		dtb-y += msm8916-sec-serranovelte-eur-r01.dtb
+		dtb-y += msm8916-sec-serranovelte-eur-r02.dtb
+		dtb-y += msm8916-sec-serranovelte-eur-r03.dtb
+	else ifeq ($(CONFIG_MACH_SERRANOVE3G_EUR_OPEN),y)
+		dtb-y += msm8916-sec-serranove3g-eur-r00.dtb
+		dtb-y += msm8916-sec-serranove3g-eur-r01.dtb
+		dtb-y += msm8916-sec-serranove3g-eur-r02.dtb
+		dtb-y += msm8916-sec-serranove3g-eur-r03.dtb
+	endif
+endif
+
 ifeq ($(CONFIG_SEC_A5_PROJECT),y)
 	ifeq ($(CONFIG_MACH_A5U_EUR_OPEN),y)
 		dtb-y += msm8916-sec-a5u-eur-r01.dtb
