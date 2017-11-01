@@ -1,0 +1,19 @@
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_serranovexx
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_serranovexx/sensor
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_serranovexx/codecs
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_serranovexx/isps
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_serranovexx/pproc
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_serranovexx/msm_vb2
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_serranovexx/camera
+ccflags-y += -Idrivers/media/platform/msm/camera_v2_serranovexx/jpeg_10
+
+obj-$(CONFIG_MSMB_CAMERA) += cam_dummy.o
+obj-$(CONFIG_MSMB_CAMERA) += msm.o
+obj-$(CONFIG_MSMB_CAMERA) += camera/
+obj-$(CONFIG_MSMB_CAMERA) += msm_vb2/
+obj-$(CONFIG_MSMB_CAMERA) += sensor/
+obj-$(CONFIG_MSMB_CAMERA) += pproc/
+obj-$(CONFIG_MSMB_CAMERA) += isp/
+obj-$(CONFIG_MSMB_CAMERA) += ispif/
+obj-$(CONFIG_MSMB_JPEG) += jpeg_10/
+obj-$(CONFIG_MSMB_CAMERA) += msm_buf_mgr/

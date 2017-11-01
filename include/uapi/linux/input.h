@@ -885,6 +885,7 @@ struct input_keymap_entry {
 #define ABS_MT_TOOL_Y		0x3d	/* Center Y tool position */
 #define ABS_MT_PALM		0x3e	/* Palm touch */
 #define ABS_MT_GRIP		0x3f	/* Grip touch */
+#define ABS_MT_SUMSIZE		0x3f	/* touch sumsize */
 
 #define ABS_MAX			0x3f
 #define ABS_CNT			(ABS_MAX+1)

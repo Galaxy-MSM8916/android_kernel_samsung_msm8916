@@ -80,3 +80,4 @@ obj-$(CONFIG_CHECK_SIMSLOT_COUNT) += sim_slot.o
 obj-$(CONFIG_DM_VERITY) += dmverity_query.o
 obj-$(CONFIG_TZDEV)		+= tzdev/
 obj-$(CONFIG_SENSORS_BHI)       += bhy/
+obj-$(CONFIG_SEC_FPGA_ICE40XX)  += ice40xx.o

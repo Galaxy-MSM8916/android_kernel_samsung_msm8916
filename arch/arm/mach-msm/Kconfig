@@ -510,6 +510,27 @@ config MACH_A53G_EUR_OPEN
 		help
 		  Support for Samsung A53G EUR Open device.
 
+config SEC_SERRANOVE_PROJECT
+    depends on ARCH_MSM8916
+        default n
+        bool "Samsung SERRANOVE Project"
+        help
+          Support for Samsung SERRANOVE Project
+
+config MACH_SERRANOVELTE_EUR_OPEN
+    depends on SEC_SERRANOVE_PROJECT
+        default n
+        bool "Samsung SERRANOVELTE EUR Open"
+        help
+          Support for Samsung SERRANOVELTE EUR Open device.
+
+config MACH_SERRANOVE3G_EUR_OPEN
+    depends on SEC_SERRANOVE_PROJECT
+        default n
+        bool "Samsung SERRANOVE3G EUR Open"
+        help
+          Support for Samsung SERRANOVE3G EUR Open device.
+
 config SEC_GTEL_PROJECT
     depends on ARCH_MSM8916
         default n

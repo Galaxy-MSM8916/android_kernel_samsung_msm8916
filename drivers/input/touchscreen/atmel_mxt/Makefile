@@ -1,0 +1,1 @@
+obj-$(CONFIG_TOUCHSCREEN_MXT336S)	+= mxts.o

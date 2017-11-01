@@ -3478,6 +3478,8 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 		strncpy(product_string, "Samsung Galaxy Grand Prime",
 #elif defined(CONFIG_SEC_GTEL_PROJECT) || defined(CONFIG_SEC_GTES_PROJECT)
 		strncpy(product_string, "Samsung Galaxy Tab E",
+#elif defined(CONFIG_SEC_SERRANOVE_PROJECT)
+		strncpy(product_string, "Samsung Galaxy S4 mini VE",
 #elif defined(CONFIG_SEC_J5_PROJECT) || defined(CONFIG_SEC_J5N_PROJECT) || defined(CONFIG_SEC_J5X_PROJECT)
 		strncpy(product_string, "Samsung Galaxy J5",
 #else
@@ -3509,6 +3511,8 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 		strncpy(product_string, "Samsung Galaxy Grand Prime", sizeof(product_string) - 1);
 #elif defined(CONFIG_SEC_GTEL_PROJECT) || defined(CONFIG_SEC_GTES_PROJECT)
 		strncpy(product_string, "Samsung Galaxy Tab E", sizeof(product_string) - 1);
+#elif defined(CONFIG_SEC_SERRANOVE_PROJECT)
+		strncpy(product_string, "Samsung Galaxy S4 mini VE", sizeof(product_string) - 1);
 #elif defined(CONFIG_SEC_J5_PROJECT) || defined(CONFIG_SEC_J5N_PROJECT) || defined(CONFIG_SEC_J5X_PROJECT)
 		strncpy(product_string, "Samsung Galaxy J5", sizeof(product_string) - 1);
 #else
