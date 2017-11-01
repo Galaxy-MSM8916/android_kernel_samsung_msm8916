@@ -1,0 +1,14 @@
+## ATMEL MXT336S touchscreen driver configuration#
+
+config TOUCHSCREEN_MXT336S
+	tristate "Atmel MaxTouch 336S"
+	depends on I2C
+	default n
+	help
+	  Say Y here to enable support for the Atmel MaxTouch 336 touch
+	  controller.
+	  
+	  If unsure, say N.	  
+	  
+	  To compile this driver as a module, choose M here: the	  
+	  module will be called mxt336S.	  
