@@ -135,6 +135,7 @@ fw-shipped-$(CONFIG_USB_SERIAL_XIRCOM) += keyspan_pda/xircom_pgs.fw
 fw-shipped-$(CONFIG_USB_VICAM) += vicam/firmware.fw
 fw-shipped-$(CONFIG_VIDEO_CPIA2) += cpia2/stv0672_vp4.bin
 fw-shipped-$(CONFIG_KEYBOARD_TC360_TOUCHKEY) += coreriver/tc360.fw
+fw-shipped-$(CCONFIG_KEYBOARD_TC360_TKEY_SERRANOVE) += coreriver/tc360_serrano_eur.fw
 fw-shipped-$(CONFIG_KEYBOARD_TC350K) += tkey/tc350k_j1x.fw
 fw-shipped-$(CONFIG_YAM) += yam/1200.bin yam/9600.bin
 
