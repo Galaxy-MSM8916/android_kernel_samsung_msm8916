@@ -117,3 +117,18 @@ index c5362e0b8c14..67e7d8bc0bfa 100644
  	return 0;
  }
  late_initcall(seclog_late_init);
+diff --git a/arch/arm/mm/ioremap.c b/arch/arm/mm/ioremap.c
+index 62cac1f..6cd7a8f 100644
+--- a/arch/arm/mm/ioremap.c
++++ b/arch/arm/mm/ioremap.c
+@@ -307,8 +307,10 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
+ 	/*
+ 	 * Don't allow RAM to be mapped - this causes problems with ARMv6+
+ 	 */
++#if !defined(CONFIG_SEC_LOG_LAST_KMSG)
+ 	if (WARN_ON(pfn_valid(pfn)))
+ 		return NULL;
++#endif
+ 
+ 	area = get_vm_area_caller(size, VM_IOREMAP, caller);
+  	if (!area)
