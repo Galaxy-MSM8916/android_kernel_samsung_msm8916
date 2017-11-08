@@ -55,8 +55,10 @@ static void __iomem *__ioremap_caller(phys_addr_t phys_addr, size_t size,
 	/*
 	 * Don't allow RAM to be mapped.
 	 */
+#if !defined(CONFIG_SEC_LOG_LAST_KMSG)
 	if (WARN_ON(pfn_valid(__phys_to_pfn(phys_addr))))
 		return NULL;
+#endif /* CONFIG_SEC_LOG_LAST_KMSG */
 
 	area = get_vm_area_caller(size, VM_IOREMAP, caller);
 	if (!area)
