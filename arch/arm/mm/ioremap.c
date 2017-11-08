@@ -307,8 +307,10 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 	/*
 	 * Don't allow RAM to be mapped - this causes problems with ARMv6+
 	 */
+#if !defined(CONFIG_SEC_LOG_LAST_KMSG)
 	if (WARN_ON(pfn_valid(pfn)))
 		return NULL;
+#endif /* CONFIG_SEC_LOG_LAST_KMSG */
 
 	area = get_vm_area_caller(size, VM_IOREMAP, caller);
  	if (!area)
