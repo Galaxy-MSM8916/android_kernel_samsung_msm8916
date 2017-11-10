@@ -721,15 +721,6 @@ config KEYBOARD_W90P910
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_keypad.
 
-config KEYBOARD_TC360_TKEY_SERRANOVE
-	tristate "Coreriver touchkey support"
-	default n
-	help
-	  Say Y here to enable the
-	  cypress touchkey.
-	  To compile this driver as a
-	  module, choose M here.
-
 config KEYBOARD_CROS_EC
 	tristate "ChromeOS EC keyboard"
 	select INPUT_MATRIXKMAP

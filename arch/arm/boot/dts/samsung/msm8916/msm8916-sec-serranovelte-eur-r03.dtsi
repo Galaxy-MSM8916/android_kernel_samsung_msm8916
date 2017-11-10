@@ -220,12 +220,16 @@
 		};
 	};
 
-		samsung,gpio_settings{
+	samsung,gpio_settings{
 		compatible = "sec_gpio_sett";
 		pinctrl-names = "sec_gpio_active","sec_gpio_suspend";
-		pinctrl-0 = <&ts_int_active>;
-		pinctrl-1 = <&ts_int_suspend>;
+		pinctrl-0 = <&ts_int_active &touchkey_int_active &touchkey_en_active &touchkey_i2c_sda_active &touchkey_i2c_scl_active &muic_int_pin>;
+		pinctrl-1 = <&ts_int_suspend &touchkey_int_suspend &touchkey_en_suspend &touchkey_i2c_sda_suspend &touchkey_i2c_scl_suspend>;
 		};
+
+	i2c_4: i2c@78b8000 { /* BLSP1 QUP4 */
+		status="disable";
+	};
 	
 	i2c_12:i2c@12 {
 		cell-index = <12>;
