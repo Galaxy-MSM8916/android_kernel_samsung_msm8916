@@ -23,6 +23,9 @@
 #include <asm/ptrace.h>
 #include <asm/domain.h>
 #include <asm/opcodes-virt.h>
+#include <asm/asm-offsets.h>
+#include <asm/page.h>
+#include <asm/thread_info.h>
 
 #define IOMEM(x)	(x)
 
@@ -157,6 +160,16 @@
 	tst	\oldcpsr, #PSR_I_BIT
 	asm_trace_hardirqs_on_cond eq
 	restore_irqs_notrace \oldcpsr
+	.endm
+
+/*
+ * Get current thread_info.
+ */
+	.macro	get_thread_info, rd
+ ARM(	mov	\rd, sp, lsr #THREAD_SIZE_ORDER + PAGE_SHIFT	)
+ THUMB(	mov	\rd, sp			)
+ THUMB(	lsr	\rd, \rd, #THREAD_SIZE_ORDER + PAGE_SHIFT	)
+	mov	\rd, \rd, lsl #THREAD_SIZE_ORDER + PAGE_SHIFT
 	.endm
 
 #define USER(x...)				\

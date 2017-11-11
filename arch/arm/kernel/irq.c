@@ -145,6 +145,7 @@ static bool migrate_one_irq(struct irq_desc *desc)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
 	const struct cpumask *affinity = d->affinity;
+	bool ret = false;
 
 	/*
 	 * If this is a per-CPU interrupt, or the affinity does not
@@ -153,10 +154,14 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	if (irqd_is_per_cpu(d) || !cpumask_test_cpu(smp_processor_id(), affinity))
 		return false;
 
-	if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids)
+	if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 		affinity = cpu_online_mask;
+		ret = true;
+	}
 
-	return irq_set_affinity_locked(d, affinity, 0) == 0;
+	irq_set_affinity_locked(d, affinity, 0);
+
+	return ret;
 }
 
 /*
@@ -183,7 +188,7 @@ void migrate_irqs(void)
 		raw_spin_unlock(&desc->lock);
 
 		if (affinity_broken && printk_ratelimit())
-			pr_warning("IRQ%u no longer affine to CPU%u\n", i,
+			pr_debug("IRQ%u no longer affine to CPU%u\n", i,
 				smp_processor_id());
 	}
 

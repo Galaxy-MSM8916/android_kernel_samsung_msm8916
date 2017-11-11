@@ -407,24 +407,6 @@ posix_acl_create(struct posix_acl **acl, gfp_t gfp, umode_t *mode_p)
 }
 EXPORT_SYMBOL(posix_acl_create);
 
-int
-posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, umode_t mode)
-{
-	struct posix_acl *clone = posix_acl_clone(*acl, gfp);
-	int err = -ENOMEM;
-	if (clone) {
-		err = posix_acl_chmod_masq(clone, mode);
-		if (err) {
-			posix_acl_release(clone);
-			clone = NULL;
-		}
-	}
-	posix_acl_release(*acl);
-	*acl = clone;
-	return err;
-}
-EXPORT_SYMBOL(posix_acl_chmod);
-
 /**
  * posix_acl_update_mode  -  update mode in set_acl
  *
@@ -455,3 +437,21 @@ int posix_acl_update_mode(struct inode *inode, umode_t *mode_p,
 	return 0;
 }
 EXPORT_SYMBOL(posix_acl_update_mode);
+
+int
+posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, umode_t mode)
+{
+	struct posix_acl *clone = posix_acl_clone(*acl, gfp);
+	int err = -ENOMEM;
+	if (clone) {
+		err = posix_acl_chmod_masq(clone, mode);
+		if (err) {
+			posix_acl_release(clone);
+			clone = NULL;
+		}
+	}
+	posix_acl_release(*acl);
+	*acl = clone;
+	return err;
+}
+EXPORT_SYMBOL(posix_acl_chmod);
