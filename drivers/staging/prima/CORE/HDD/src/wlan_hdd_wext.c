@@ -1635,7 +1635,7 @@ v_U8_t* wlan_hdd_get_vendor_oui_ie_ptr(v_U8_t *oui, v_U8_t oui_size, v_U8_t *ie,
                     eid,elem_len,left);
             return NULL;
         }
-        if (elem_id == eid)
+        if ((elem_id == eid) && (elem_len >= oui_size))
         {
             if(memcmp( &ptr[2], oui, oui_size)==0)
                 return ptr;
@@ -11577,6 +11577,10 @@ static const struct iw_priv_args we_private_args[] = {
         WLAN_GET_LINK_SPEED,
         IW_PRIV_TYPE_CHAR | 18,
         IW_PRIV_TYPE_CHAR | 5, "getLinkSpeed" },
+    {
+        WLAN_PRIV_SET_FTIES,
+        IW_PRIV_TYPE_CHAR | MAX_FTIE_SIZE,
+        0, "set_ft_ies"},
 };
 
 
