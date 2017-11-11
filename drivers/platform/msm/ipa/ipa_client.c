@@ -1356,7 +1356,7 @@ int ipa_write_qmapid_wdi_pipe(u32 clnt_hdl, u8 qmap_id)
 	union IpaHwWdiRxExtCfgCmdData_t qmap;
 
 	if (clnt_hdl >= IPA_NUM_PIPES || ipa_ctx->ep[clnt_hdl].valid == 0) {
-		IPAERR("bad parm.\n");
+		IPAERR_RL("bad parm.\n");
 		return -EINVAL;
 	}
 
@@ -1369,7 +1369,7 @@ int ipa_write_qmapid_wdi_pipe(u32 clnt_hdl, u8 qmap_id)
 	ep = &ipa_ctx->ep[clnt_hdl];
 
 	if (!(ep->wdi_state & IPA_WDI_CONNECTED)) {
-		IPAERR("WDI channel bad state %d\n", ep->wdi_state);
+		IPAERR_RL("WDI channel bad state %d\n", ep->wdi_state);
 		return -EFAULT;
 	}
 

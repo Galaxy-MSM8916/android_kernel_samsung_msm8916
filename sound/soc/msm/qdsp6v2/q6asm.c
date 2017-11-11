@@ -1718,7 +1718,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			generic_get_data->size_in_ints = payload[3];
 			for (i = 0; i < generic_get_data->size_in_ints; i++)
 				generic_get_data->ints[i] = payload[4+i];
-			pr_debug("DTS_EAGLE_ASM callback size in ints = %i\n",
+			pr_debug("callback size in ints = %i\n",
 				 generic_get_data->size_in_ints);
 			atomic_set(&ac->cmd_state, 0);
 			wake_up(&ac->cmd_wait);
