@@ -24,6 +24,7 @@
 #include <linux/cdev.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mm.h>
+#include <linux/kthread.h>
 
 /* The number of memstore arrays limits the number of contexts allowed.
  * If more contexts are needed, update multiple for MEMSTORE_SIZE
@@ -94,6 +95,8 @@ struct kgsl_driver {
 		unsigned int mapped_max;
 	} stats;
 	unsigned int full_cache_threshold;
+	struct kthread_worker worker;
+	struct task_struct *worker_thread;
 };
 
 extern struct kgsl_driver kgsl_driver;
@@ -220,7 +223,7 @@ struct kgsl_event {
 	void *priv;
 	struct list_head node;
 	unsigned int created;
-	struct work_struct work;
+	struct kthread_work work;
 	int result;
 	struct kgsl_event_group *group;
 };

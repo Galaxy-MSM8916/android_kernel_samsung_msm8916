@@ -588,8 +588,54 @@ static inline void init_hrtick(void)
 }
 #endif	/* CONFIG_SCHED_HRTICK */
 
+void wake_q_add(struct wake_q_head *head, struct task_struct *task)
+{
+	struct wake_q_node *node = &task->wake_q;
+
+	/*
+	 * Atomically grab the task, if ->wake_q is !nil already it means
+	 * its already queued (either by us or someone else) and will get the
+	 * wakeup due to that.
+	 *
+	 * This cmpxchg() implies a full barrier, which pairs with the write
+	 * barrier implied by the wakeup in wake_up_list().
+	 */
+	if (cmpxchg(&node->next, NULL, WAKE_Q_TAIL))
+		return;
+
+	get_task_struct(task);
+
+	/*
+	 * The head is context local, there can be no concurrency.
+	 */
+	*head->lastp = node;
+	head->lastp = &node->next;
+}
+
+void wake_up_q(struct wake_q_head *head)
+{
+	struct wake_q_node *node = head->first;
+
+	while (node != WAKE_Q_TAIL) {
+		struct task_struct *task;
+
+		task = container_of(node, struct task_struct, wake_q);
+		BUG_ON(!task);
+		/* task can safely be re-inserted now */
+		node = node->next;
+		task->wake_q.next = NULL;
+
+		/*
+		 * wake_up_process() implies a wmb() to pair with the queueing
+		 * in wake_q_add() so as not to miss wakeups.
+		 */
+		wake_up_process(task);
+		put_task_struct(task);
+	}
+}
+
 /*
- * resched_task - mark a task 'to be rescheduled now'.
+ * resched_curr - mark rq's current task 'to be rescheduled now'.
  *
  * On UP this means the setting of the need_resched flag, on SMP it
  * might also involve a cross-CPU call to trigger the scheduler on
@@ -1257,8 +1303,6 @@ __read_mostly unsigned int sched_ravg_window = 10000000;
 unsigned int __read_mostly sched_disable_window_stats;
 
 static unsigned int sync_cpu;
-static u64 sched_init_jiffy;
-static u64 sched_clock_at_init_jiffy;
 
 #define EXITING_TASK_MARKER	0xdeaddead
 
@@ -1939,23 +1983,17 @@ static inline void mark_task_starting(struct task_struct *p)
 	p->ravg.mark_start = wallclock;
 }
 
-static int update_alignment;
-
 static inline void set_window_start(struct rq *rq)
 {
 	int cpu = cpu_of(rq);
 	struct rq *sync_rq = cpu_rq(sync_cpu);
 
-	if (cpu == sync_cpu && !update_alignment) {
-		sched_init_jiffy = get_jiffies_64();
-		sched_clock_at_init_jiffy = sched_clock();
-	}
-
-	if (rq->window_start || !sched_enable_hmp)
+	if (rq->window_start || !sched_enable_hmp ||
+	    !sched_clock_initialized() || !sched_clock_cpu(cpu))
 		return;
 
 	if (cpu == sync_cpu) {
-		rq->window_start = sched_clock_at_init_jiffy;
+		rq->window_start = sched_clock();
 	} else {
 		raw_spin_unlock(&rq->lock);
 		double_rq_lock(rq, sync_rq);
@@ -2204,20 +2242,29 @@ void sched_set_io_is_busy(int val)
 
 int sched_set_window(u64 window_start, unsigned int window_size)
 {
-	u64 ws, now;
+	u64 now, cur_jiffies, jiffy_sched_clock;
+	s64 ws;
+	unsigned long flags;
 
 	if (sched_use_pelt ||
 		 (window_size * TICK_NSEC <  MIN_SCHED_RAVG_WINDOW))
 			return -EINVAL;
 
 	mutex_lock(&policy_mutex);
-	update_alignment = 1;
 
-	ws = (window_start - sched_init_jiffy); /* jiffy difference */
+	/* Get a consistent view of sched_clock, jiffies, and the time
+	 * since the last jiffy (based on last_jiffies_update). */
+	local_irq_save(flags);
+	cur_jiffies = jiffy_to_sched_clock(&now, &jiffy_sched_clock);
+	local_irq_restore(flags);
+
+	/* translate window_start from jiffies to nanoseconds */
+	ws = (window_start - cur_jiffies); /* jiffy difference */
 	ws *= TICK_NSEC;
-	ws += sched_clock_at_init_jiffy;
+	ws += jiffy_sched_clock;
 
-	now = sched_clock();
+	/* roll back calculated window start so that it is in
+	 * the past (window stats must have a current window) */
 	while (ws > now)
 		ws -= (window_size * TICK_NSEC);
 
@@ -3133,6 +3180,9 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 	struct rq *rq;
 	u64 wallclock;
 #endif
+	bool freq_notif_allowed = !(wake_flags & WF_NO_NOTIFIER);
+
+	wake_flags &= ~WF_NO_NOTIFIER;
 
 	/*
 	 * If we are going to wake up a thread waiting for CONDITION we
@@ -3258,11 +3308,14 @@ out:
 		atomic_notifier_call_chain(&migration_notifier_head,
 					   0, (void *)&mnd);
 
-	if (!same_freq_domain(src_cpu, cpu)) {
-		check_for_freq_change(cpu_rq(cpu));
-		check_for_freq_change(cpu_rq(src_cpu));
-	} else if (heavy_task)
-		check_for_freq_change(cpu_rq(cpu));
+	if (freq_notif_allowed) {
+		if (!same_freq_domain(src_cpu, cpu)) {
+			check_for_freq_change(cpu_rq(cpu));
+			check_for_freq_change(cpu_rq(src_cpu));
+		} else if (heavy_task) {
+			check_for_freq_change(cpu_rq(cpu));
+		}
+	}
 
 	return success;
 }
@@ -3328,6 +3381,26 @@ int wake_up_process(struct task_struct *p)
 	return try_to_wake_up(p, TASK_NORMAL, 0);
 }
 EXPORT_SYMBOL(wake_up_process);
+
+/**
+ * wake_up_process_no_notif - Wake up a specific process without notifying
+ * governor
+ * @p: The process to be woken up.
+ *
+ * Attempt to wake up the nominated process and move it to the set of runnable
+ * processes.
+ *
+ * Return: 1 if the process was woken up, 0 if it was already running.
+ *
+ * It may be assumed that this function implies a write memory barrier before
+ * changing the task state if and only if any tasks are woken up.
+ */
+int wake_up_process_no_notif(struct task_struct *p)
+{
+	WARN_ON(task_is_stopped_or_traced(p));
+	return try_to_wake_up(p, TASK_NORMAL, WF_NO_NOTIFIER);
+}
+EXPORT_SYMBOL(wake_up_process_no_notif);
 
 int wake_up_state(struct task_struct *p, unsigned int state)
 {
@@ -6525,34 +6598,23 @@ EXPORT_SYMBOL_GPL(yield_to);
  * This task is about to go to sleep on IO. Increment rq->nr_iowait so
  * that process accounting knows that this is a task in IO wait state.
  */
-void __sched io_schedule(void)
-{
-	struct rq *rq = raw_rq();
-
-	delayacct_blkio_start();
-	atomic_inc(&rq->nr_iowait);
-	blk_flush_plug(current);
-	current->in_iowait = 1;
-	schedule();
-	current->in_iowait = 0;
-	atomic_dec(&rq->nr_iowait);
-	delayacct_blkio_end();
-}
-EXPORT_SYMBOL(io_schedule);
-
 long __sched io_schedule_timeout(long timeout)
 {
-	struct rq *rq = raw_rq();
+	int old_iowait = current->in_iowait;
+	struct rq *rq;
 	long ret;
 
-	delayacct_blkio_start();
-	atomic_inc(&rq->nr_iowait);
-	blk_flush_plug(current);
 	current->in_iowait = 1;
+	blk_schedule_flush_plug(current);
+
+	delayacct_blkio_start();
+	rq = raw_rq();
+	atomic_inc(&rq->nr_iowait);
 	ret = schedule_timeout(timeout);
-	current->in_iowait = 0;
+	current->in_iowait = old_iowait;
 	atomic_dec(&rq->nr_iowait);
 	delayacct_blkio_end();
+
 	return ret;
 }
 EXPORT_SYMBOL(io_schedule_timeout);
@@ -9809,23 +9871,6 @@ static void cpu_cgroup_css_offline(struct cgroup *cgrp)
 	sched_offline_group(tg);
 }
 
-static int
-cpu_cgroup_allow_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
-{
-	const struct cred *cred = current_cred(), *tcred;
-	struct task_struct *task;
-
-	cgroup_taskset_for_each(task, cgrp, tset) {
-		tcred = __task_cred(task);
-
-		if ((current != task) && !capable(CAP_SYS_NICE) &&
-		    cred->euid != tcred->uid && cred->euid != tcred->suid)
-			return -EACCES;
-	}
-
-	return 0;
-}
-
 static int cpu_cgroup_can_attach(struct cgroup *cgrp,
 				 struct cgroup_taskset *tset)
 {
@@ -10215,7 +10260,7 @@ struct cgroup_subsys cpu_cgroup_subsys = {
 	.css_offline	= cpu_cgroup_css_offline,
 	.can_attach	= cpu_cgroup_can_attach,
 	.attach		= cpu_cgroup_attach,
-	.allow_attach	= cpu_cgroup_allow_attach,
+	.allow_attach	= subsys_cgroup_allow_attach,
 	.exit		= cpu_cgroup_exit,
 	.subsys_id	= cpu_cgroup_subsys_id,
 	.base_cftypes	= cpu_files,

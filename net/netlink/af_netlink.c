@@ -512,7 +512,7 @@ static unsigned int netlink_poll(struct file *file, struct socket *sock,
 		 * for dumps is performed here. A dump is allowed to continue
 		 * if at least half the ring is unused.
 		 */
-		while (nlk->cb != NULL && netlink_dump_space(nlk)) {
+		while (nlk->cb_running && netlink_dump_space(nlk)) {
 			err = netlink_dump(sk);
 			if (err < 0) {
 				sk->sk_err = -err;
@@ -699,18 +699,6 @@ static void netlink_ring_set_copied(struct sock *sk, struct sk_buff *skb)
 #define netlink_mmap_sendmsg(sk, msg, dst_portid, dst_group, siocb)	0
 #endif /* CONFIG_NETLINK_MMAP */
 
-static void netlink_destroy_callback(struct netlink_callback *cb)
-{
-	kfree_skb(cb->skb);
-	kfree(cb);
-}
-
-static void netlink_consume_callback(struct netlink_callback *cb)
-{
-	consume_skb(cb->skb);
-	kfree(cb);
-}
-
 static void netlink_skb_destructor(struct sk_buff *skb)
 {
 #ifdef CONFIG_NETLINK_MMAP
@@ -762,12 +750,12 @@ static void netlink_sock_destruct(struct sock *sk)
 {
 	struct netlink_sock *nlk = nlk_sk(sk);
 
-	if (nlk->cb) {
-		if (nlk->cb->done)
-			nlk->cb->done(nlk->cb);
+	if (nlk->cb_running) {
+		if (nlk->cb.done)
+			nlk->cb.done(&nlk->cb);
 
-		module_put(nlk->cb->module);
-		netlink_destroy_callback(nlk->cb);
+		module_put(nlk->cb.module);
+		kfree_skb(nlk->cb.skb);
 	}
 
 	skb_queue_purge(&sk->sk_receive_queue);
@@ -2264,7 +2252,8 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 
 	skb_free_datagram(sk, skb);
 
-	if (nlk->cb && atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf / 2) {
+	if (nlk->cb_running &&
+	    atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf / 2) {
 		ret = netlink_dump(sk);
 		if (ret) {
 			sk->sk_err = -ret;
@@ -2474,17 +2463,17 @@ static int netlink_dump(struct sock *sk)
 	struct netlink_callback *cb;
 	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
+	struct module *module;
 	int len, err = -ENOBUFS;
 	int alloc_size;
 
 	mutex_lock(nlk->cb_mutex);
-
-	cb = nlk->cb;
-	if (cb == NULL) {
+	if (!nlk->cb_running) {
 		err = -EINVAL;
 		goto errout_skb;
 	}
 
+	cb = &nlk->cb;
 	alloc_size = max_t(int, cb->min_dump_alloc, NLMSG_GOODSIZE);
 
 	if (!netlink_rx_is_mmaped(sk) &&
@@ -2522,11 +2511,13 @@ static int netlink_dump(struct sock *sk)
 
 	if (cb->done)
 		cb->done(cb);
-	nlk->cb = NULL;
-	mutex_unlock(nlk->cb_mutex);
 
-	module_put(cb->module);
-	netlink_consume_callback(cb);
+	nlk->cb_running = false;
+	module = cb->module;
+	skb = cb->skb;
+	mutex_unlock(nlk->cb_mutex);
+	module_put(module);
+	consume_skb(skb);
 	return 0;
 
 errout_skb:
@@ -2544,23 +2535,38 @@ int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	struct netlink_sock *nlk;
 	int ret;
 
-	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
-	if (cb == NULL)
-		return -ENOBUFS;
-
 	/* Memory mapped dump requests need to be copied to avoid looping
 	 * on the pending state in netlink_mmap_sendmsg() while the CB hold
 	 * a reference to the skb.
 	 */
 	if (netlink_skb_is_mmaped(skb)) {
 		skb = skb_copy(skb, GFP_KERNEL);
-		if (skb == NULL) {
-			kfree(cb);
+		if (skb == NULL)
 			return -ENOBUFS;
-		}
 	} else
 		atomic_inc(&skb->users);
 
+	sk = netlink_lookup(sock_net(ssk), ssk->sk_protocol, NETLINK_CB(skb).portid);
+	if (sk == NULL) {
+		ret = -ECONNREFUSED;
+		goto error_free;
+	}
+
+	nlk = nlk_sk(sk);
+	mutex_lock(nlk->cb_mutex);
+	/* A dump is in progress... */
+	if (nlk->cb_running) {
+		ret = -EBUSY;
+		goto error_unlock;
+	}
+	/* add reference of module which cb->dump belongs to */
+	if (!try_module_get(control->module)) {
+		ret = -EPROTONOSUPPORT;
+		goto error_unlock;
+	}
+
+	cb = &nlk->cb;
+	memset(cb, 0, sizeof(*cb));
 	cb->dump = control->dump;
 	cb->done = control->done;
 	cb->nlh = nlh;
@@ -2569,34 +2575,11 @@ int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	cb->min_dump_alloc = control->min_dump_alloc;
 	cb->skb = skb;
 
-	sk = netlink_lookup(sock_net(ssk), ssk->sk_protocol, NETLINK_CB(skb).portid);
-	if (sk == NULL) {
-		netlink_destroy_callback(cb);
-		return -ECONNREFUSED;
-	}
-	nlk = nlk_sk(sk);
+	nlk->cb_running = true;
 
-	mutex_lock(nlk->cb_mutex);
-	/* A dump is in progress... */
-	if (nlk->cb) {
-		mutex_unlock(nlk->cb_mutex);
-		netlink_destroy_callback(cb);
-		ret = -EBUSY;
-		goto out;
-	}
-	/* add reference of module which cb->dump belongs to */
-	if (!try_module_get(cb->module)) {
-		mutex_unlock(nlk->cb_mutex);
-		netlink_destroy_callback(cb);
-		ret = -EPROTONOSUPPORT;
-		goto out;
-	}
-
-	nlk->cb = cb;
 	mutex_unlock(nlk->cb_mutex);
 
 	ret = netlink_dump(sk);
-out:
 	sock_put(sk);
 
 	if (ret)
@@ -2606,6 +2589,13 @@ out:
 	 * signal not to send ACK even if it was requested.
 	 */
 	return -EINTR;
+
+error_unlock:
+	sock_put(sk);
+	mutex_unlock(nlk->cb_mutex);
+error_free:
+	kfree_skb(skb);
+	return ret;
 }
 EXPORT_SYMBOL(__netlink_dump_start);
 
@@ -2825,14 +2815,14 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 		struct sock *s = v;
 		struct netlink_sock *nlk = nlk_sk(s);
 
-		seq_printf(seq, "%pK %-3d %-6u %08x %-8d %-8d %pK %-8d %-8d %-8lu\n",
+		seq_printf(seq, "%pK %-3d %-6u %08x %-8d %-8d %d %-8d %-8d %-8lu\n",
 			   s,
 			   s->sk_protocol,
 			   nlk->portid,
 			   nlk->groups ? (u32)nlk->groups[0] : 0,
 			   sk_rmem_alloc_get(s),
 			   sk_wmem_alloc_get(s),
-			   nlk->cb,
+			   nlk->cb_running,
 			   atomic_read(&s->sk_refcnt),
 			   atomic_read(&s->sk_drops),
 			   sock_i_ino(s)

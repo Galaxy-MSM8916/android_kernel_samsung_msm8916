@@ -1649,6 +1649,48 @@ source kernel/Kconfig.preempt
 
 source kernel/Kconfig.hz
 
+config HZ_FIXED
+	int
+	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || ARCH_S5P64X0 || \
+		ARCH_S5PV210 || ARCH_EXYNOS4
+	default AT91_TIMER_HZ if ARCH_AT91
+	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
+	default 0
+
+choice
+	depends on HZ_FIXED = 0
+	prompt "Timer frequency"
+
+config HZ_100
+	bool "100 Hz"
+
+config HZ_200
+	bool "200 Hz"
+
+config HZ_250
+	bool "250 Hz"
+
+config HZ_300
+	bool "300 Hz"
+
+config HZ_500
+	bool "500 Hz"
+
+config HZ_1000
+	bool "1000 Hz"
+
+endchoice
+
+config HZ
+	int
+	default HZ_FIXED if HZ_FIXED != 0
+	default 100 if HZ_100
+	default 200 if HZ_200
+	default 250 if HZ_250
+	default 300 if HZ_300
+	default 500 if HZ_500
+	default 1000
+
 config SCHED_HRTICK
 	def_bool HIGH_RES_TIMERS
 
@@ -1731,6 +1773,19 @@ config OABI_COMPAT
 	  to execute a legacy ABI binary then the result will be
 	  UNPREDICTABLE (in fact it can be predicted that it won't work
 	  at all). If in doubt say Y.
+
+config 4KSTACKS
+	bool "Use 4K kernel stacks instead of 8K"
+	default n
+	help
+	  This option will use less memory for each kernel stack in the
+	  system, which can save potentially hundreds of kilobytes of memory.
+	  It also helps reduce fragmentation in kernel memory.  However,
+	  it can be dangerous since not all kernel code paths are thrifty
+	  in their use of the stack.  Unless you have carefully monitored your
+	  kernel stack usage and verified that your programs and kernel
+	  usage patterns will not overflow 4K, you should leave this set
+	  to N.
 
 config ARCH_HAS_HOLES_MEMORYMODEL
 	bool
