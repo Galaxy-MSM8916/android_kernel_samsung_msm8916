@@ -38,11 +38,6 @@ struct mdss_livedisplay_ctx {
 	unsigned int ce_off_cmds_len;
 	unsigned int ce_on_cmds_len;
 
-	const uint8_t *hbm_off_cmds;
-	const uint8_t *hbm_on_cmds;
-	unsigned int hbm_off_cmds_len;
-	unsigned int hbm_on_cmds_len;
-
 	const uint8_t *srgb_off_cmds;
 	const uint8_t *srgb_on_cmds;
 	unsigned int srgb_off_cmds_len;
@@ -62,7 +57,6 @@ struct mdss_livedisplay_ctx {
 	unsigned int sre_level;
 	bool aco_enabled;
 	bool ce_enabled;
-	bool hbm_enabled;
 	bool srgb_enabled;
 
 	unsigned int link_state;
@@ -106,7 +100,6 @@ enum {
 	MODE_PRESET		= 0x010,
 	MODE_RGB		= 0x020,
 	MODE_CABC_COLOR_ENHANCE	= 0x040,
-	MODE_HIGH_BRIGHTNESS	= 0x080,
 	MODE_SRGB		= 0x100,
 	MODE_UPDATE_ALL		= 0xFFF,
 };
