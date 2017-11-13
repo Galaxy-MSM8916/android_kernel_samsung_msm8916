@@ -217,6 +217,7 @@ fw-shipped-$(CONFIG_INPUT_WACOM) += epen/W9007A_0267.bin
 fw-shipped-$(CONFIG_INPUT_WACOM) += epen/W9010_0174.bin
 fw-shipped-$(CONFIG_INPUT_WACOM) += epen/W9010_0208.bin
 fw-shipped-$(CONFIG_INPUT_WACOM) += epen/W9002_B781.bin
+fw-shipped-$(CONFIG_SEC_FPGA_ICE40XX) += ice40xx/i2c_top_bitmap_1.fw
 fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
 
 # Directories which we _might_ need to create, so we have a rule for them.

@@ -4,6 +4,15 @@
 
 menu "Misc devices"
 
+config SEC_FPGA_ICE40XX
+        tristate "this feature allows FPGA_ICE40XX"
+        default n
+        help
+          This is a driver for IR LEd driver based on Lattice chip.
+          Lattice FPGA can support IR LED.
+          To compile this driver as a module, choose M here.
+          If unsure, say N.
+
 config SENSORS_LIS3LV02D
 	tristate
 	depends on INPUT
