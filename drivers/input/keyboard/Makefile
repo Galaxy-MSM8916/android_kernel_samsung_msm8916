@@ -73,5 +73,3 @@ obj-$(CONFIG_KEYBOARD_TC305_TKEY) 	+= tc305-touchkey.o
 obj-$(CONFIG_KEYBOARD_TC360_TKEY_J5X) 	+= tc360-touchkey_j5x.o
 obj-$(CONFIG_KEYBOARD_TC350K)		+= tc300k.o
 obj-$(CONFIG_KEYBOARD_TC360_TKEY_J5) 	+= tc360-touchkey_j5.o
-obj-$(CONFIG_KEYBOARD_TC360_TKEY_SERRANOVE) 	+= tc360-touchkey_serranove.o
-

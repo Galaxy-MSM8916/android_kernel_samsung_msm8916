@@ -66,6 +66,10 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_ALTVOLTAGE] = "altvoltage",
 	[IIO_CCT] = "cct",
 	[IIO_PRESSURE] = "pressure",
+	[IIO_SIGN_MOTION] = "sign_motion",
+	[IIO_STEP_COUNTER] = "step_counter",
+	[IIO_TILT] = "tilt",
+	[IIO_STEP_DETECTOR] = "step_detector",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -967,6 +971,17 @@ static const struct file_operations iio_buffer_fileops = {
 	.compat_ioctl = iio_ioctl,
 };
 
+static const struct file_operations iio_buffer_fileops2 = {
+	.read = NULL,
+	.release = iio_chrdev_release,
+	.open = iio_chrdev_open,
+	.poll = NULL,
+	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
+	.unlocked_ioctl = iio_ioctl,
+	.compat_ioctl = iio_ioctl,
+};
+
 static const struct iio_buffer_setup_ops noop_ring_setup_ops;
 
 int iio_device_register(struct iio_dev *indio_dev)
@@ -1008,7 +1023,10 @@ int iio_device_register(struct iio_dev *indio_dev)
 	ret = device_add(&indio_dev->dev);
 	if (ret < 0)
 		goto error_unreg_eventset;
-	cdev_init(&indio_dev->chrdev, &iio_buffer_fileops);
+	if(!strcmp(indio_dev->name, "lightsensor-level") || !strcmp(indio_dev->name, "proximity-level"))
+		cdev_init(&indio_dev->chrdev, &iio_buffer_fileops2);
+	else
+		cdev_init(&indio_dev->chrdev, &iio_buffer_fileops);
 	indio_dev->chrdev.owner = indio_dev->info->driver_module;
 	ret = cdev_add(&indio_dev->chrdev, indio_dev->dev.devt, 1);
 	if (ret < 0)
