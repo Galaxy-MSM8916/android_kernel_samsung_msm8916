@@ -29,6 +29,10 @@ enum iio_chan_type {
 	IIO_ALTVOLTAGE,
 	IIO_CCT,
 	IIO_PRESSURE,
+	IIO_SIGN_MOTION,
+	IIO_STEP_COUNTER,
+	IIO_TILT,
+	IIO_STEP_DETECTOR,
 };
 
 enum iio_modifier {
@@ -52,6 +56,8 @@ enum iio_modifier {
 	IIO_MOD_LIGHT_RED,
 	IIO_MOD_LIGHT_GREEN,
 	IIO_MOD_LIGHT_BLUE,
+	IIO_MOD_PROXIMITY,
+	IIO_MOD_LIGHT,
 };
 
 #define IIO_VAL_INT 1
