@@ -113,7 +113,7 @@
 			zinitix,page_size = <128>;
 			zinitix,orientation = <0>;
 			zinitix,tsp_vdd_supply_type = <0>;
-			zinitix,pname = "SERRANOVE";
+			zinitix,pname = "I9195I";
 		};
 	};
 
@@ -220,12 +220,16 @@
 		};
 	};
 
-		samsung,gpio_settings{
+	samsung,gpio_settings{
 		compatible = "sec_gpio_sett";
 		pinctrl-names = "sec_gpio_active","sec_gpio_suspend";
-		pinctrl-0 = <&ts_int_active>;
-		pinctrl-1 = <&ts_int_suspend>;
+		pinctrl-0 = <&ts_int_active &touchkey_int_active &touchkey_en_active &touchkey_i2c_sda_active &touchkey_i2c_scl_active &muic_int_pin>;
+		pinctrl-1 = <&ts_int_suspend &touchkey_int_suspend &touchkey_en_suspend &touchkey_i2c_sda_suspend &touchkey_i2c_scl_suspend>;
 		};
+
+	i2c_4: i2c@78b8000 { /* BLSP1 QUP4 */
+		status="disable";
+	};
 	
 	i2c_12:i2c@12 {
 		cell-index = <12>;
@@ -296,7 +300,7 @@
 		};
 	};
 
-	i2c_13: i2c@13 {
+i2c_13: i2c@13 {
 		cell-index = <13>;
 		compatible = "i2c-gpio";
 		i2c-gpio-scl = <&msm_gpio 3 0x00>;
@@ -317,6 +321,7 @@
 			gp2a-vio-supply = <&pm8916_l5>;
 		};
 	};
+
 
 	i2c@78b6000 { /* BLSP1 QUP2 */
 		compatible = "qcom,i2c-msm-v2";
