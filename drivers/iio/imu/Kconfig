@@ -23,6 +23,17 @@ config ADIS16480
 	  Say yes here to build support for Analog Devices ADIS16375, ADIS16480,
 	  ADIS16485, ADIS16488 inertial sensors.
 
+config ST_LSM6DS3_IIO
+	tristate "STMicroelectronics LSM6DS3 sensor"
+	depends on (I2C || SPI) && SYSFS
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  This driver supports the STMicroelectronics LSM6DS3 sensor.
+	  It is a gyroscope/accelerometer combo device.
+	  This driver can be built as a module. The module will be called
+	  st-lsm6ds3.
+
 endmenu
 
 config IIO_ADIS_LIB

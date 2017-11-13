@@ -41,6 +41,21 @@
 #define SEC_PDND_U_COUNT		32
 #define SEC_PDND_FREQUENCY		44
 
+#elif  defined(CONFIG_SEC_SERRANOVE_PROJECT)
+#include "serranove_fw.h"
+#define CONFIG_DATE "1229"
+#define TSP_TYPE_COUNT	1
+ /*Test Mode (Monitoring Raw Data) */
+#define SEC_DND_N_COUNT			2
+#define SEC_DND_U_COUNT			4
+#define SEC_DND_FREQUENCY		44 /* 400khz */
+#define SEC_PDND_N_COUNT		16
+#define SEC_PDND_U_COUNT		32
+#define SEC_PDND_FREQUENCY		44
+
+/* #define GLOVE_MODE */
+#define SUPPORTED_PALM_TOUCH
+
 #else /* fortuna */
 #include "fortuna_fw_hwid_01.h"
 #include "fortuna_fw_hwid_02.h"
