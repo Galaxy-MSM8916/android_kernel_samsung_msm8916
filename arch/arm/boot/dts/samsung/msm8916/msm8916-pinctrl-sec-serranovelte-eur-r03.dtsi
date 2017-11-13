@@ -586,14 +586,12 @@
 
 			nfc_int_active: active {
 				drive-strength = <2>;
-				bias-pull-down; /* PULL DOWN */
-				output-low;
+				bias-disable; /* No PULL */
 			};
 
 			nfc_int_suspend: suspend {
 				drive-strength = <2>;
-				bias-pull-down; /* PULL DOWN */
-				output-low;
+				bias-disable; /* No PULL */
 			};
 		};
 
@@ -607,11 +605,13 @@
 			nfc_enable_active: active {
 				drive-strength = <2>;
 				bias-disable; /* No PULL */
+				output-low;
 			};
 
 			nfc_enable_suspend: suspend {
 				drive-strength = <2>;
 				bias-disable; /* No PULL */
+				output-low;
 			};
 		};
 
@@ -1077,6 +1077,7 @@
 				bias-disable; /* No PULL */
 			};
 		};
+
 		prox_sensor_int_active {
 			qcom,pins = <&gp 113>;
 			qcom,pin-func = <0>;
@@ -1181,7 +1182,7 @@
 			};
 			touchkey_i2c_scl_suspend: touchkey_i2c_scl_suspend {
 				drive-strength = <2>;
-				bias-disable;
+				bias-pull-down;  /* PULL DOWN */
 			};
 		};
 
