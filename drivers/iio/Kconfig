@@ -69,5 +69,6 @@ source "drivers/iio/gyro/Kconfig"
 source "drivers/iio/imu/Kconfig"
 source "drivers/iio/light/Kconfig"
 source "drivers/iio/magnetometer/Kconfig"
+source "drivers/iio/prox/Kconfig"
 
 endif # IIO
