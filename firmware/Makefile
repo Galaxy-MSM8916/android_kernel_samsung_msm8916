@@ -134,8 +134,6 @@ fw-shipped-$(CONFIG_USB_SERIAL_KEYSPAN_PDA) += keyspan_pda/keyspan_pda.fw
 fw-shipped-$(CONFIG_USB_SERIAL_XIRCOM) += keyspan_pda/xircom_pgs.fw
 fw-shipped-$(CONFIG_USB_VICAM) += vicam/firmware.fw
 fw-shipped-$(CONFIG_VIDEO_CPIA2) += cpia2/stv0672_vp4.bin
-fw-shipped-$(CONFIG_KEYBOARD_TC360_TOUCHKEY) += coreriver/tc360.fw
-fw-shipped-$(CCONFIG_KEYBOARD_TC360_TKEY_SERRANOVE) += coreriver/tc360_serrano_eur.fw
 fw-shipped-$(CONFIG_KEYBOARD_TC350K) += tkey/tc350k_j1x.fw
 fw-shipped-$(CONFIG_YAM) += yam/1200.bin yam/9600.bin
 
@@ -143,7 +141,7 @@ fw-shipped-$(CONFIG_TOUCHSCREEN_MMS300) += tsp_melfas/mms345l_e5.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MMS300_A) += tsp_melfas/mms345l_a5.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MMS449) += tsp_melfas/mms449_k5.fw tsp_melfas/mms449_a8.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MMS438) += tsp_melfas/mms438_xcover3.fw
-fw-shipped-$(CONFIG_KEYBOARD_TC360_TKEY) += tkey/tc360_e5.fw tkey/tc360_e7.fw
+fw-shipped-$(CONFIG_KEYBOARD_TC360_TKEY) += tkey/tc360_e5.fw tkey/tc360_e7.fw tkey/tc360.fw tkey/tc360_serrano_eur.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_MXT1664T) += tsp_atmel/mxtt_klimt.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_MXT1664T) += tsp_atmel/mxtt_gt510lte.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_MXT1664T) += tsp_atmel/mxtt_gt5note10.fw
