@@ -11,10 +11,10 @@
  */
 
 #include "msm8916.dtsi"
-#include "msm8916-pinctrl-sec-serranovelte-eur-r01.dtsi"
+#include "msm8916-pinctrl-sec-serranove3g-eur-r00.dtsi"
 #include "msm8916-camera.dtsi"
 #include "msm8916-camera-sensor-cdp-serranovelte.dtsi"
-#include "msm8916-sec-serranovelte-battery-r01.dtsi"
+#include "msm8916-sec-serranove3g-battery-r00.dtsi"
 #include "../../../../../../drivers/video/msm/mdss/samsung/S6E88A0_AMS427AP24/dsi_panel_S6E88A0_AMS427AP24_qhd_octa_video.dtsi"
 
 / {
@@ -97,23 +97,17 @@
 		qcom,scl-gpio = <&msm_gpio 19 0>;
 		qcom,sda-gpio = <&msm_gpio 18 0>;
 
-		bt532_ts_device@20 {
-			compatible = "zinitix,bt541_ts_device";
-			reg = <0x20>;
+		atmel_mxt_336s@4a {
+			compatible = "atmel,mxts-ts";
+			reg = <0x4a>;
 			interrupt-parent = <&msm_gpio>;
 			interrupts = <13 0>;
-			pinctrl-names = "tsp_en_gpio_active", "tsp_en_gpio_suspend";
-			pinctrl-0 = <&tsp_en_active &ts_int_active>;
-			pinctrl-1 = <&tsp_en_suspend &ts_int_suspend>;
 			vddo-supply = <&pm8916_l6>;
-			zinitix,vdd_en-gpio = <&msm_gpio 73 0x01>;
-			zinitix,irq-gpio = <&msm_gpio 13 0x00>;
-			zinitix,x_resolution = <540>;
-			zinitix,y_resolution = <960>;
-			zinitix,page_size = <128>;
-			zinitix,orientation = <0>;
-			zinitix,tsp_vdd_supply_type = <0>;
-			zinitix,pname = "I9195I";
+			mxts,tsppwr_en = <&msm_gpio 73 0x01>;
+			mxts,tsppwr_en1 = <&msm_gpio 8 0x01>;			
+			mxts,irq-gpio = <&msm_gpio 13 0x00>;
+			mxts,tsp_coord = <24 14 540 960>;
+			mxts,pname = "I9195";
 		};
 	};
 
@@ -275,31 +269,6 @@
 		qcom,therm-vadc = <&pm8916_vadc>;
 	};
 
-	i2c_8: i2c@8 {
-		cell-index = <8>;
-		compatible = "i2c-gpio";
-		i2c-gpio-scl = <&msm_gpio 1 0x00>;
-		i2c-gpio-sda = <&msm_gpio 0 0x00>;
-		i2c-gpio,delay-us = <2>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		pn547@2B {
-			compatible = "pn547";
-			reg = <0x2B>;
-			interrupt-parent = <&msm_gpio>;
-			interrupts = <21 0>;
-			pinctrl-names = "nfc_active","nfc_suspend";
-			pinctrl-0 = <&nfc_int_active &nfc_enable_active &nfc_firmware_active &nfc_i2c_active>;
-			pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend &nfc_firmware_suspend &nfc_i2c_suspend>;
-			pn547,firm-gpio = <&msm_gpio 49 0x00>;
-			pn547,ven-gpio = <&msm_gpio 20 0x00>;
-			pn547,irq-gpio = <&msm_gpio 21 0x01>;
-			nfc_ldo-supply = <&pm8916_l14>;
-			clocks = <&clock_rpm clk_bb_clk2_pin>;
-			clock-names = "nfc_clock";
-		};
-	};
-
 i2c_13: i2c@13 {
 		cell-index = <13>;
 		compatible = "i2c-gpio";
@@ -409,7 +378,7 @@ i2c_13: i2c@13 {
 
 	};
 
-	i2c_9:i2c@9 { /*SM5504 GPIO-I2C*/
+	i2c_9:i2c@9 { /*SM5502 GPIO-I2C*/
 		cell-index = <9>;
 		compatible = "i2c-gpio";
 		i2c-gpio-scl = <&msm_gpio 106 0x00>;
@@ -418,18 +387,18 @@ i2c_13: i2c@13 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		sm5504@14{
-			compatible = "sm5504,i2c";
-			reg = <0x14>;
+		sm5502@25{
+			compatible = "sm5502,i2c";
+			reg = <0x25>;
 			interrupt-parent = <&msm_gpio>;
 			interrupts= <12 0>;
-			sm5504,irq-gpio = <&msm_gpio 12 0x00>;
-			sm5504,gpio-sda = <&msm_gpio 105 0x00>;
-			sm5504,gpio-scl = <&msm_gpio 106 0x00>;
-			sm5504,uarton-gpio = <&msm_gpio 114 0x00>;
-			pinctrl-names = "sm5504_i2c_active","sm5504_i2c_suspend";
-			pinctrl-0 = <&muic_i2c_active &muic_int_pin>;
-			pinctrl-1 = <&muic_i2c_suspend &muic_int_pin>;
+			sm5502,irq-gpio = <&msm_gpio 12 0x00>;
+			sm5502,gpio-sda = <&msm_gpio 105 0x00>;
+			sm5502,gpio-scl = <&msm_gpio 106 0x00>;
+			sm5502,uarton-gpio = <&msm_gpio 114 0x00>;
+			pinctrl-names = "sm5502_i2c_active","sm5502_i2c_suspend";
+			pinctrl-0 = <&muic_i2c_active &muic_int_pin &muic_chg_det>;
+			pinctrl-1 = <&muic_i2c_suspend &muic_int_pin &muic_chg_det>;
 		};
 	};
 
@@ -564,11 +533,7 @@ i2c_13: i2c@13 {
 
 	gpio@c100 { /* GPIO 2 */
 		/* NFC_CLK_REQ */
-		qcom,mode = <0>; /* QPNP_PIN_MODE_DIG_IN */
-		qcom,pull = <4>; /* QPNP_PIN_PULL_DOWN */
-		qcom,vin-sel = <3>; /* QPNP_PIN_VIN3 */
-		qcom,src-sel = <2>; /* QPNP_PIN_SEL_FUNC_1 */
-		qcom,master-en = <1>;
+		status = "disabled";
 	};
 
 	gpio@c200 { /* GPIO 3 */
