@@ -11,10 +11,10 @@
  */
 
 #include "msm8916.dtsi"
-#include "msm8916-pinctrl-sec-serranovelte-eur-r01.dtsi"
+#include "msm8916-pinctrl-sec-serranove3g-eur-r01.dtsi"
 #include "msm8916-camera.dtsi"
 #include "msm8916-camera-sensor-cdp-serranovelte.dtsi"
-#include "msm8916-sec-serranovelte-battery-r01.dtsi"
+#include "msm8916-sec-serranove3g-battery-r00.dtsi"
 #include "../../../../../../drivers/video/msm/mdss/samsung/S6E88A0_AMS427AP24/dsi_panel_S6E88A0_AMS427AP24_qhd_octa_video.dtsi"
 
 / {
@@ -273,31 +273,6 @@
 	sec_thermistor {
 		compatible = "sec,thermistor";
 		qcom,therm-vadc = <&pm8916_vadc>;
-	};
-
-	i2c_8: i2c@8 {
-		cell-index = <8>;
-		compatible = "i2c-gpio";
-		i2c-gpio-scl = <&msm_gpio 1 0x00>;
-		i2c-gpio-sda = <&msm_gpio 0 0x00>;
-		i2c-gpio,delay-us = <2>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		pn547@2B {
-			compatible = "pn547";
-			reg = <0x2B>;
-			interrupt-parent = <&msm_gpio>;
-			interrupts = <21 0>;
-			pinctrl-names = "nfc_active","nfc_suspend";
-			pinctrl-0 = <&nfc_int_active &nfc_enable_active &nfc_firmware_active &nfc_i2c_active>;
-			pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend &nfc_firmware_suspend &nfc_i2c_suspend>;
-			pn547,firm-gpio = <&msm_gpio 49 0x00>;
-			pn547,ven-gpio = <&msm_gpio 20 0x00>;
-			pn547,irq-gpio = <&msm_gpio 21 0x01>;
-			nfc_ldo-supply = <&pm8916_l14>;
-			clocks = <&clock_rpm clk_bb_clk2_pin>;
-			clock-names = "nfc_clock";
-		};
 	};
 
 i2c_13: i2c@13 {
@@ -564,11 +539,7 @@ i2c_13: i2c@13 {
 
 	gpio@c100 { /* GPIO 2 */
 		/* NFC_CLK_REQ */
-		qcom,mode = <0>; /* QPNP_PIN_MODE_DIG_IN */
-		qcom,pull = <4>; /* QPNP_PIN_PULL_DOWN */
-		qcom,vin-sel = <3>; /* QPNP_PIN_VIN3 */
-		qcom,src-sel = <2>; /* QPNP_PIN_SEL_FUNC_1 */
-		qcom,master-en = <1>;
+		status = "disabled";
 	};
 
 	gpio@c200 { /* GPIO 3 */

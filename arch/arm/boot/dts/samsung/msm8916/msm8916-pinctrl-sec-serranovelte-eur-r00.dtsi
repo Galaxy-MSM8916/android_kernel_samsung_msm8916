@@ -12,7 +12,7 @@
 
 &soc {
 	tlmm_pinmux: pinctrl@1000000 {
-		compatible = "qcom,msm-tlmm-v4";
+		compatible = "qcom,msm-tlmm-8916";
 		reg = <0x1000000 0x300000>;
 		interrupts = <0 208 0>;
 
@@ -22,12 +22,28 @@
 			qcom,num-pins = <122>;
 			#qcom,pin-cells = <1>;
 			msm_gpio: msm_gpio {
-				compatible = "qcom,msm-tlmmv4-gp-intc";
+				compatible = "qcom,msm-tlmm-gp";
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				num_irqs = <122>;
+			};
+		};
+
+		ext-cdc-tlmm-lines {
+			qcom,pins = <&gp 112>, <&gp 117>,
+						<&gp 118>, <&gp 119>;
+			qcom,num-grp-pins = <4>;
+			qcom,pin-func = <1>;
+			label = "ext-cdc-tlmm-lines";
+			ext_cdc_tlmm_lines_act: tlmm_lines_on {
+				drive-strength = <8>;
+				bias-disable;
+			};
+			ext_cdc_tlmm_lines_sus: tlmm_lines_off {
+				drive-strength = <2>;
+				bias-disable;
 			};
 		};
 
@@ -177,6 +193,7 @@
 			};
 		};
 
+		/*PIN for working USB*/
 		usb-id-pin {
 			qcom,pins = <&gp 110>;
 			qcom,num-grp-pins = <1>;
@@ -188,6 +205,7 @@
 			};
 		};
 
+		/*PIN for working USB*/
 		ice40-spi-usb-pins {
 			qcom,pins =<&gp 3>, <&gp 114>;
 			qcom,num-grp-pins = <2>;
@@ -206,7 +224,6 @@
 				bias-pull-down;
 			};
 		};
-
 
 		pmx_i2c_0 {
 			/* CLK, DATA */
@@ -262,7 +279,7 @@
 			};
 		};
 
-           tkey_i2c_gpio_active {
+		tkey_i2c_gpio_active {
                         qcom,pins = <&gp 17>, <&gp 16>,<&gp 98>,<&gp 86>;
                         qcom,num-grp-pins = <4>;
                         qcom,pin-func = <0>;
@@ -271,8 +288,25 @@
                                 drive-strength = <2>;
                                 bias-disable = <0>; /* No PULL */
                         };
+                        tkey_i2c_suspend: tkey_i2c_suspend {
+                                drive-strength = <2>;
+                                bias-disable = <0>; /* No PULL */
+                                output-low;
+                        };
+		};
+
+ 		tkey_irq_gpio_active {
+                        qcom,pins = <&gp 98>;
+                        qcom,num-grp-pins = <1>;
+                        qcom,pin-func = <0>;
+                        label = "tkey_irq_gpio_active";
+                        tkey_irq_active: tkey_irq_active {
+                                drive-strength = <2>;
+                                bias-disable = <0>; /* No PULL */
+				    input-enable;
+                        };
                 };
-       
+
 		/* QDSD pin type */
 		qdsd: qdsd {
 			qcom,pin-type-qdsd;
@@ -552,14 +586,12 @@
 
 			nfc_int_active: active {
 				drive-strength = <2>;
-				bias-pull-down; /* PULL DOWN */
-				output-low;
+				bias-disable; /* No PULL */
 			};
 
 			nfc_int_suspend: suspend {
 				drive-strength = <2>;
-				bias-pull-down; /* PULL DOWN */
-				output-low;
+				bias-disable; /* No PULL */
 			};
 		};
 
@@ -573,11 +605,13 @@
 			nfc_enable_active: active {
 				drive-strength = <2>;
 				bias-disable; /* No PULL */
+				output-low;
 			};
 
 			nfc_enable_suspend: suspend {
 				drive-strength = <2>;
 				bias-disable; /* No PULL */
+				output-low;
 			};
 		};
 
@@ -990,6 +1024,44 @@
 			};
 		};
 
+
+		tlmm_motor_pwm_active {
+			qcom,pins = <&gp 50>;
+			qcom,pin-func = <2>;
+			qcom,num-grp-pins = <1>;
+			label = "motor_pwm_active";
+			motor_pwm_active: motor_pwm_active {
+				drive-strength = <2>;
+				bias-pull-down; /* PULL DOWN */
+			};
+		};
+
+		tlmm_motor_pwm_suspend {
+			qcom,pins = <&gp 50>;
+			qcom,pin-func = <0>;
+			qcom,num-grp-pins = <1>;
+			label = "motor_pwm_suspend";
+			motor_pwm_suspend: motor_pwm_suspend {
+				drive-strength = <2>;
+				bias-pull-down; /* PULL DOWN */
+			};
+		};
+
+		tlmm_motor_en {
+			qcom,pins = <&gp 76>;
+			qcom,pin-func = <0>;
+			qcom,num-grp-pins = <1>;
+			label = "tlmm_motor_en";
+			motor_en_active: motor_en_active {
+				drive-strength = <2>;
+				bias-disable = <0>; /* No PULL */
+			};
+			motor_en_suspend: motor_en_suspend {
+				drive-strength = <2>;
+				bias-disable = <0>; /* No PULL */
+			};
+		};
+
 		/* add pingrp for proximity sensors  */
 		pmx_prox_i2c {
 			qcom,pins = <&gp 2>, <&gp 3>;
@@ -1005,6 +1077,7 @@
 				bias-disable; /* No PULL */
 			};
 		};
+
 		prox_sensor_int_active {
 			qcom,pins = <&gp 113>;
 			qcom,pin-func = <0>;
@@ -1064,7 +1137,7 @@
 			};
 			touchkey_int_suspend: touchkey_int_suspend {
 				drive-strength = <2>;
-				bias-pull-down;  /* PULL DOWN */
+				bias-disable; /* No PULL */
 			};
 		};
 
@@ -1094,7 +1167,7 @@
 			};
 			touchkey_i2c_sda_suspend: touchkey_i2c_sda_suspend {
 				drive-strength = <2>;
-				bias-pull-down;  /* PULL DOWN */
+				bias-disable;
 			};
 		};
 
@@ -1124,16 +1197,16 @@
 			};
 		};
 
-		tsp_en_gpio_suspend {
-			qcom,pins = <&gp 73>;
-			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <0>;
-			label = "tsp_en_gpio_suspend";
-			tsp_en_suspend: tsp_en_suspend {
-				drive-strength = <2>;
-				bias-disable = <0>; /* No PULL */
-			};
-		};
+                tsp_en_gpio_suspend {
+                        qcom,pins = <&gp 73>;
+                        qcom,num-grp-pins = <1>;
+                        qcom,pin-func = <0>;
+                        label = "tsp_en_gpio_suspend";
+                        tsp_en_suspend: tsp_en_suspend {
+                                drive-strength = <2>;
+                                bias-disable = <0>; /* No PULL */
+                        };
+                };
 
 		irda_en {
 			qcom,pins = <&gp 87>;
@@ -1208,6 +1281,19 @@
 			};
 		};
 
+		/* HOme Key pingroup*/
+		pmx_home_key_pin {
+			qcom,pins = <&gp 109>;
+			qcom,pin-func = <0>;
+			qcom,num-grp-pins = <1>;
+			label = "pmx_home_key_pin";
+
+			home_key_pin: default {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
 		/*Hall IC pingroup*/
 		pmx_hall_ic_pin {
 			qcom,pins = <&gp 52>;
@@ -1218,6 +1304,17 @@
 			hall_ic_pin: default {
 				drive-strength = <2>;
 				bias-pull-up;
+			};
+		};
+
+		gpio_led_pins {
+			qcom,pins = <&gp 8>, <&gp 9>;
+			qcom,num-grp-pins = <2>;
+			label = "gpio-led-pins";
+			gpio_led_off: led_off {
+				drive-strength = <2>;
+				bias-disable;
+				output-low;
 			};
 		};
 
@@ -1270,6 +1367,30 @@
 			label = "pmx_ts_int_suspend";
 
 			ts_int_suspend: ts_int_suspend {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		pmx_ts_reset_active {
+			qcom,pins = <&gp 19>;
+			qcom,pin-func = <3>;
+			qcom,num-grp-pins = <1>;
+			label = "pmx_ts_reset_active";
+
+			ts_reset_active: ts_reset_active {
+				drive-strength = <16>;
+				bias-pull-up;
+			};
+		};
+
+		pmx_ts_reset_suspend {
+			qcom,pins = <&gp 19>;
+			qcom,pin-func = <3>;
+			qcom,num-grp-pins = <1>;
+			label = "pmx_ts_reset_suspend";
+
+			ts_reset_suspend: ts_reset_suspend {
 				drive-strength = <2>;
 				bias-pull-down;
 			};
