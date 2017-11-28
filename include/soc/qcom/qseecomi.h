@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,6 +18,7 @@
 
 #define QSEECOM_KEY_ID_SIZE   32
 
+#define QSEOS_RESULT_FAIL_SEND_CMD_NO_THREAD  -19   /*0xFFFFFFED*/
 #define QSEOS_RESULT_FAIL_UNSUPPORTED_CE_PIPE -63
 #define QSEOS_RESULT_FAIL_KS_OP               -64
 #define QSEOS_RESULT_FAIL_KEY_ID_EXISTS       -65
@@ -28,6 +29,7 @@
 #define QSEOS_RESULT_FAIL_KEY_ID_DNE          -70
 #define QSEOS_RESULT_FAIL_INCORRECT_PSWD      -71
 #define QSEOS_RESULT_FAIL_MAX_ATTEMPT         -72
+#define QSEOS_RESULT_FAIL_PENDING_OPERATION   -73
 
 enum qseecom_command_scm_resp_type {
 	QSEOS_APP_ID = 0xEE01,
@@ -58,27 +60,31 @@ enum qseecom_qceos_cmd_id {
 	QSEOS_UPDATE_KEY_USERINFO,
 	QSEOS_TEE_OPEN_SESSION,
 	QSEOS_TEE_INVOKE_COMMAND,
+	QSEOS_TEE_INVOKE_MODFD_COMMAND = QSEOS_TEE_INVOKE_COMMAND,
 	QSEOS_TEE_CLOSE_SESSION,
-	QSEOS_FSM_LTE_INIT_DB = 0x100,
-	QSEOS_FSM_LTE_STORE_KENB = 0x101,
-	QSEOS_FSM_LTE_GEN_KEYS = 0x102,
-	QSEOS_FSM_LTE_GET_KEY_OFFSETS = 0x103,
-	QSEOS_FSM_LTE_GEN_KENB_STAR = 0x104,
-	QSEOS_FSM_LTE_GET_KENB_STAR = 0x105,
-	QSEOS_FSM_LTE_STORE_NH = 0x106,
-	QSEOS_FSM_LTE_DELETE_NH = 0x107,
-	QSEOS_FSM_LTE_DELETE_KEYS = 0x108,
-	QSEOS_FSM_IKE_CMD_SIGN = 0x200,
-	QSEOS_FSM_IKE_CMD_PROV_KEY = 0x201,
-	QSEOS_FSM_IKE_CMD_ENCRYPT_PRIVATE_KEY = 0x202,
+	QSEOS_TEE_REQUEST_CANCELLATION,
+	QSEOS_CONTINUE_BLOCKED_REQ_COMMAND,
+	QSEOS_RPMB_CHECK_PROV_STATUS_COMMAND = 0x1B,
+	QSEOS_CLIENT_SEND_DATA_COMMAND_WHITELIST = 0x1C,
+	QSEOS_TEE_OPEN_SESSION_WHITELIST = 0x1D,
+	QSEOS_TEE_INVOKE_COMMAND_WHITELIST = 0x1E,
+	QSEOS_LISTENER_DATA_RSP_COMMAND_WHITELIST = 0x1F,
+	QSEOS_FSM_LTEOTA_REQ_CMD = 0x109,
+	QSEOS_FSM_LTEOTA_REQ_RSP_CMD = 0x110,
+	QSEOS_FSM_IKE_REQ_CMD = 0x203,
+	QSEOS_FSM_IKE_REQ_RSP_CMD = 0x204,
 	QSEOS_FSM_OEM_FUSE_WRITE_ROW = 0x301,
 	QSEOS_FSM_OEM_FUSE_READ_ROW = 0x302,
+	QSEOS_FSM_ENCFS_REQ_CMD = 0x403,
+	QSEOS_FSM_ENCFS_REQ_RSP_CMD = 0x404,
+
 	QSEOS_CMD_MAX     = 0xEFFFFFFF
 };
 
 enum qseecom_qceos_cmd_status {
 	QSEOS_RESULT_SUCCESS = 0,
 	QSEOS_RESULT_INCOMPLETE,
+	QSEOS_RESULT_BLOCKED_ON_LISTENER,
 	QSEOS_RESULT_FAILURE  = 0xFFFFFFFF
 };
 
@@ -89,9 +95,24 @@ enum qseecom_pipe_type {
 	QSEOS_PIPE_ENUM_FILL = 0x7FFFFFFF
 };
 
+/* QSEE Reentrancy support phase */
+enum qseecom_qsee_reentrancy_phase {
+	QSEE_REENTRANCY_PHASE_0 = 0,
+	QSEE_REENTRANCY_PHASE_1,
+	QSEE_REENTRANCY_PHASE_2,
+	QSEE_REENTRANCY_PHASE_3,
+	QSEE_REENTRANCY_PHASE_MAX = 0xFF
+};
+
 __packed  struct qsee_apps_region_info_ireq {
 	uint32_t qsee_cmd_id;
 	uint32_t addr;
+	uint32_t size;
+};
+
+__packed  struct qsee_apps_region_info_64bit_ireq {
+	uint32_t qsee_cmd_id;
+	uint64_t addr;
 	uint32_t size;
 };
 
@@ -108,6 +129,14 @@ __packed struct qseecom_load_app_ireq {
 	char     app_name[MAX_APP_NAME_SIZE];	/* application name*/
 };
 
+__packed struct qseecom_load_app_64bit_ireq {
+	uint32_t qsee_cmd_id;
+	uint32_t mdt_len;
+	uint32_t img_len;
+	uint64_t phy_addr;
+	char     app_name[MAX_APP_NAME_SIZE];
+};
+
 __packed struct qseecom_unload_app_ireq {
 	uint32_t qsee_cmd_id;
 	uint32_t  app_id;
@@ -120,6 +149,13 @@ __packed struct qseecom_load_lib_image_ireq {
 	uint32_t phy_addr;
 };
 
+__packed struct qseecom_load_lib_image_64bit_ireq {
+	uint32_t qsee_cmd_id;
+	uint32_t mdt_len;
+	uint32_t img_len;
+	uint64_t phy_addr;
+};
+
 __packed struct qseecom_unload_lib_image_ireq {
 	uint32_t qsee_cmd_id;
 };
@@ -128,6 +164,13 @@ __packed struct qseecom_register_listener_ireq {
 	uint32_t qsee_cmd_id;
 	uint32_t listener_id;
 	uint32_t sb_ptr;
+	uint32_t sb_len;
+};
+
+__packed struct qseecom_register_listener_64bit_ireq {
+	uint32_t qsee_cmd_id;
+	uint32_t listener_id;
+	uint64_t sb_ptr;
 	uint32_t sb_len;
 };
 
@@ -143,6 +186,19 @@ __packed struct qseecom_client_send_data_ireq {
 	uint32_t req_len;
 	uint32_t rsp_ptr;/* First 4 bytes should be the return status */
 	uint32_t rsp_len;
+	uint32_t sglistinfo_ptr;
+	uint32_t sglistinfo_len;
+};
+
+__packed struct qseecom_client_send_data_64bit_ireq {
+	uint32_t qsee_cmd_id;
+	uint32_t app_id;
+	uint64_t req_ptr;
+	uint32_t req_len;
+	uint64_t rsp_ptr;
+	uint32_t rsp_len;
+	uint64_t sglistinfo_ptr;
+	uint32_t sglistinfo_len;
 };
 
 __packed struct qseecom_reg_log_buf_ireq {
@@ -151,11 +207,27 @@ __packed struct qseecom_reg_log_buf_ireq {
 	uint32_t len;
 };
 
+__packed struct qseecom_reg_log_buf_64bit_ireq {
+	uint32_t qsee_cmd_id;
+	uint64_t phy_addr;
+	uint32_t len;
+};
+
 /* send_data resp */
 __packed struct qseecom_client_listener_data_irsp {
 	uint32_t qsee_cmd_id;
 	uint32_t listener_id;
 	uint32_t status;
+	uint32_t sglistinfo_ptr;
+	uint32_t sglistinfo_len;
+};
+
+__packed struct qseecom_client_listener_data_64bit_irsp {
+	uint32_t qsee_cmd_id;
+	uint32_t listener_id;
+	uint32_t status;
+	uint64_t sglistinfo_ptr;
+	uint32_t sglistinfo_len;
 };
 
 /*
@@ -181,6 +253,14 @@ __packed struct qseecom_client_send_service_ireq {
 	unsigned int req_len; /* in */
 	uint32_t rsp_ptr; /* in/out */
 	unsigned int rsp_len; /* in/out */
+};
+
+__packed struct qseecom_client_send_service_64bit_ireq {
+	uint32_t qsee_cmd_id;
+	uint32_t key_type;
+	unsigned int req_len;
+	uint64_t rsp_ptr;
+	unsigned int rsp_len;
 };
 
 __packed struct qseecom_key_generate_ireq {
@@ -231,6 +311,19 @@ __packed struct qseecom_qteec_ireq {
 	uint32_t    req_len;
 	uint32_t    resp_ptr;
 	uint32_t    resp_len;
+	uint32_t    sglistinfo_ptr;
+	uint32_t    sglistinfo_len;
+};
+
+__packed struct qseecom_qteec_64bit_ireq {
+	uint32_t    qsee_cmd_id;
+	uint32_t    app_id;
+	uint64_t    req_ptr;
+	uint32_t    req_len;
+	uint64_t    resp_ptr;
+	uint32_t    resp_len;
+	uint64_t    sglistinfo_ptr;
+	uint32_t    sglistinfo_len;
 };
 
 __packed struct qseecom_client_send_fsm_key_req {
@@ -239,6 +332,11 @@ __packed struct qseecom_client_send_fsm_key_req {
 	uint32_t req_len;
 	uint32_t rsp_ptr;
 	uint32_t rsp_len;
+};
+
+__packed struct qseecom_continue_blocked_request_ireq {
+	uint32_t qsee_cmd_id;
+	uint32_t app_id;
 };
 
 
@@ -250,6 +348,7 @@ __packed struct qseecom_client_send_fsm_key_req {
 #define TZ_SVC_RPMB                      4     /* RPMB */
 #define TZ_SVC_KEYSTORE                  5     /* Keystore management */
 #define TZ_SVC_ES                        16    /* Enterprise Security */
+#define TZ_SVC_MDTP                      18    /* Mobile Device Theft */
 
 /*----------------------------------------------------------------------------
  * Owning Entity IDs (defined by ARM SMC doc)
@@ -343,6 +442,13 @@ __packed struct qseecom_client_send_fsm_key_req {
  */
 #define TZ_SYSCALL_GET_PARAM_ID(CMD_ID)        CMD_ID ## _PARAM_ID
 
+/** Helper macro to extract the owning entity from the SMC ID. */
+#define TZ_SYSCALL_OWNER_ID(r0)   ((r0 & TZ_MASK_BITS(29, 24)) >> 24)
+
+/** Helper macro for checking whether an owning entity is of type trusted OS. */
+#define IS_OWNER_TRUSTED_OS(owner_id) \
+			(((owner_id >= 50) && (owner_id <= 63)) ? 1:0)
+
 #define TZ_SYSCALL_PARAM_TYPE_VAL              0x0     /** type of value */
 #define TZ_SYSCALL_PARAM_TYPE_BUF_RO           0x1     /** type of buffer read-only */
 #define TZ_SYSCALL_PARAM_TYPE_BUF_RW           0x2     /** type of buffer read-write */
@@ -404,6 +510,9 @@ __packed struct qseecom_client_send_fsm_key_req {
 
 #define TZ_OS_REGISTER_LISTENER_ID \
 	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS, TZ_SVC_LISTENER, 0x01)
+
+#define TZ_OS_REGISTER_LISTENER_SMCINVOKE_ID \
+	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS, TZ_SVC_LISTENER, 0x06)
 
 #define TZ_OS_REGISTER_LISTENER_ID_PARAM_ID \
 	TZ_SYSCALL_CREATE_PARAM_ID_3( \
@@ -472,6 +581,12 @@ __packed struct qseecom_client_send_fsm_key_req {
 #define TZ_OS_RPMB_ERASE_ID_PARAM_ID \
 	TZ_SYSCALL_CREATE_PARAM_ID_0
 
+#define TZ_OS_RPMB_CHECK_PROV_STATUS_ID \
+	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS, TZ_SVC_RPMB, 0x03)
+
+#define TZ_OS_RPMB_CHECK_PROV_STATUS_ID_PARAM_ID \
+	TZ_SYSCALL_CREATE_PARAM_ID_0
+
 #define TZ_OS_KS_GEN_KEY_ID \
 	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS, TZ_SVC_KEYSTORE, 0x01)
 
@@ -513,5 +628,101 @@ __packed struct qseecom_client_send_fsm_key_req {
 	TZ_SYSCALL_CREATE_PARAM_ID_3( \
 	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW, \
 	TZ_SYSCALL_PARAM_TYPE_VAL)
+
+#define TZ_APP_GPAPP_OPEN_SESSION_ID					\
+	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_TZ_APPS,			\
+	TZ_SVC_APP_ID_PLACEHOLDER, 0x02)
+
+#define TZ_APP_GPAPP_OPEN_SESSION_ID_PARAM_ID				\
+	TZ_SYSCALL_CREATE_PARAM_ID_5(					\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL)
+
+#define TZ_APP_GPAPP_CLOSE_SESSION_ID					\
+	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_TZ_APPS,			\
+	TZ_SVC_APP_ID_PLACEHOLDER, 0x03)
+
+#define TZ_APP_GPAPP_CLOSE_SESSION_ID_PARAM_ID				\
+	TZ_SYSCALL_CREATE_PARAM_ID_5(					\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL)
+
+#define TZ_APP_GPAPP_INVOKE_COMMAND_ID					\
+	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_TZ_APPS,			\
+	TZ_SVC_APP_ID_PLACEHOLDER, 0x04)
+
+#define TZ_APP_GPAPP_INVOKE_COMMAND_ID_PARAM_ID				\
+	TZ_SYSCALL_CREATE_PARAM_ID_5(					\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL)
+
+#define TZ_APP_GPAPP_REQUEST_CANCELLATION_ID				\
+	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_TZ_APPS,			\
+	TZ_SVC_APP_ID_PLACEHOLDER, 0x05)
+
+#define TZ_APP_GPAPP_REQUEST_CANCELLATION_ID_PARAM_ID			\
+	TZ_SYSCALL_CREATE_PARAM_ID_5(					\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL)
+
+#define TZ_MDTP_CIPHER_DIP_ID \
+	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_SIP, TZ_SVC_MDTP, 0x1)
+
+#define TZ_MDTP_CIPHER_DIP_ID_PARAM_ID \
+	TZ_SYSCALL_CREATE_PARAM_ID_5( \
+	TZ_SYSCALL_PARAM_TYPE_BUF_RO, TZ_SYSCALL_PARAM_TYPE_VAL, \
+	TZ_SYSCALL_PARAM_TYPE_BUF_RW, TZ_SYSCALL_PARAM_TYPE_VAL, \
+	TZ_SYSCALL_PARAM_TYPE_VAL)
+
+#define TZ_OS_CONTINUE_BLOCKED_REQUEST_ID \
+	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS, TZ_SVC_LISTENER, 0x04)
+
+#define TZ_OS_CONTINUE_BLOCKED_REQUEST_ID_PARAM_ID \
+	TZ_SYSCALL_CREATE_PARAM_ID_1(TZ_SYSCALL_PARAM_TYPE_VAL)
+
+#define TZ_APP_QSAPP_SEND_DATA_WITH_WHITELIST_ID \
+	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_TZ_APPS, \
+	TZ_SVC_APP_ID_PLACEHOLDER, 0x06)
+
+#define TZ_APP_QSAPP_SEND_DATA_WITH_WHITELIST_ID_PARAM_ID \
+	TZ_SYSCALL_CREATE_PARAM_ID_7( \
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW, \
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW, \
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW, \
+	TZ_SYSCALL_PARAM_TYPE_VAL)
+
+#define TZ_APP_GPAPP_OPEN_SESSION_WITH_WHITELIST_ID			\
+	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_TZ_APPS,			\
+	TZ_SVC_APP_ID_PLACEHOLDER, 0x07)
+
+#define TZ_APP_GPAPP_OPEN_SESSION_WITH_WHITELIST_ID_PARAM_ID		\
+	TZ_SYSCALL_CREATE_PARAM_ID_7(					\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL)
+
+#define TZ_APP_GPAPP_INVOKE_COMMAND_WITH_WHITELIST_ID			\
+	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_TZ_APPS,			\
+	TZ_SVC_APP_ID_PLACEHOLDER, 0x09)
+
+#define TZ_APP_GPAPP_INVOKE_COMMAND_WITH_WHITELIST_ID_PARAM_ID		\
+	TZ_SYSCALL_CREATE_PARAM_ID_7(					\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_BUF_RW,	\
+	TZ_SYSCALL_PARAM_TYPE_VAL)
+
+#define TZ_OS_LISTENER_RESPONSE_HANDLER_WITH_WHITELIST_ID \
+	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS, TZ_SVC_LISTENER, 0x05)
+
+#define TZ_OS_LISTENER_RESPONSE_HANDLER_WITH_WHITELIST_PARAM_ID \
+	TZ_SYSCALL_CREATE_PARAM_ID_4( \
+	TZ_SYSCALL_PARAM_TYPE_VAL, TZ_SYSCALL_PARAM_TYPE_VAL, \
+	TZ_SYSCALL_PARAM_TYPE_BUF_RW, TZ_SYSCALL_PARAM_TYPE_VAL)
 
 #endif /* __QSEECOMI_H_ */
