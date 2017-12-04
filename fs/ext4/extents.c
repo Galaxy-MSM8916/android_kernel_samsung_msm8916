@@ -4577,6 +4577,7 @@ retry:
 		ext4_falloc_update_inode(inode, mode, new_size,
 					 (map.m_flags & EXT4_MAP_NEW));
 		ext4_mark_inode_dirty(handle, inode);
+		ext4_update_inode_fsync_trans(handle, inode, 1);
 		if ((file->f_flags & O_SYNC) && ret >= max_blocks)
 			ext4_handle_sync(handle);
 		ret2 = ext4_journal_stop(handle);
