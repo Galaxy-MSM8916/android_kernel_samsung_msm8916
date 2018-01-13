@@ -9,6 +9,8 @@ obj-$(CONFIG_DVB_MPQ) += dvb/
 
 ifeq ($(CONFIG_SEC_J5_PROJECT),y)
 obj-$(CONFIG_MSMB_CAMERA) += camera_v2_j5/
+else ifeq ($(CONFIG_SEC_J5X_PROJECT),y)
+obj-$(CONFIG_MSMB_CAMERA) += camera_v2_j5x/
 else ifeq ($(CONFIG_SEC_J5N_PROJECT),y)
 obj-$(CONFIG_MSMB_CAMERA) += camera_v2_j5/
 else ifeq ($(CONFIG_SEC_FORTUNA_PROJECT),y)
