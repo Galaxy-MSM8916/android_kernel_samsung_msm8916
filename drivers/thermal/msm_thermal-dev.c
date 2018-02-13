@@ -265,6 +265,7 @@ static long msm_thermal_process_voltage_table_req(
 		voltage->voltage_table[idx] =
 			voltage_table_ptr[cluster_id][table_idx];
 	}
+	voltage->voltage_table_len = idx;
 
 copy_and_return:
 	ret = copy_to_user((void __user *)(*arg), query,
