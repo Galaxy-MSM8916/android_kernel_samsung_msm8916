@@ -204,6 +204,9 @@ static long msm_thermal_process_voltage_table_req(
 	uint32_t cluster_id = query->voltage.cluster_num;
 	struct voltage_plan_arg *voltage = &(query->voltage);
 
+	if (cluster_id >= num_possible_cpus())
+		return -EINVAL;
+
 	if (!voltage_table_ptr[cluster_id]) {
 		if (!freq_table_len[cluster_id]) {
 			ret = msm_thermal_get_freq_plan_size(cluster_id,
