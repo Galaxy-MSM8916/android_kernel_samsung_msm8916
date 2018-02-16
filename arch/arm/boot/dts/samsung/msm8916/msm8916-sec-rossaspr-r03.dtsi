@@ -12,10 +12,10 @@
 
 #include "msm8916.dtsi"
 #include "msm8916-pinctrl-sec-rossaspr-r03.dtsi"
-#include "../../../../../../drivers/video/msm/mdss/samsung/HX8369B_BV045WVM/dsi_panel_HX8369B_BV045WVM_wvga_video.dtsi"
 #include "msm8916-camera.dtsi"
 #include "msm8916-camera-sensor-cdp-rossa.dtsi"
 #include "msm8916-sec-rossaspr-battery-r00.dtsi"
+#include "../../../../../../drivers/video/msm/mdss/samsung/SC7798A_BV045WVM/dsi_panel_SC7798A_BV045WVM_wvga_video.dtsi"
 
 / {
 	aliases {
@@ -72,8 +72,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		sec-fuelgauge@35{
-			compatible = "sec-fuelgauge,i2c";
+		rt5033-fuelgauge@35{
+			compatible = "rt5033-fuelgauge,i2c";
 			reg = <0x35>;
 			interrupt-parent = <&msm_gpio>;
 			fuelgauge,irqf = "IRQF_TRIGGER_FALLING + IRQF_ONESHOT + IRQF_NO_SUSPEND";
@@ -229,7 +229,7 @@
 			stm,sda = <&msm_gpio 6 0>;
 			stm,irq_gpio = <&msm_gpio 115 0x00>;
 			stm,vdd-supply = <&pm8916_l17>;
-			stm,vio-supply = <&pm8916_l5>;
+			stm,vio-supply = <&pm8916_l6>;
 			stm,axis_map_x = <0>;
 			stm,axis_map_y = <1>;
 			stm,axis_map_z = <2>;
@@ -250,7 +250,7 @@
 			gp2a-i2c,irq-gpio = <&msm_gpio 113 0x00>;
 			gp2a-i2c,en-gpio = <&msm_gpio 8 0x00>;
 			gp2a-vdd-supply = <&pm8916_l17>;
-			gp2a-vio-supply = <&pm8916_l5>;
+			gp2a-vio-supply = <&pm8916_l6>;
 		};
 	};
 
@@ -266,9 +266,8 @@
         svc_leds@30{
                 compatible = "leds,ktd2026";
                 reg = <0x30>;
-		ktd2026,default_current = <0x30>;	/* default 0x30 */
-		ktd2026,offset_current = <0x500060>;    /* R_offset 0x50,G_offset 0x00,B_offset 0x60, default+offset<0xff */
-		ktd2026,lowpower_current = <0x02>;     /* lowpower 0x02 */
+		ktd2026,default_current = <0x30>;	/* default only rossa spr&tfn&vzw model:0x30, other models:0x10 */
+		ktd2026,lowpower_current = <0x02>;
         };
 	};
 
@@ -517,13 +516,16 @@
                  qcom,pins = <&gp 25>, <&gp 102>;
 };
 
+&dsi_sitronix_tft_wvga_video {
+	samsung,panel-extra-power-gpio1 = <&msm_gpio 102 0>;
+};
+
 &mdss_dsi0 {
-	qcom,dsi-pref-prim-pan = <&dsi_himax_tft_wvga_video>;
+	qcom,dsi-pref-prim-pan = <&dsi_sitronix_tft_wvga_video>;
 	pinctrl-names = "mdss_default", "mdss_sleep";
 	pinctrl-0 = <&mdss_dsi_active &lcd_esd_det_active &lcd_flm_active>;
 	pinctrl-1 = <&mdss_dsi_suspend &lcd_esd_det_suspend &lcd_flm_suspend>;
 	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
-	qcom,platform-enable-gpio = <&msm_gpio 102 0>;
 };
 
 &qcom_tzlog {
@@ -576,6 +578,17 @@
 		reg = <0x13>; // channel 19 for MPP4 , 1:1scale
 		qcom,decimation = <0>;
 		qcom,pre-div-channel-scaling = <0>; // 1:1scale
+		qcom,calibration-type = "ratiometric";
+		qcom,scale-function = <1>;
+		qcom,hw-settle-time = <2>;
+		qcom,fast-avg-setup = <0>;
+	};
+
+	chan@30 {
+		label = "batt_therm";
+		reg = <0x30>;
+		qcom,decimation = <0>;
+		qcom,pre-div-channel-scaling = <0>;
 		qcom,calibration-type = "ratiometric";
 		qcom,scale-function = <1>;
 		qcom,hw-settle-time = <2>;
