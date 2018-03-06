@@ -54,6 +54,14 @@ ifeq ($(CONFIG_ARCH_MSM8916),y)
       dtb-y += msm8916-sec-a53g-eur-r07.dtb
       dtb-y += msm8916-sec-a53g-eur-r08.dtb
 	endif
+	ifeq ($(CONFIG_MACH_A5_CHN_OPEN),y)
+      dtb-y += msm8916-sec-a5-chn-r02.dtb
+      dtb-y += msm8916-sec-a5-chn-r04.dtb
+      dtb-y += msm8916-sec-a5-chn-r06.dtb
+      dtb-y += msm8916-sec-a5-chn-r07.dtb
+      dtb-y += msm8916-sec-a5-chn-r08.dtb
+      dtb-y += msm8916-sec-a5-chn-r11.dtb
+	endif
 ifeq ($(CONFIG_SEC_E7_PROJECT),y)
 	ifeq ($(CONFIG_MACH_E7_EUR_OPEN),y)
 		dtb-y += msm8916-sec-e7-eur-r00.dtb
@@ -266,6 +274,13 @@ ifeq ($(CONFIG_SEC_A5_PROJECT),y)
 	else ifeq ($(CONFIG_MACH_A5U_KOR_OPEN),y)
 		dtb-y += msm8916-sec-a5u-kor-r00.dtb
 		dtb-y += msm8916-sec-a5u-kor-r02.dtb
+	else ifeq ($(CONFIG_MACH_A5_CHN_CTC),y)
+		dtb-y += msm8916-sec-a5-chn-r02.dtb
+		dtb-y += msm8916-sec-a5-chn-r04.dtb
+		dtb-y += msm8916-sec-a5-chn-r06.dtb
+		dtb-y += msm8916-sec-a5-chn-r07.dtb
+		dtb-y += msm8916-sec-a5-chn-r08.dtb
+		dtb-y += msm8916-sec-a5-chn-r11.dtb
 	endif
 endif
 ifeq ($(CONFIG_SEC_GTEL_PROJECT),y)
