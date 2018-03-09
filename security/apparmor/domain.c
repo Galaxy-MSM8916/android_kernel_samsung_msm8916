@@ -441,7 +441,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 				new_profile = aa_get_profile(ns->unconfined);
 				info = "ux fallback";
 			} else {
-				error = -EACCES;
+				error = -ENOENT;
 				info = "profile not found";
 			}
 		}

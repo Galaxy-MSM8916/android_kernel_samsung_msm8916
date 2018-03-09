@@ -46,7 +46,6 @@ static struct list_head sel_netif_hash[SEL_NETIF_HASH_SIZE];
 
 /**
  * sel_netif_hashfn - Hashing function for the interface table
- * @ns: the network namespace
  * @ifindex: the network interface
  *
  * Description:
@@ -54,14 +53,13 @@ static struct list_head sel_netif_hash[SEL_NETIF_HASH_SIZE];
  * bucket number for the given interface.
  *
  */
-static inline u32 sel_netif_hashfn(const struct net *ns, int ifindex)
+static inline u32 sel_netif_hashfn(int ifindex)
 {
-	return (((uintptr_t)ns + ifindex) & (SEL_NETIF_HASH_SIZE - 1));
+	return (ifindex & (SEL_NETIF_HASH_SIZE - 1));
 }
 
 /**
  * sel_netif_find - Search for an interface record
- * @ns: the network namespace
  * @ifindex: the network interface
  *
  * Description:
@@ -69,15 +67,15 @@ static inline u32 sel_netif_hashfn(const struct net *ns, int ifindex)
  * If an entry can not be found in the table return NULL.
  *
  */
-static inline struct sel_netif *sel_netif_find(const struct net *ns,
-					       int ifindex)
+static inline struct sel_netif *sel_netif_find(int ifindex)
 {
-	int idx = sel_netif_hashfn(ns, ifindex);
+	int idx = sel_netif_hashfn(ifindex);
 	struct sel_netif *netif;
 
 	list_for_each_entry_rcu(netif, &sel_netif_hash[idx], list)
-		if (net_eq(netif->nsec.ns, ns) &&
-		    netif->nsec.ifindex == ifindex)
+		/* all of the devices should normally fit in the hash, so we
+		 * optimize for that case */
+		if (likely(netif->nsec.ifindex == ifindex))
 			return netif;
 
 	return NULL;
@@ -99,7 +97,7 @@ static int sel_netif_insert(struct sel_netif *netif)
 	if (sel_netif_total >= SEL_NETIF_HASH_MAX)
 		return -ENOSPC;
 
-	idx = sel_netif_hashfn(netif->nsec.ns, netif->nsec.ifindex);
+	idx = sel_netif_hashfn(netif->nsec.ifindex);
 	list_add_rcu(&netif->list, &sel_netif_hash[idx]);
 	sel_netif_total++;
 
@@ -123,7 +121,6 @@ static void sel_netif_destroy(struct sel_netif *netif)
 
 /**
  * sel_netif_sid_slow - Lookup the SID of a network interface using the policy
- * @ns: the network namespace
  * @ifindex: the network interface
  * @sid: interface SID
  *
@@ -134,7 +131,7 @@ static void sel_netif_destroy(struct sel_netif *netif)
  * failure.
  *
  */
-static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
+static int sel_netif_sid_slow(int ifindex, u32 *sid)
 {
 	int ret;
 	struct sel_netif *netif;
@@ -144,7 +141,7 @@ static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
 	/* NOTE: we always use init's network namespace since we don't
 	 * currently support containers */
 
-	dev = dev_get_by_index(ns, ifindex);
+	dev = dev_get_by_index(&init_net, ifindex);
 	if (unlikely(dev == NULL)) {
 		printk(KERN_WARNING
 		       "SELinux: failure in sel_netif_sid_slow(),"
@@ -153,7 +150,7 @@ static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
 	}
 
 	spin_lock_bh(&sel_netif_lock);
-	netif = sel_netif_find(ns, ifindex);
+	netif = sel_netif_find(ifindex);
 	if (netif != NULL) {
 		*sid = netif->nsec.sid;
 		ret = 0;
@@ -167,7 +164,6 @@ static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
 	ret = security_netif_sid(dev->name, &new->nsec.sid);
 	if (ret != 0)
 		goto out;
-	new->nsec.ns = ns;
 	new->nsec.ifindex = ifindex;
 	ret = sel_netif_insert(new);
 	if (ret != 0)
@@ -189,7 +185,6 @@ out:
 
 /**
  * sel_netif_sid - Lookup the SID of a network interface
- * @ns: the network namespace
  * @ifindex: the network interface
  * @sid: interface SID
  *
@@ -201,12 +196,12 @@ out:
  * on failure.
  *
  */
-int sel_netif_sid(struct net *ns, int ifindex, u32 *sid)
+int sel_netif_sid(int ifindex, u32 *sid)
 {
 	struct sel_netif *netif;
 
 	rcu_read_lock();
-	netif = sel_netif_find(ns, ifindex);
+	netif = sel_netif_find(ifindex);
 	if (likely(netif != NULL)) {
 		*sid = netif->nsec.sid;
 		rcu_read_unlock();
@@ -214,12 +209,11 @@ int sel_netif_sid(struct net *ns, int ifindex, u32 *sid)
 	}
 	rcu_read_unlock();
 
-	return sel_netif_sid_slow(ns, ifindex, sid);
+	return sel_netif_sid_slow(ifindex, sid);
 }
 
 /**
  * sel_netif_kill - Remove an entry from the network interface table
- * @ns: the network namespace
  * @ifindex: the network interface
  *
  * Description:
@@ -227,13 +221,13 @@ int sel_netif_sid(struct net *ns, int ifindex, u32 *sid)
  * table if it exists.
  *
  */
-static void sel_netif_kill(const struct net *ns, int ifindex)
+static void sel_netif_kill(int ifindex)
 {
 	struct sel_netif *netif;
 
 	rcu_read_lock();
 	spin_lock_bh(&sel_netif_lock);
-	netif = sel_netif_find(ns, ifindex);
+	netif = sel_netif_find(ifindex);
 	if (netif)
 		sel_netif_destroy(netif);
 	spin_unlock_bh(&sel_netif_lock);
@@ -264,8 +258,11 @@ static int sel_netif_netdev_notifier_handler(struct notifier_block *this,
 {
 	struct net_device *dev = ptr;
 
+	if (dev_net(dev) != &init_net)
+		return NOTIFY_DONE;
+
 	if (event == NETDEV_DOWN)
-		sel_netif_kill(dev_net(dev), dev->ifindex);
+		sel_netif_kill(dev->ifindex);
 
 	return NOTIFY_DONE;
 }
