@@ -153,17 +153,12 @@ int cap_ptrace_access_check(struct task_struct *child, unsigned int mode)
 {
 	int ret = 0;
 	const struct cred *cred, *child_cred;
-	const kernel_cap_t *caller_caps;
 
 	rcu_read_lock();
 	cred = current_cred();
 	child_cred = __task_cred(child);
-	if (mode & PTRACE_MODE_FSCREDS)
-		caller_caps = &cred->cap_effective;
-	else
-		caller_caps = &cred->cap_permitted;
 	if (cred->user_ns == child_cred->user_ns &&
-	    cap_issubset(child_cred->cap_permitted, *caller_caps))
+	    cap_issubset(child_cred->cap_permitted, cred->cap_permitted))
 		goto out;
 	if (ns_capable(child_cred->user_ns, CAP_SYS_PTRACE))
 		goto out;
@@ -447,9 +442,6 @@ int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data 
 		cpu_caps->permitted.cap[i] = le32_to_cpu(caps.data[i].permitted);
 		cpu_caps->inheritable.cap[i] = le32_to_cpu(caps.data[i].inheritable);
 	}
-
-	cpu_caps->permitted.cap[CAP_LAST_U32] &= CAP_LAST_U32_VALID_MASK;
-	cpu_caps->inheritable.cap[CAP_LAST_U32] &= CAP_LAST_U32_VALID_MASK;
 
 	return 0;
 }
@@ -995,43 +987,6 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		else
 			new->securebits &= ~issecure_mask(SECURE_KEEP_CAPS);
 		goto changed;
-
-	case PR_CAP_AMBIENT:
-		if (arg2 == PR_CAP_AMBIENT_CLEAR_ALL) {
-			if (arg3 | arg4 | arg5)
-				return -EINVAL;
-
-			new = prepare_creds();
-			if (!new)
-				return -ENOMEM;
-			cap_clear(new->cap_ambient);
-			return commit_creds(new);
-		}
-
-		if (((!cap_valid(arg3)) | arg4 | arg5))
-			return -EINVAL;
-
-		if (arg2 == PR_CAP_AMBIENT_IS_SET) {
-			return !!cap_raised(current_cred()->cap_ambient, arg3);
-		} else if (arg2 != PR_CAP_AMBIENT_RAISE &&
-			   arg2 != PR_CAP_AMBIENT_LOWER) {
-			return -EINVAL;
-		} else {
-			if (arg2 == PR_CAP_AMBIENT_RAISE &&
-			    (!cap_raised(current_cred()->cap_permitted, arg3) ||
-			     !cap_raised(current_cred()->cap_inheritable,
-					 arg3)))
-				return -EPERM;
-
-			new = prepare_creds();
-			if (!new)
-				return -ENOMEM;
-			if (arg2 == PR_CAP_AMBIENT_RAISE)
-				cap_raise(new->cap_ambient, arg3);
-			else
-				cap_lower(new->cap_ambient, arg3);
-			return commit_creds(new);
-		}
 
 	case PR_CAP_AMBIENT:
 		if (arg2 == PR_CAP_AMBIENT_CLEAR_ALL) {
