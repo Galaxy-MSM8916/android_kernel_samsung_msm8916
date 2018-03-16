@@ -212,11 +212,7 @@ static void radio_hci_smd_deregister(void)
 	fmsmd_set = 0;
 }
 
-#ifndef MODULE
-int radio_hci_smd_init(void)
-#else
-static int __init radio_hci_smd_init(void)
-#endif
+static int radio_hci_smd_init(void)
 {
 	int ret;
 
