@@ -1,54 +1,7 @@
-# We can build either as part of a standalone Kernel build or part
-# of an Android build.
-KERNEL_BUILD := 1
+# These are provided in Android-based builds
+# Need to explicitly define for Kernel-based builds
 MODNAME := wlan
 WLAN_ROOT := drivers/staging/prima
-
-#Flag to enable BlueTooth AMP feature
-ifeq ($(CONFIG_PRIMA_WLAN_BTAMP),)
-	CONFIG_PRIMA_WLAN_BTAMP := n
-endif
-#Flag to enable Legacy Fast Roaming(LFR)
-ifeq ($(CONFIG_PRIMA_WLAN_LFR),)
-	CONFIG_PRIMA_WLAN_LFR := y
-endif
-
-#JB kernel has PMKSA patches, hence enabling this flag
-ifeq ($(CONFIG_PRIMA_WLAN_OKC),)
-	CONFIG_PRIMA_WLAN_OKC := y
-endif
-
-# JB kernel has CPU enablement patches, so enable
-ifeq ($(CONFIG_PRIMA_WLAN_11AC_HIGH_TP),)
-	CONFIG_PRIMA_WLAN_11AC_HIGH_TP := y
-endif
-
-#Flag to enable TDLS feature
-ifeq ($(CONFIG_QCOM_TDLS),)
-	CONFIG_QCOM_TDLS := y
-endif
-
-#Flag to enable Fast Transition (11r) feature
-ifeq ($(CONFIG_QCOM_VOWIFI_11R),)
-	CONFIG_QCOM_VOWIFI_11R := y
-endif
-
-#Flag to enable Protected Managment Frames (11w) feature
-ifneq ($(CONFIG_PRONTO_WLAN),)
-	ifeq ($(CONFIG_WLAN_FEATURE_11W),)
-		CONFIG_WLAN_FEATURE_11W := y
-	endif
-endif
-
-#Flag to enable new Linux Regulatory implementation
-ifeq ($(CONFIG_ENABLE_LINUX_REG),)
-	CONFIG_ENABLE_LINUX_REG := y
-endif
-
-#Flag to enable offload packets feature
-ifeq ($(CONFIG_WLAN_OFFLOAD_PACKETS),)
-	CONFIG_WLAN_OFFLOAD_PACKETS := y
-endif
 
 # To enable CONFIG_QCOM_ESE_UPLOAD, dependent config
 # CONFIG_QCOM_ESE must be enabled.
@@ -58,7 +11,7 @@ CONFIG_QCOM_ESE_UPLOAD := n
 # Feature flags which are not (currently) configurable via Kconfig
 
 #Whether to build debug version
-BUILD_DEBUG_VERSION := 1
+BUILD_DEBUG_VERSION := 0
 
 #Enable this flag to build driver in diag version
 BUILD_DIAG_VERSION := 1
@@ -648,13 +601,7 @@ ifeq ($(RE_ENABLE_WIFI_ON_WDI_TIMEOUT),1)
 CDEFINES += -DWDI_RE_ENABLE_WIFI_ON_WDI_TIMEOUT
 endif
 
-ifeq ($(KERNEL_BUILD),1)
 CDEFINES += -DWLAN_OPEN_SOURCE
-endif
-
-ifeq ($(findstring opensource, $(WLAN_ROOT)), opensource)
-CDEFINES += -DWLAN_OPEN_SOURCE
-endif
 
 ifeq ($(CONFIG_ENABLE_LINUX_REG), y)
 CDEFINES += -DCONFIG_ENABLE_LINUX_REG
@@ -666,11 +613,11 @@ CDEFINES += -DWLAN_FEATURE_AP_HT40_24G
 # Some kernel include files are being moved.  Check to see if
 # the old version of the files are present
 
-ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/mach-msm/include/mach/msm_smd.h),)
+ifeq ($(EXISTS_MSM_SMD),1)
 CDEFINES += -DEXISTS_MSM_SMD
 endif
 
-ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/mach-msm/include/mach/msm_smsm.h),)
+ifeq ($(EXISTS_MSM_SMSM),1)
 CDEFINES += -DEXISTS_MSM_SMSM
 endif
 
@@ -687,8 +634,3 @@ KBUILD_CPPFLAGS += $(CDEFINES)
 obj-$(CONFIG_PRIMA_WLAN) += $(MODNAME).o
 obj-$(CONFIG_PRONTO_WLAN) += $(MODNAME).o
 $(MODNAME)-y := $(OBJS)
-
-clean::
-	rm -f *.o *.ko *.mod.c *.mod.o *~ .*.cmd Module.symvers
-	rm -rf .tmp_versions
-
