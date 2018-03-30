@@ -403,11 +403,32 @@ ifeq ($(CONFIG_SEC_J1X_PROJECT),y)
 endif
 
 ifeq ($(CONFIG_SEC_J5X_PROJECT),y)
-	ifeq ($(CONFIG_MACH_J5XLTE_EUR_OPEN),y)
+	ifeq ($(CONFIG_MACH_J5XLTE_CHN_CMCC),y)
+		dtb-y += msm8916-sec-j5xlte-chn-r00.dtb
+	else ifeq ($(CONFIG_MACH_J5XLTE_EUR_OPEN),y)
 		dtb-y += msm8916-sec-j5xlte-eur-r00.dtb
 		dtb-y += msm8916-sec-j5xlte-eur-r01.dtb
 		dtb-y += msm8916-sec-j5xlte-eur-r02.dtb
 		dtb-y += msm8916-sec-j5xlte-eur-r04.dtb
+	else ifeq ($(CONFIG_MACH_J5XLTE_KOR_OPEN),y)
+		dtb-y += msm8916-sec-j5xlte-kor-r01.dtb
+		dtb-y += msm8916-sec-j5xlte-kor-r02.dtb
+		dtb-y += msm8916-sec-j5xlte-kor-r04.dtb
+	else ifeq ($(CONFIG_MACH_J5X3G_MEA_JV),y)
+		dtb-y += msm8916-sec-j5x3g-mea-r00.dtb
+		dtb-y += msm8916-sec-j5x3g-mea-r01.dtb
+		dtb-y += msm8916-sec-j5x3g-mea-r02.dtb
+		dtb-y += msm8916-sec-j5x3g-mea-r04.dtb
+	else ifeq ($(CONFIG_MACH_J5XLTE_MEA_JV),y)
+		dtb-y += msm8916-sec-j5xlte-mea-r00.dtb
+		dtb-y += msm8916-sec-j5xlte-mea-r01.dtb
+		dtb-y += msm8916-sec-j5xlte-mea-r02.dtb
+		dtb-y += msm8916-sec-j5xlte-mea-r04.dtb
+	else ifeq ($(CONFIG_MACH_J5XLTE_MEA_TUR),y)
+		dtb-y += msm8916-sec-j5xlte-tur-r00.dtb
+		dtb-y += msm8916-sec-j5xlte-tur-r01.dtb
+		dtb-y += msm8916-sec-j5xlte-tur-r02.dtb
+		dtb-y += msm8916-sec-j5xlte-tur-r04.dtb
 	endif
 endif
 
