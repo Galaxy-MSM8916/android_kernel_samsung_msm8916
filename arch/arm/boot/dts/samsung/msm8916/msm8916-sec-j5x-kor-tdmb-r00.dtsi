@@ -1,0 +1,123 @@
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/ {
+	aliases {
+		spi2 = &spi_2;
+	};
+};
+
+&soc {
+	tlmm_pinmux: pinctrl@1000000 {
+		spi2_active {
+			qcom,pins = <&gp 8>, <&gp 9>,<&gp 10>, <&gp 11>;
+			qcom,num-grp-pins = <4>;
+			qcom,pin-func = <1>;
+			label = "spi2_active";
+			spi_2_active: spi_2_active {
+				drive-strength = <12>;
+				bias-disable = <0>;
+			};
+		};
+		spi2_sleep {
+			qcom,pins = <&gp 8>, <&gp 9>,<&gp 10>, <&gp 11>;
+			qcom,num-grp-pins = <4>;
+			qcom,pin-func = <0>;
+			label = "spi2_sleep";
+			spi_2_sleep: spi_2_sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		tdmb_pwr_pinctrl {
+			qcom,pins = <&gp 113>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "tdmb_pwr_pinctrl";
+			tdmb_pwr_on:tdmb_pwr_on {
+				drive-strength = <2>;
+				bias-disable;
+			};
+			tdmb_pwr_off: tdmb_pwr_off {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+		tdmb_irq_pinctrl {
+			qcom,pins = <&gp 12>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "tdmb_irq_pinctrl";
+			tdmb_irq_on: tdmb_irq_on {
+				drive-strength = <2>;
+				bias-disable;
+			};
+			tdmb_irq_off: tdmb_irq_off {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+	};
+	spi_2: spi@78B7000 {  /* BLSP1 QUP3 */
+		compatible = "qcom,spi-qup-v2";
+		cell-index = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x78B7000 0x600>, <0x7884000 0x23000>;
+		reg-names = "spi_physical", "spi_bam_physical";
+		interrupts = <0 97 0>, <0 238 0>;
+		interrupt-names = "spi_irq", "spi_bam_irq";
+		spi-max-frequency = <19200000>;
+		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
+			 <&clock_gcc clk_gcc_blsp1_qup3_spi_apps_clk>;
+		clock-names = "iface_clk", "core_clk";
+		pinctrl-names = "spi_default", "spi_sleep";
+		pinctrl-0 = <&spi_2_active>;
+		pinctrl-1 = <&spi_2_sleep>;
+
+		qcom,gpio-mosi = <&msm_gpio 8 0x00>;
+		qcom,gpio-miso = <&msm_gpio 9 0x00>;
+		qcom,gpio-cs0  = <&msm_gpio 10 0x00>;
+		qcom,gpio-clk  = <&msm_gpio 11 0x00>;
+
+		qcom,infinite-mode = <0>;
+		qcom,use-bam;
+		qcom,use-pinctrl;
+		qcom,ver-reg-exists;
+		qcom,bam-consumer-pipe-index = <8>;
+		qcom,bam-producer-pipe-index = <9>;
+		qcom,master-id = <86>;
+		qcom,rt-priority;
+		
+		status = "ok";
+
+		tdmb-spi@0 {
+			compatible = "tdmb_spi_comp";
+			reg = <0>;
+			spi-max-frequency = <9600000>;
+		};
+	};
+
+	tdmb_data {
+		compatible = "samsung,tdmb";
+		pinctrl-names = "tdmb_on", "tdmb_off", "tdmb_gpio_init";
+		pinctrl-0 = <&tdmb_pwr_on &tdmb_irq_on>;
+		pinctrl-1 = <&tdmb_pwr_off &tdmb_irq_off>;
+		pinctrl-2 = <&tdmb_pwr_off &tdmb_irq_off &spi_2_sleep>;
+		tdmb_pwr_en = <&msm_gpio 113 0x00>;
+		tdmb_irq = <&msm_gpio 12 0x00>;
+		tdmb_use_irq;
+		tdmb_xtal_freq = <24576>;
+	};
+
+};
