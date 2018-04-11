@@ -314,10 +314,10 @@ static int sdcardfs_read_super(struct vfsmount *mnt, struct super_block *sb,
 		goto out_sput;
 	}
 	sb->s_root = d_make_root(inode);
-	if (!sb->s_root) {
-		err = -ENOMEM;
-		goto out_iput;
-	}
+ 	if (!sb->s_root) {
+ 		err = -ENOMEM;
+		goto out_sput;
+ 	}
 	d_set_d_op(sb->s_root, &sdcardfs_ci_dops);
 
 	/* link the upper and lower dentries */
@@ -361,8 +361,6 @@ static int sdcardfs_read_super(struct vfsmount *mnt, struct super_block *sb,
 	/* no longer needed: free_dentry_private_data(sb->s_root); */
 out_freeroot:
 	dput(sb->s_root);
-out_iput:
-	iput(inode);
 out_sput:
 	/* drop refs we took earlier */
 	atomic_dec(&lower_sb->s_active);
