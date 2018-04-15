@@ -888,6 +888,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 	INIT_HLIST_NODE(&ifa->addr_lst);
 	ifa->scope = scope;
 	ifa->prefix_len = pfxlen;
+	ifa->flags = flags;
 	if (!(flags & IFA_F_NODAD))
 		ifa->flags |= IFA_F_TENTATIVE;
 	ifa->cstamp = ifa->tstamp = jiffies;
