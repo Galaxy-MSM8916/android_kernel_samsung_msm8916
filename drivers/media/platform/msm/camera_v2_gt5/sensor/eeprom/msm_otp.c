@@ -24,7 +24,7 @@
 #else
 #include "msm_otp_s5k5e3yx.h"
 #endif
-#include <media/msm_cam_sensor.h>
+#include "../../include/media/msm_cam_sensor.h"
 
 //#define MSM_EEPROM_DEBUG 1
 

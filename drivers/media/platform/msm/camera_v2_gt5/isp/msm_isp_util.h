@@ -13,7 +13,7 @@
 #define __MSM_ISP_UTIL_H__
 
 #include "msm_isp.h"
-#include <soc/qcom/camera2.h>
+#include "../include/soc/qcom/camera2.h"
 
 /* #define CONFIG_MSM_ISP_DBG 1 */
 

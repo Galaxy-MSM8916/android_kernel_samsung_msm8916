@@ -14,6 +14,6 @@
 #define __LINUX_MSM_CAMERA_H
 
 #include <linux/cdev.h>
-#include <uapi/media/msm_camera.h>
+#include "../../include/uapi/media/msm_camera.h"
 
 #endif /* __LINUX_MSM_CAMERA_H */
