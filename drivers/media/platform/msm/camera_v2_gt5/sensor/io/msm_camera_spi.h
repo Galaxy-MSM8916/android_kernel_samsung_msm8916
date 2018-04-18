@@ -14,7 +14,7 @@
 #define __MSM_CAMERA_SPI_H
 
 #include <linux/spi/spi.h>
-#include <media/msm_cam_sensor.h>
+#include "../../include/media/msm_cam_sensor.h"
 #include "msm_camera_i2c.h"
 
 /**

@@ -28,7 +28,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-msm-mem.h>
-#include <media/msmb_camera.h>
+#include "../include/media/msmb_camera.h"
 #include <media/videobuf2-core.h>
 #include "msm.h"
 #include "msm_sd.h"

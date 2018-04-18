@@ -26,7 +26,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf2-core.h>
-#include <media/msm_camera.h>
+#include "../include/media/msm_camera.h"
 #include <media/msm_isp.h>
 
 #include <linux/qcom_iommu.h>

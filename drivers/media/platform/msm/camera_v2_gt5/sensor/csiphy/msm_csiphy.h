@@ -17,7 +17,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <media/v4l2-subdev.h>
-#include <media/msm_cam_sensor.h>
+#include "../../include/media/msm_cam_sensor.h"
 #include "msm_sd.h"
 
 #define MAX_CSIPHY 3
