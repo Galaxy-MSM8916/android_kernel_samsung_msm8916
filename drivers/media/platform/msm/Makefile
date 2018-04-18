@@ -21,6 +21,10 @@ else ifeq ($(CONFIG_SEC_O7_PROJECT),y)
 obj-$(CONFIG_MSMB_CAMERA) += camera_v2_o7/
 else ifeq ($(CONFIG_SEC_J5X_PROJECT),y)
 obj-$(CONFIG_MSMB_CAMERA) += camera_v2_j5x/
+else ifeq ($(CONFIG_SEC_GT58_PROJECT),y)
+obj-$(CONFIG_MSMB_CAMERA) += camera_v2_gt5/
+else ifeq ($(CONFIG_SEC_GT510_PROJECT),y)
+obj-$(CONFIG_MSMB_CAMERA) += camera_v2_gt5/
 else
 obj-$(CONFIG_MSMB_CAMERA) += camera_v2/
 endif
