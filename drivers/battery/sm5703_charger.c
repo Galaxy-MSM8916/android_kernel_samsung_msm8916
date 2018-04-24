@@ -43,25 +43,15 @@
 #define EN_AICL_IRQ			1
 #define DEFAULT_CHARGING_CURRENT 500
 
-#if (defined(CONFIG_SEC_J5_PROJECT) || defined(CONFIG_SEC_J5N_PROJECT)) && !defined(CONFIG_MACH_J5LTE_CHN_CMCC) 
-#define ENABLE_AICL 1
-#endif
-
 #define MINVAL(a, b) ((a <= b) ? a : b)
 
 #ifndef EN_TEST_READ
 #define EN_TEST_READ 1
 #endif
 
-#if (defined(CONFIG_SEC_J5_PROJECT) || defined(CONFIG_SEC_J5N_PROJECT)) && !defined(CONFIG_MACH_J5LTE_CHN_CMCC)  /* only for J5 LDO1 noise */
-#define LIMIT_VOLTAGE_STEP1         4200
-#define LIMIT_VOLTAGE_STEP2         4100
-#define LIMIT_CURRENT_STEP1         300
-#define LIMIT_CURRENT_STEP2         500
 #if defined(CONFIG_BATTERY_SWELLING)
 #define LIMIT_SWELLING_VOLTAGE      4000
 #define LIMIT_SWELLING_CURRENT      300
-#endif
 #endif
 
 static int sm5703_reg_map[] = {
@@ -85,6 +75,8 @@ static int sm5703_reg_map[] = {
 	SM5703_Q3LIMITCNTL,
 	SM5703_STATUS5,
 };
+
+static unsigned int swelling_charging_current = 0;
 
 typedef struct sm5703_charger_data {
 	struct i2c_client	*client;
@@ -588,13 +580,23 @@ static void __sm5703_set_termination_current_limit(struct i2c_client *i2c,
 
 static void sm5703_set_charging_current(struct sm5703_charger_data *charger, int topoff)
 {
+	union power_supply_propval swelling_state;
+	union power_supply_propval value;
 	int adj_current = 0;
+
 #ifndef CONFIG_DISABLE_MINIMUM_SIOP_CHARGING
 	const int usb_charging_current = charger->pdata->charging_current_table[
 			POWER_SUPPLY_TYPE_USB].fast_charging_current;
 #endif
 
 	adj_current = charger->charging_current * charger->siop_level / 100;
+
+#if defined(CONFIG_BATTERY_SWELLING)
+	psy_do_property("battery", get,
+			POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT, swelling_state);
+	if(swelling_state.intval && adj_current > swelling_charging_current)
+		adj_current = swelling_charging_current;
+#endif
 
 #ifndef CONFIG_DISABLE_MINIMUM_SIOP_CHARGING
 	if (adj_current > 0 && adj_current < usb_charging_current)
@@ -605,6 +607,10 @@ static void sm5703_set_charging_current(struct sm5703_charger_data *charger, int
 	if(charger->siop_level < 100 && adj_current > CONFIG_SIOP_CHARGING_LIMIT_CURRENT)
 		adj_current = CONFIG_SIOP_CHARGING_LIMIT_CURRENT;
 #endif
+
+	value.intval = adj_current;
+	psy_do_property("battery", set,
+				POWER_SUPPLY_PROP_CURRENT_AVG, value);
 	pr_info("%s adj_current = %dmA charger->siop_level = %d\n",__func__, adj_current,charger->siop_level);
 	mutex_lock(&charger->io_lock);
 	__sm5703_set_fast_charging_current(charger->sm5703->i2c_client,
@@ -822,8 +828,8 @@ static void sm5703_configure_charger(struct sm5703_charger_data *charger)
 static void sm5703_configure_charger(struct sm5703_charger_data *charger)
 {
 	int topoff;
-	union power_supply_propval val, chg_now, swelling_state;
-        int full_check_type;
+	union power_supply_propval val, chg_now;
+	int full_check_type;
 
 	pr_info("%s : Set config charging\n", __func__);
 	if (charger->charging_current < 0) {
@@ -865,13 +871,7 @@ static void sm5703_configure_charger(struct sm5703_charger_data *charger)
 
 	switch (full_check_type) {
 		case SEC_BATTERY_FULLCHARGED_CHGPSY:
-#if defined(CONFIG_BATTERY_SWELLING)
-			psy_do_property("battery", get,
-					POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT, swelling_state);
-#else
-			swelling_state.intval = 0;
-#endif
-			if (chg_now.intval == SEC_BATTERY_CHARGING_1ST && (!swelling_state.intval)) {
+			if (chg_now.intval == SEC_BATTERY_CHARGING_1ST) {
 				pr_info("%s : termination current (%dmA)\n",
 						__func__, charger->pdata->charging_current_table[
 						charger->cable_type].full_check_current_1st);
@@ -937,7 +937,7 @@ static bool sm5703_chg_init(struct sm5703_charger_data *charger)
 
 	/* Auto-Stop configuration for Emergency status */
 	__sm5703_set_termination_current_limit(charger->sm5703->i2c_client, 300);
-	sm5703_CHG_set_TOPOFF_TMR(charger, SM5703_TOPOFF_TIMER_45m);
+	sm5703_CHG_set_TOPOFF_TMR(charger, charger->pdata->top_off_timer);
 
 	/* MUST set correct regulation voltage first
 	 * Before MUIC pass cable type information to charger
@@ -1070,8 +1070,7 @@ static int sec_chg_get_property(struct power_supply *psy,
 			val->intval = sm5703_get_charging_health(charger);
 			break;
 		case POWER_SUPPLY_PROP_CURRENT_MAX:
-			sm5703_test_read(charger->sm5703->i2c_client);
-			val->intval = sm5703_get_fast_charging_current(charger->sm5703->i2c_client);
+			val->intval = charger->current_max;
 			break;
 		case POWER_SUPPLY_PROP_CURRENT_AVG:
 			break;
@@ -1082,6 +1081,9 @@ static int sec_chg_get_property(struct power_supply *psy,
 				val->intval = MINVAL(aicr, chg_curr);
 			} else
 				val->intval = 0;
+			break;
+		case POWER_SUPPLY_PROP_CURRENT_FULL:
+			val->intval = sm5703_get_current_topoff_setting(charger);
 			break;
 #if defined(CONFIG_BATTERY_SWELLING) || defined(CONFIG_BATTERY_SWELLING_SELF_DISCHARGING)
 		case POWER_SUPPLY_PROP_VOLTAGE_MAX:
@@ -1182,9 +1184,15 @@ static int sec_chg_set_property(struct power_supply *psy,
 		sm5703_test_read(charger->sm5703->i2c_client);
 #endif
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_AVG:
+		/* set input current */
+		case POWER_SUPPLY_PROP_CURRENT_MAX:
+			charger->current_max = val->intval;
+			sm5703_set_input_current_limit(charger, charger->current_max);
+			break;
+		case POWER_SUPPLY_PROP_CURRENT_AVG:
 #if defined(CONFIG_BATTERY_SWELLING)
-		if (val->intval > charger->pdata->charging_current_table
+		swelling_charging_current = val->intval;
+		if (swelling_charging_current > charger->pdata->charging_current_table
 			[charger->cable_type].fast_charging_current) {
 			break;
 		}
@@ -1194,6 +1202,9 @@ static int sec_chg_set_property(struct power_supply *psy,
 					val->intval, topoff);
 			charger->charging_current = val->intval;
 			sm5703_set_charging_current(charger, topoff);
+			break;
+		case POWER_SUPPLY_PROP_CURRENT_FULL:
+			__sm5703_set_termination_current_limit(charger->sm5703->i2c_client, val->intval);
 			break;
 		case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 			/* decrease the charging current according to siop level */
@@ -1739,7 +1750,7 @@ static int sm5703_charger_parse_dt(struct device *dev,
 {
 	struct device_node *np = dev->of_node;
 	const u32 *p;
-	int ret, i, len;
+	int ret, i, len, temp;
 
 	// chg_autostop
 	ret = of_property_read_u32(np, "chg_autostop",
@@ -1807,6 +1818,20 @@ static int sm5703_charger_parse_dt(struct device *dev,
 		pr_info("%s : cannot get chg float voltage\n", __func__);
 		return -ENODATA;
 	}
+	
+/*  Added top-off timer parameter in dtsi to set different top-off for different models  */	
+	ret = of_property_read_u32(np, "battery,top_off_timer", &temp);
+	if (ret < 0) 
+	{
+		pdata->top_off_timer = SM5703_TOPOFF_TIMER_45m;
+		pr_info("%s : top_off_timer: %d\n", __func__, pdata->top_off_timer);
+	}
+	else
+	{
+		pdata->top_off_timer = (unsigned char)temp; 
+		pr_info("%s : top_off_timer: %d\n", __func__, pdata->top_off_timer);
+	}
+	
 	ret = of_property_read_u32(np, "battery,chg_vbuslimit", &pdata->chg_vbuslimit);
 	if (ret < 0) {
 		pr_info("%s : cannot get chg vbuslimit\n", __func__);
