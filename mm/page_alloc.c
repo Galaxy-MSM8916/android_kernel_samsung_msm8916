@@ -568,6 +568,7 @@ static inline void __free_one_page(struct page *page,
 	unsigned long combined_idx;
 	unsigned long uninitialized_var(buddy_idx);
 	struct page *buddy = NULL;
+	int max_order = MAX_ORDER;
 
 	max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
 
