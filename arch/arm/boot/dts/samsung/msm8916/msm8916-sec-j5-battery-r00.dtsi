@@ -82,9 +82,19 @@
 		battery,charging_reset_time = <0>;
 		qcom,sec-battery-vadc = <&pm8916_vadc>;
 
+		//battery,swelling_chg_current = <1500>;
+		battery,swelling_high_chg_current = <1900>;
+		battery,swelling_low_chg_current = <1400>;
+		battery,swelling_full_check_current_2nd = <145>;
+
 		battery,swelling_drop_float_voltage = <4200>;
 		battery,swelling_high_rechg_voltage = <4150>;
 		battery,swelling_low_rechg_voltage = <4050>;
+
+		battery,self_discharging_temp_block = <600>;
+		battery,self_discharging_volt_block = <4250>;
+		battery,self_discharging_temp_recov = <550>;
+		battery,self_discharging_temp_pollingtime = <400>;
 
 		charger{
 			status = "disable";
@@ -98,8 +108,8 @@
 			battery,ovp_uvlo_check_type = <3>; /* SEC_BATTERY_OVP_UVLO_CHGPOLLING */
 			battery,full_check_type = <2>; /* SEC_BATTERY_FULLCHARGED_FG_CURRENT */
 
-			battery,input_current_limit = <1000 500 500 1000 500 1000 1000 500 500 1000 650 1000 1000 500 1000 500 700 1000 500 1000 1000 500 500>;
-			battery,fast_charging_current = <1500 0 500 1500 500 1500 1500 500 0 1500 750 1500 1500 (-1) 1500 500 700 1500 500 1500 1500 0 0>;
+			battery,input_current_limit = <1550 500 500 1550 500 1550 1550 500 500 1550 650 1550 1550 500 1550 500 700 1550 500 1550 1550 500 500>;
+			battery,fast_charging_current = <2000 0 500 2000 500 2000 2000 500 0 2000 750 2000 2000 (-1) 2000 500 700 2000 500 2000 2000 0 0>;
 			battery,full_check_current_1st = <200 0 200 200 200 200 200 200 0 200 200 200 200 0 200 200 200 200 200 200 200 0 0>;
 			battery,full_check_current_2nd = <125 0 125 125 125 125 125 125 0 125 125 125 125 0 125 125 125 125 125 125 125 0 0>;
 		};
