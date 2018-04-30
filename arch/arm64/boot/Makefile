@@ -14,9 +14,13 @@
 # Based on the ia64 boot/Makefile.
 #
 
+ifneq ($(MACHINE),)
+include $(srctree)/$(MACHINE)/Makefile.boot
+endif
+
 include $(srctree)/arch/arm64/boot/dts/qcom/Makefile
 
-targets := Image Image.gz
+targets := Image zImage
 
 DTB_NAMES := $(subst $\",,$(CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES))
 ifneq ($(DTB_NAMES),)
@@ -29,18 +33,23 @@ DTB_OBJS := $(addprefix $(obj)/dts/,$(DTB_LIST))
 $(obj)/Image: vmlinux FORCE
 	$(call if_changed,objcopy)
 
-$(obj)/Image.gz: $(obj)/Image FORCE
-	$(call if_changed,gzip)
+$(obj)/compressed/vmlinux: $(obj)/Image FORCE
+	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
 
-$(obj)/Image.gz-dtb: $(obj)/Image.gz $(DTB_OBJS) FORCE
+$(obj)/zImage:	$(obj)/compressed/vmlinux FORCE
+	$(call if_changed,objcopy)
+	@$(kecho) '  Kernel: $@ is ready'
+
+$(obj)/zImage-dtb:	$(obj)/zImage $(DTB_OBJS) FORCE
 	$(call if_changed,cat)
+	@echo '  Kernel: $@ is ready'
 
 install: $(obj)/Image
 	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh $(KERNELRELEASE) \
 	$(obj)/Image System.map "$(INSTALL_PATH)"
 
-zinstall: $(obj)/Image.gz
+zinstall: $(obj)/zImage
 	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh $(KERNELRELEASE) \
-	$(obj)/Image.gz System.map "$(INSTALL_PATH)"
+	$(obj)/zImage System.map "$(INSTALL_PATH)"
 
-clean-files := Image Image-dtb Image.gz Image.gz-dtb
+clean-files := Image Image-dtb zImage zImage-dtb
