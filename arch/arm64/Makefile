@@ -51,22 +51,27 @@ libs-y		:= arch/arm64/lib/ $(libs-y)
 libs-y		+= $(LIBGCC)
 
 # Default target when executing plain make
-ifeq ($(CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE),y)
-KBUILD_IMAGE	:= Image.gz-dtb
+ifeq ($(CONFIG_XIP_KERNEL),y)
+KBUILD_IMAGE := xipImage
+else ifeq ($(CONFIG_BUILD_ARM_APPENDED_DTB_IMAGE),y)
+KBUILD_IMAGE := zImage-dtb
 else
-KBUILD_IMAGE	:= Image.gz
+KBUILD_IMAGE := zImage
 endif
 
 KBUILD_DTBS	:= dtbs
 
 all:	$(KBUILD_IMAGE) $(KBUILD_DTBS)
 
-boot := arch/arm64/boot
+boot := arch/arm/boot
 
-Image Image.gz: vmlinux
+# Convert bzImage to zImage
+bzImage: zImage
+
+zImage Image xipImage bootpImage uImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
-zinstall install: vmlinux
+zinstall uinstall install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
 %.dtb: scripts
@@ -74,13 +79,19 @@ zinstall install: vmlinux
 
 dtbs: scripts
 	$(Q)$(MAKE) $(build)=$(boot)/dts dtbs
-	$(Q)$(MAKE) $(build)=$(boot)/dts/qcom dtbs
-
+ifeq ($(CONFIG_ARCH_MSM8939),y)
+	$(Q)$(MAKE) $(build)=$(boot)/dts/samsung/msm8939 dtbs
+else
+ifeq ($(CONFIG_ARCH_MSM8929),y)
+	$(Q)$(MAKE) $(build)=$(boot)/dts/samsung/msm8929 dtbs
+else
+	$(Q)$(MAKE) $(build)=$(boot)/dts/samsung/msm8916 dtbs
+endif
+endif
 PHONY += vdso_install
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso $@
-
-Image.gz-dtb: vmlinux scripts dtbs
+zImage-dtb: vmlinux scripts dtbs
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 # We use MRPROPER_FILES and CLEAN_FILES now
@@ -88,7 +99,7 @@ archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
 define archhelp
-  echo  '* Image.gz      - Compressed kernel image (arch/$(ARCH)/boot/Image.gz)'
+  echo  '* zImage        - Compressed kernel image (arch/$(ARCH)/boot/zImage)'
   echo  '  Image         - Uncompressed kernel image (arch/$(ARCH)/boot/Image)'
   echo  '* dtbs          - Build device tree blobs for enabled boards'
   echo  '  install       - Install uncompressed kernel'
