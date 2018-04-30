@@ -51,10 +51,12 @@ libs-y		:= arch/arm64/lib/ $(libs-y)
 libs-y		+= $(LIBGCC)
 
 # Default target when executing plain make
-ifeq ($(CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE),y)
-KBUILD_IMAGE	:= Image.gz-dtb
+ifeq ($(CONFIG_XIP_KERNEL),y)
+KBUILD_IMAGE := xipImage
+else ifeq ($(CONFIG_BUILD_ARM_APPENDED_DTB_IMAGE),y)
+KBUILD_IMAGE := zImage-dtb
 else
-KBUILD_IMAGE	:= Image.gz
+KBUILD_IMAGE := zImage
 endif
 
 KBUILD_DTBS	:= dtbs
@@ -63,33 +65,39 @@ all:	$(KBUILD_IMAGE) $(KBUILD_DTBS)
 
 boot := arch/arm64/boot
 
-Image Image.gz: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+# Convert bzImage to zImage
+bzImage: zImage
 
-zinstall install: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) $@
+zImage Image xipImage bootpImage uImage: vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@
+
+zinstall uinstall install: vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $@
 
 %.dtb: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
+	$(Q)$(MAKE) $(build)=$(boot)/dts MACHINE=$(MACHINE) $(boot)/dts/$@
 
 dtbs: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts dtbs
-	$(Q)$(MAKE) $(build)=$(boot)/dts/qcom dtbs
-
-PHONY += vdso_install
-vdso_install:
-	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso $@
-
-Image.gz-dtb: vmlinux scripts dtbs
-	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+	$(Q)$(MAKE) $(build)=$(boot)/dts MACHINE=$(MACHINE) dtbs
+ifeq ($(CONFIG_ARCH_MSM8939),y)
+	$(Q)$(MAKE) $(build)=$(boot)/dts/samsung/msm8939 MACHINE=$(MACHINE) dtbs
+else
+ifeq ($(CONFIG_ARCH_MSM8929),y)
+	$(Q)$(MAKE) $(build)=$(boot)/dts/samsung/msm8929 MACHINE=$(MACHINE) dtbs
+else
+	$(Q)$(MAKE) $(build)=$(boot)/dts/samsung/msm8916 MACHINE=$(MACHINE) dtbs
+endif
+endif
+zImage-dtb: vmlinux scripts dtbs
+	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@
 
 # We use MRPROPER_FILES and CLEAN_FILES now
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
+	$(Q)$(MAKE) $(clean)=$(srctree)/arch/arm/boot
 
 define archhelp
-  echo  '* Image.gz      - Compressed kernel image (arch/$(ARCH)/boot/Image.gz)'
-  echo  '  Image         - Uncompressed kernel image (arch/$(ARCH)/boot/Image)'
+  echo  '  zImage         - Uncompressed kernel image (arch/$(ARCH)/boot/zImage)'
   echo  '* dtbs          - Build device tree blobs for enabled boards'
   echo  '  install       - Install uncompressed kernel'
   echo  '  zinstall      - Install compressed kernel'
