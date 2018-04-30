@@ -16,7 +16,7 @@
 
 include $(srctree)/arch/arm64/boot/dts/qcom/Makefile
 
-targets := Image Image.gz
+targets := Image zImage Image.gz
 
 DTB_NAMES := $(subst $\",,$(CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES))
 ifneq ($(DTB_NAMES),)
@@ -43,4 +43,4 @@ zinstall: $(obj)/Image.gz
 	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh $(KERNELRELEASE) \
 	$(obj)/Image.gz System.map "$(INSTALL_PATH)"
 
-clean-files := Image Image-dtb Image.gz Image.gz-dtb
+clean-files := Image zImage zImage-dtb Image-dtb Image.gz Image.gz-dtb
