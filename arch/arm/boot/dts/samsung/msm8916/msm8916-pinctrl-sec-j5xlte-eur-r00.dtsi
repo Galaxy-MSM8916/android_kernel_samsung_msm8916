@@ -1287,6 +1287,43 @@
 			};
 		};
 
+		tlmm_motor_pwm_active {
+			qcom,pins = <&gp 50>;
+			qcom,pin-func = <2>;
+			qcom,num-grp-pins = <1>;
+			label = "motor_pwm_active";
+			motor_pwm_active: motor_pwm_active {
+				drive-strength = <2>;
+				bias-pull-down; /* PULL DOWN */
+			};
+		};
+
+		tlmm_motor_pwm_suspend {
+			qcom,pins = <&gp 50>;
+			qcom,pin-func = <0>;
+			qcom,num-grp-pins = <1>;
+			label = "motor_pwm_suspend";
+			motor_pwm_suspend: motor_pwm_suspend {
+				drive-strength = <2>;
+				bias-pull-down; /* PULL DOWN */
+			};
+		};
+
+		tlmm_motor_en {
+			qcom,pins = <&gp 76>;
+			qcom,pin-func = <0>;
+			qcom,num-grp-pins = <1>;
+			label = "tlmm_motor_en";
+			motor_en_active: motor_en_active {
+				drive-strength = <2>;
+				bias-disable = <0>; /* No PULL */
+			};
+			motor_en_suspend: motor_en_suspend {
+				drive-strength = <2>;
+				bias-disable = <0>; /* No PULL */
+			};
+		};
+
 		pmx_ts_reset_active {
 			qcom,pins = <&gp 19>;
 			qcom,pin-func = <3>;
