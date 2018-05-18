@@ -2356,9 +2356,15 @@ long do_mount(const char *dev_name, const char *dir_name,
 	if (retval)
 		goto dput_out;
 
+#ifdef CONFIG_SWITCH_NOATIME
+	/* Default to noatime unless overriden */
+	if (!(flags & MS_RELATIME))
+		mnt_flags |= MNT_NOATIME;
+#else
 	/* Default to relatime unless overriden */
 	if (!(flags & MS_NOATIME))
 		mnt_flags |= MNT_RELATIME;
+#endif
 
 	/* Separate the per-mountpoint flags */
 	if (flags & MS_NOSUID)

@@ -277,3 +277,14 @@ source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
 
 endmenu
+
+config SWITCH_NOATIME
+	bool "Config option to switch mnt flag default to noatime"
+	default y
+	---help---
+	  Say Y here to set the filesystem mountflags to noatime instead of
+          realtime. noatime has proven to work wise on SSD based FileSystems
+	  and has shown better latencies in the benchmarks. Which was/is/will
+	  always expected from a smartphone device.
+
+	  If unsure, Say Y here.
