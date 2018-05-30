@@ -120,6 +120,7 @@ static inline struct logger_log *file_get_log(struct file *file)
 {
 	if (file->f_mode & FMODE_READ) {
 		struct logger_reader *reader = file->private_data;
+
 		return reader->log;
 	} else
 		return file->private_data;
@@ -136,6 +137,7 @@ static struct logger_entry *get_entry_header(struct logger_log *log,
 		size_t off, struct logger_entry *scratch)
 {
 	size_t len = min(sizeof(struct logger_entry), log->size - off);
+
 	if (len != sizeof(struct logger_entry)) {
 		memcpy(((void *) scratch), log->buffer + off, len);
 		memcpy(((void *) scratch) + len, log->buffer,
@@ -681,6 +683,7 @@ static unsigned int logger_poll(struct file *file, poll_table *wait)
 static long logger_set_version(struct logger_reader *reader, void __user *arg)
 {
 	int version;
+
 	if (copy_from_user(&version, arg, sizeof(int)))
 		return -EFAULT;
 
@@ -845,7 +848,6 @@ static int __init create_log(char *log_name, int size)
 {
 	int ret = 0;
 	struct logger_log *log;
-
 #ifdef CONFIG_SEC_DEBUG
 	log = sec_get_log_buffer(log_name,size);
 	if (!log) {
@@ -879,8 +881,7 @@ static int __init create_log(char *log_name, int size)
 		ret = -ENOMEM;
 		goto out_free_buffer;
 	}
-
-		log->buffer = buffer;
+	log->buffer = buffer;
 
 	log->misc.minor = MISC_DYNAMIC_MINOR;
 	log->misc.name = kstrdup(log_name, GFP_KERNEL);
@@ -920,8 +921,8 @@ out_free_log:
 
 out_free_buffer:
 	vfree(buffer);
-
 	return ret;
+
 #endif //CONFIG_SEC_DEBUG
 }
 #ifdef CONFIG_SEC_DEBUG_SUBSYS
@@ -960,19 +961,19 @@ static int __init logger_init(void)
 {
 	int ret;
 
-	ret = create_log(LOGGER_LOG_MAIN, CONFIG_LOGCAT_SIZE*1024*2); //1M
+	ret = create_log(LOGGER_LOG_MAIN, CONFIG_LOGCAT_SIZE*1024);
 	if (unlikely(ret))
 		goto out;
 
-	ret = create_log(LOGGER_LOG_EVENTS, CONFIG_LOGCAT_SIZE*1024); //512K
+	ret = create_log(LOGGER_LOG_EVENTS, CONFIG_LOGCAT_SIZE*1024);
 	if (unlikely(ret))
 		goto out;
 
-	ret = create_log(LOGGER_LOG_RADIO, CONFIG_LOGCAT_SIZE*1024*4); //2M
+	ret = create_log(LOGGER_LOG_RADIO, CONFIG_LOGCAT_SIZE*1024);
 	if (unlikely(ret))
 		goto out;
 
-	ret = create_log(LOGGER_LOG_SYSTEM, CONFIG_LOGCAT_SIZE*1024); //512K
+	ret = create_log(LOGGER_LOG_SYSTEM, CONFIG_LOGCAT_SIZE*1024);
 	if (unlikely(ret))
 		goto out;
 #ifdef CONFIG_SEC_DEBUG_SUBSYS
