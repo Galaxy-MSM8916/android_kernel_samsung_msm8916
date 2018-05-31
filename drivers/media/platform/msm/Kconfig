@@ -37,17 +37,17 @@ if MSMB_CAMERA
 if SEC_FORTUNA_PROJECT
 source "drivers/media/platform/msm/camera_v2_fortuna/Kconfig"
 endif # SEC_FORTUNA_PROJECT
-if SEC_J5_PROJECT || SEC_J5N_PROJECT
-source "drivers/media/platform/msm/camera_v2_j5/Kconfig"
-endif # SEC_J5_PROJECT
 if SEC_J7_PROJECT
 source "drivers/media/platform/msm/camera_v2_j7lte/Kconfig"
 endif # SEC_J7_PROJECT
 if SEC_SERRANOVE_PROJECT
 source "drivers/media/platform/msm/camera_v2_serranovexx/Kconfig"
 endif # SEC_SERRANOVE_PROJECT
+if SEC_J5_PROJECT || SEC_J5N_PROJECT
+source "drivers/media/platform/msm/camera_v2_j5x/Kconfig"
+endif # SEC_J5_PROJECT
 if CONFIG_SEC_O7_PROJECT
-source "drivers/media/platform/msm/camera_v2_o7/Kconfig"
+source "drivers/media/platform/msm/camera_v2_j5x/Kconfig"
 endif # CONFIG_SEC_O7_PROJECT
 if CONFIG_SEC_J5X_PROJECT
 source "drivers/media/platform/msm/camera_v2_j5x/Kconfig"
