@@ -49,11 +49,6 @@
 #define EN_TEST_READ 1
 #endif
 
-#if defined(CONFIG_BATTERY_SWELLING)
-#define LIMIT_SWELLING_VOLTAGE      4000
-#define LIMIT_SWELLING_CURRENT      300
-#endif
-
 static int sm5703_reg_map[] = {
 	SM5703_INTMSK1,
 	SM5703_INTMSK2,
@@ -576,22 +571,15 @@ static void __sm5703_set_termination_current_limit(struct i2c_client *i2c,
 static void sm5703_set_charging_current(struct sm5703_charger_data *charger, int topoff)
 {
 	int adj_current = 0;
-#ifndef CONFIG_DISABLE_MINIMUM_SIOP_CHARGING
+
 	const int usb_charging_current = charger->pdata->charging_current_table[
 			POWER_SUPPLY_TYPE_USB].fast_charging_current;
-#endif
 
 	adj_current = charger->charging_current * charger->siop_level / 100;
 
-#ifndef CONFIG_DISABLE_MINIMUM_SIOP_CHARGING
 	if (adj_current > 0 && adj_current < usb_charging_current)
 		adj_current = usb_charging_current;
-#endif
 
-#if CONFIG_SIOP_CHARGING_LIMIT_CURRENT
-	if(charger->siop_level < 100 && adj_current > CONFIG_SIOP_CHARGING_LIMIT_CURRENT)
-		adj_current = CONFIG_SIOP_CHARGING_LIMIT_CURRENT;
-#endif
 	pr_info("%s adj_current = %dmA charger->siop_level = %d\n",__func__, adj_current,charger->siop_level);
 	mutex_lock(&charger->io_lock);
 	__sm5703_set_fast_charging_current(charger->sm5703->i2c_client,
