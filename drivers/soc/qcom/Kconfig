@@ -581,6 +581,4 @@ config MSM_PERFORMANCE_HOTPLUG_ON
 
 source "drivers/soc/qcom/memshare/Kconfig"
 
-source "drivers/soc/qcom/samsung/Kconfig"
-
 endif # ARCH_MSM
