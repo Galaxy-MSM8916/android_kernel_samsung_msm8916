@@ -29,12 +29,6 @@
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/spinlock.h>
-#if defined(CONFIG_QPNP_RESIN)
-#include <linux/qpnp/power-on.h>
-#endif
-#if defined(CONFIG_SEC_DEBUG)
-#include <linux/sec_debug.h>
-#endif
 #include <linux/pinctrl/consumer.h>
 #include <linux/syscore_ops.h>
 
@@ -363,9 +357,6 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
         printk(KERN_INFO "%s: %s key is %s\n",
 			__func__, button->desc, state ? "pressed" : "released");
 
-#ifdef CONFIG_SEC_DEBUG
-	sec_debug_check_crash_key(button->code, state);
-#endif
 	if (type == EV_ABS) {
 		if (state)
 			input_event(input, type, button->code, button->value);
@@ -780,13 +771,6 @@ static ssize_t  sysfs_key_onoff_show(struct device *dev,
 		if (state == 1)
 			break;
 	}
-#if defined(CONFIG_QPNP_RESIN)
-	/* Volume down button tied in with PMIC RESIN. */
-	if ( state == 0 && (state = qpnp_resin_state()) < 0) {
-		pr_info("%s: %d\n", __func__, state);
-		state = 0;
-	}
-#endif
 	pr_info("key state:%d\n",  state);
 	return snprintf(buf, 5, "%d\n", state);
 }
