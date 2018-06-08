@@ -48,7 +48,6 @@ enum pon_power_off_type {
 	PON_POWER_OFF_SHUTDOWN		= 0x04,
 	PON_POWER_OFF_HARD_RESET	= 0x07,
 };
-#ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
 enum pon_restart_reason {
 	PON_RESTART_REASON_UNKNOWN	        = 0x00,
 	PON_RESTART_REASON_RECOVERY	        = 0x01,
@@ -58,16 +57,13 @@ enum pon_restart_reason {
         PON_RESTART_REASON_DMVERITY_ENFORCE     = 0x05,
         PON_RESTART_REASON_KEYS_CLEAR           = 0x06,
 };
-#endif
 #ifdef CONFIG_QPNP_POWER_ON
 int qpnp_pon_system_pwr_off(enum pon_power_off_type type);
 int qpnp_pon_is_warm_reset(void);
 int qpnp_pon_trigger_config(enum pon_trigger_source pon_src, bool enable);
 int qpnp_pon_wd_config(bool enable);
-#ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
 int qpnp_pon_set_restart_reason(enum pon_restart_reason reason);
 bool qpnp_pon_check_hard_reset_stored(void);
-#endif
 
 #if defined(CONFIG_QPNP_RESIN)
 int qpnp_resin_state(void);
