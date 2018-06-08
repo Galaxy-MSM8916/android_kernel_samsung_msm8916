@@ -15,8 +15,6 @@
 
 #include <linux/errno.h>
 
-extern struct class *sec_class;
-
 /**
  * enum pon_trigger_source: List of PON trigger sources
  * %PON_SMPL:		PON triggered by SMPL - Sudden Momentary Power Loss
@@ -48,7 +46,7 @@ enum pon_power_off_type {
 	PON_POWER_OFF_SHUTDOWN		= 0x04,
 	PON_POWER_OFF_HARD_RESET	= 0x07,
 };
-#ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
+
 enum pon_restart_reason {
 	PON_RESTART_REASON_UNKNOWN	        = 0x00,
 	PON_RESTART_REASON_RECOVERY	        = 0x01,
@@ -58,20 +56,15 @@ enum pon_restart_reason {
         PON_RESTART_REASON_DMVERITY_ENFORCE     = 0x05,
         PON_RESTART_REASON_KEYS_CLEAR           = 0x06,
 };
-#endif
+
 #ifdef CONFIG_QPNP_POWER_ON
 int qpnp_pon_system_pwr_off(enum pon_power_off_type type);
 int qpnp_pon_is_warm_reset(void);
 int qpnp_pon_trigger_config(enum pon_trigger_source pon_src, bool enable);
 int qpnp_pon_wd_config(bool enable);
-#ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
 int qpnp_pon_set_restart_reason(enum pon_restart_reason reason);
 bool qpnp_pon_check_hard_reset_stored(void);
-#endif
 
-#if defined(CONFIG_QPNP_RESIN)
-int qpnp_resin_state(void);
-#endif
 #else
 static int qpnp_pon_system_pwr_off(enum pon_power_off_type type)
 {
@@ -87,7 +80,6 @@ int qpnp_pon_wd_config(bool enable)
 {
 	return -ENODEV;
 }
-#ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
 static inline int qpnp_pon_set_restart_reason(enum pon_restart_reason reason)
 {
 	return -ENODEV;
@@ -96,10 +88,6 @@ static inline bool qpnp_pon_check_hard_reset_stored(void)
 {
 	return false;
 }
-#endif
-#if defined(CONFIG_QPNP_RESIN)
-static int qpnp_resin_state(void) { return -ENODEV; };
-#endif
 #endif
 
 #endif
