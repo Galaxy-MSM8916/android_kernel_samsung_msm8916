@@ -21,7 +21,6 @@
 #include <linux/debugfs.h>
 
 #include <linux/lcd.h>
-#include <dlog.h>
 /* panel id type */
 struct panel_id {
 	u16 id;

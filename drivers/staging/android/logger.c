@@ -32,14 +32,6 @@
 #include "logger.h"
 
 #include <asm/ioctls.h>
-#ifdef CONFIG_SEC_DEBUG
-#include <linux/sec_debug.h>
-static char klog_buf[256];
-#endif
-
-#ifdef CONFIG_SEC_BSP
-#include <linux/sec_bsp.h>
-#endif
 
 #ifndef CONFIG_LOGCAT_SIZE
 #define CONFIG_LOGCAT_SIZE 256
@@ -472,21 +464,6 @@ static ssize_t do_write_log_from_user(struct logger_log *log,
  * This is for collecting the android userland buffer that start with !@
  * and append it to kernel message
  */
-#ifdef CONFIG_SEC_DEBUG
-	memset(klog_buf, 0, 255);
-	if (strncmp(log->buffer + log->w_off, "!@", 2) == 0) {
-		if (count < 255)
-			memcpy(klog_buf, log->buffer + log->w_off, count);
-		else
-			memcpy(klog_buf, log->buffer + log->w_off, 255);
-		klog_buf[255] = 0;
-#ifdef CONFIG_SEC_BSP
-		if (strncmp(klog_buf, "!@Boot",6) == 0) {
-			sec_boot_stat_add(klog_buf);
-		}
-#endif
-	}
-#endif
 
 	log->w_off = logger_offset(log, log->w_off + count);
 
@@ -562,10 +539,6 @@ static ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 /**
  * Print the android log that start with !@
  */
-#ifdef CONFIG_SEC_DEBUG
-	if (strncmp(klog_buf, "!@", 2) == 0)
-		printk(KERN_INFO "%s\n", klog_buf);
-#endif
 
 	return ret;
 }
@@ -784,62 +757,6 @@ static const struct file_operations logger_fops = {
 	.release = logger_release,
 };
 
-#ifdef CONFIG_SEC_DEBUG
-/* Use the old way because the new logger gets log buffers by means of vmalloc().
-    getlog tool considers that log buffers lie on physically contiguous memory area. */
-
-/*
- * Defines a log structure with name 'NAME' and a size of 'SIZE' bytes, which
- * must be a power of two, and greater than
- * (LOGGER_ENTRY_MAX_PAYLOAD + sizeof(struct logger_entry)).
- */
-#define DEFINE_LOGGER_DEVICE(VAR, NAME, SIZE) \
-static unsigned char _buf_ ## VAR[SIZE]; \
-static struct logger_log VAR = { \
-	.buffer = _buf_ ## VAR, \
-	.misc = { \
-		.minor = MISC_DYNAMIC_MINOR, \
-		.name = NAME, \
-		.fops = &logger_fops, \
-		.parent = NULL, \
-	}, \
-	.wq = __WAIT_QUEUE_HEAD_INITIALIZER(VAR .wq), \
-	.readers = LIST_HEAD_INIT(VAR .readers), \
-	.mutex = __MUTEX_INITIALIZER(VAR .mutex), \
-	.w_off = 0, \
-	.head = 0, \
-	.size = SIZE, \
-	.logs = LIST_HEAD_INIT(VAR .logs), \
-};
-
-DEFINE_LOGGER_DEVICE(log_main, LOGGER_LOG_MAIN, CONFIG_LOGCAT_SIZE*1024*2)	// 1MB
-DEFINE_LOGGER_DEVICE(log_events, LOGGER_LOG_EVENTS, CONFIG_LOGCAT_SIZE*1024)	// 512KB
-DEFINE_LOGGER_DEVICE(log_radio, LOGGER_LOG_RADIO, CONFIG_LOGCAT_SIZE*1024*4)	// 2MB
-DEFINE_LOGGER_DEVICE(log_system, LOGGER_LOG_SYSTEM, CONFIG_LOGCAT_SIZE*1024)	// 512KB
-
-struct logger_log * log_buffers[]={
-	&log_main,
-	&log_events,
-	&log_radio,
-	&log_system,
-	NULL,
-};
-
-struct logger_log *sec_get_log_buffer(char *log_name, int size)
-{
-	struct logger_log **log_buf=&log_buffers[0];
-
-	while (*log_buf) {
-		if (!strcmp(log_name,(*log_buf)->misc.name)) {
-			return *log_buf;
-		}
-
-		log_buf++;
-	}
-	return NULL;
-}
-#endif
-
 /*
  * Log size must must be a power of two, and greater than
  * (LOGGER_ENTRY_MAX_PAYLOAD + sizeof(struct logger_entry)).
@@ -848,28 +765,6 @@ static int __init create_log(char *log_name, int size)
 {
 	int ret = 0;
 	struct logger_log *log;
-#ifdef CONFIG_SEC_DEBUG
-	log = sec_get_log_buffer(log_name,size);
-	if (!log) {
-		pr_info("No \"%s\" buffer registered\n",log_name);
-		return -1;
-	}
-
-	list_add_tail(&log->logs, &log_list);
-
-	/* finally, initialize the misc device for this log */
-	ret = misc_register(&log->misc);
-	if (unlikely(ret)) {
-		pr_err("failed to register misc device for log '%s'!\n",
-				log->misc.name);
-		return ret;
-	}
-
-	pr_info("created %luK log '%s'\n",
-		(unsigned long) log->size >> 10, log->misc.name);
-
-	return ret;
-#else
 	unsigned char *buffer;
 
 	buffer = vmalloc(size);
@@ -923,39 +818,7 @@ out_free_buffer:
 	vfree(buffer);
 	return ret;
 
-#endif //CONFIG_SEC_DEBUG
 }
-#ifdef CONFIG_SEC_DEBUG_SUBSYS
-int sec_debug_subsys_set_logger_info(
-	struct sec_debug_subsys_logger_log_info *log_info)
-{
-	/*
-	struct secdbg_logger_log_info log_info = {
-		.stinfo = {
-			.buffer_offset = offsetof(struct logger_log, buffer),
-			.w_off_offset = offsetof(struct logger_log, w_off),
-			.head_offset = offsetof(struct logger_log, head),
-			.size_offset = offsetof(struct logger_log, size),
-			.size_t_typesize = sizeof(size_t),
-		},
-	};
-	*/
-	log_info->stinfo.buffer_offset = offsetof(struct logger_log, buffer);
-	log_info->stinfo.w_off_offset = offsetof(struct logger_log, w_off);
-	log_info->stinfo.head_offset = offsetof(struct logger_log, head);
-	log_info->stinfo.size_offset = offsetof(struct logger_log, size);
-	log_info->stinfo.size_t_typesize = sizeof(size_t);
-	log_info->main.log_paddr = __pa(&log_main);
-	log_info->main.buffer_paddr = __pa(_buf_log_main);
-	log_info->system.log_paddr = __pa(&log_system);
-	log_info->system.buffer_paddr = __pa(_buf_log_system);
-	log_info->events.log_paddr = __pa(&log_events);
-	log_info->events.buffer_paddr = __pa(_buf_log_events);
-	log_info->radio.log_paddr = __pa(&log_radio);
-	log_info->radio.buffer_paddr = __pa(_buf_log_radio);
-	return 0;
-}
-#endif
 
 static int __init logger_init(void)
 {
@@ -976,10 +839,6 @@ static int __init logger_init(void)
 	ret = create_log(LOGGER_LOG_SYSTEM, CONFIG_LOGCAT_SIZE*1024);
 	if (unlikely(ret))
 		goto out;
-#ifdef CONFIG_SEC_DEBUG_SUBSYS
-	sec_getlog_supply_loggerinfo(_buf_log_main, _buf_log_radio,
-				     _buf_log_events, _buf_log_system);
-#endif
 
 out:
 	return ret;
