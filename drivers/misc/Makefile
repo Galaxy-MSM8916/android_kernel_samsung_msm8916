@@ -73,7 +73,6 @@ obj-$(CONFIG_TI_DRV2667) += ti_drv2667.o
 obj-$(CONFIG_QPNP_MISC) += qpnp-misc.o
 obj-$(CONFIG_SAMSUNG_JACK)	+= sec_jack.o
 obj-$(CONFIG_QCOM_LIQUID_DOCK)	+= qcom_liquid_dock.o
-obj-$(CONFIG_SEC_MISC)	+= sec_param.o sec_misc.o
 obj-$(CONFIG_SEC_GPIO_SETTINGS) += gpio_settings.o
 obj-y				+= qcom/
 obj-$(CONFIG_CHECK_SIMSLOT_COUNT) += sim_slot.o
