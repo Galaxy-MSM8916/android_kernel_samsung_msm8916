@@ -29,17 +29,8 @@
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/spinlock.h>
-#if defined(CONFIG_QPNP_RESIN)
-#include <linux/qpnp/power-on.h>
-#endif
-#if defined(CONFIG_SEC_DEBUG)
-#include <linux/sec_debug.h>
-#endif
 #include <linux/pinctrl/consumer.h>
 #include <linux/syscore_ops.h>
-
-struct device *sec_key;
-EXPORT_SYMBOL(sec_key);
 
 int wakeup_reason;
 bool irq_in_suspend;
@@ -363,9 +354,6 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
         printk(KERN_INFO "%s: %s key is %s\n",
 			__func__, button->desc, state ? "pressed" : "released");
 
-#ifdef CONFIG_SEC_DEBUG
-	sec_debug_check_crash_key(button->code, state);
-#endif
 	if (type == EV_ABS) {
 		if (state)
 			input_event(input, type, button->code, button->value);
@@ -766,33 +754,6 @@ static void gpio_remove_key(struct gpio_button_data *bdata)
 		gpio_free(bdata->button->gpio);
 }
 
-static ssize_t  sysfs_key_onoff_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct gpio_keys_drvdata *ddata = dev_get_drvdata(dev);
-	int index ;
-	int state = 0;
-	for (index = 0; index < ddata->pdata->nbuttons; index++) {
-		struct gpio_button_data *button;
-		button = &ddata->data[index];
-		state = (gpio_get_value_cansleep(button->button->gpio) ? 1 : 0)\
-			^ button->button->active_low;
-		if (state == 1)
-			break;
-	}
-#if defined(CONFIG_QPNP_RESIN)
-	/* Volume down button tied in with PMIC RESIN. */
-	if ( state == 0 && (state = qpnp_resin_state()) < 0) {
-		pr_info("%s: %d\n", __func__, state);
-		state = 0;
-	}
-#endif
-	pr_info("key state:%d\n",  state);
-	return snprintf(buf, 5, "%d\n", state);
-}
-
-static DEVICE_ATTR(sec_key_pressed, 0444 , sysfs_key_onoff_show, NULL);
-
 static ssize_t wakeup_enable(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -1005,25 +966,7 @@ static int gpio_keys_probe(struct platform_device *pdev)
 			error);
 		goto fail3;
 	}
-
-	sec_key = device_create(sec_class, NULL, 0, NULL, "sec_key");
-	if (IS_ERR(sec_key))
-		pr_err("Failed to create device(sec_key)!\n");
-
-	error = device_create_file(sec_key, &dev_attr_sec_key_pressed);
-	if (error) {
-		pr_err("Failed to create device file in sysfs entries(%s)!\n",
-				dev_attr_sec_key_pressed.attr.name);
-	}
-
-	error = device_create_file(sec_key, &dev_attr_wakeup_keys);
-	if (error < 0) {
-		pr_err("Failed to create device file(%s), error: %d\n",
-				dev_attr_wakeup_keys.attr.name, error);
-	}
-	dev_set_drvdata(sec_key, ddata);
 	device_init_wakeup(&pdev->dev, wakeup);
-	register_syscore_ops(&gpio_keys_pm_ops);
 
 	return 0;
 
