@@ -18,10 +18,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-#ifdef CONFIG_SEC_DEBUG
-#include <linux/sec_debug.h>
-#endif
-
 #define LOG_MAGIC 0x4d474f4c	/* "LOGM" */
 
 static unsigned *sec_avc_log_ptr;

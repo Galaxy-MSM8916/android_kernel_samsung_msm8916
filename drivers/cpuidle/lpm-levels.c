@@ -890,10 +890,6 @@ static int lpm_suspend_prepare(void)
 #endif
 #endif
 
-#ifdef CONFIG_SEC_PM
-	regulator_showall_enabled();
-#endif
-
 	return 0;
 }
 
