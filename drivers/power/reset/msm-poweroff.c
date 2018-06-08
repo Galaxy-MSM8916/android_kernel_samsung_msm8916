@@ -31,11 +31,6 @@
 #include <soc/qcom/scm.h>
 #include <soc/qcom/restart.h>
 #include <soc/qcom/watchdog.h>
-#ifdef CONFIG_SEC_DEBUG
-#include <linux/sec_debug.h>
-#include <linux/notifier.h>
-#include <linux/ftrace.h>
-#endif
 
 #define EMERGENCY_DLOAD_MAGIC1    0x322A4F99
 #define EMERGENCY_DLOAD_MAGIC2    0xC67E4350
@@ -50,9 +45,7 @@
 
 
 static int restart_mode;
-#ifndef CONFIG_SEC_DEBUG
 void *restart_reason;
-#endif
 static bool scm_pmic_arbiter_disable_supported;
 static bool scm_deassert_ps_hold_supported;
 /* Download mode master kill-switch */
@@ -107,7 +100,7 @@ int scm_set_dload_mode(int arg1, int arg2)
 				&desc);
 }
 
-void set_dload_mode(int on)
+static void set_dload_mode(int on)
 {
 	int ret;
 
@@ -123,18 +116,12 @@ void set_dload_mode(int on)
 		pr_err("Failed to set secure DLOAD mode: %d\n", ret);
 
 	dload_mode_enabled = on;
-#ifdef CONFIG_SEC_DEBUG
-	pr_err("set_dload_mode <%d> ( %x )\n", on,
-			(unsigned int) CALLER_ADDR0);
-#endif
 }
-EXPORT_SYMBOL(set_dload_mode);
-#ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
+
 static bool get_dload_mode(void)
 {
 	return dload_mode_enabled;
 }
-#endif
 
 static void enable_emergency_dload_mode(void)
 {
@@ -189,12 +176,10 @@ static void enable_emergency_dload_mode(void)
 	pr_err("dload mode is not enabled on target\n");
 }
 
-#ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
 static bool get_dload_mode(void)
 {
 	return false;
 }
-#endif
 #endif
 
 void msm_set_restart_mode(int mode)
@@ -229,14 +214,8 @@ static void halt_spmi_pmic_arbiter(void)
 
 static void msm_restart_prepare(const char *cmd)
 {
-#ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
 	bool need_warm_reset = false;
-#endif
-#ifndef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
-	unsigned long value;
-	unsigned int warm_reboot_set = 0;
-#endif
-#ifndef CONFIG_SEC_DEBUG
+
 #ifdef CONFIG_MSM_DLOAD_MODE
 
 	/* Write download mode flags if we're panic'ing
@@ -247,27 +226,7 @@ static void msm_restart_prepare(const char *cmd)
 	set_dload_mode(download_mode &&
 			(in_panic || restart_mode == RESTART_DLOAD));
 #endif
-#endif
-#ifdef CONFIG_SEC_DEBUG_LOW_LOG
-#ifdef CONFIG_MSM_DLOAD_MODE
-#ifdef CONFIG_SEC_DEBUG
-	if (sec_debug_is_enabled()
-	&& ((restart_mode == RESTART_DLOAD) || in_panic))
-		set_dload_mode(1);
-	else
-		set_dload_mode(0);
-#else
-	set_dload_mode(0);
-	set_dload_mode(in_panic);
-	if (restart_mode == RESTART_DLOAD)
-		set_dload_mode(1);
-#endif
-#endif
-#endif
-/* Qualcomm has provided support to implement PMIC warm reboot for recovery/fastboot/RTC cases.
-However, Samsung implemation already supports more usecases including nvrestore, nvbackup, EDL, LPM etc.
-Hence Qualcomm's PMIC hard reboot implementation has been taken, but disabled. */
-#ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
+
 	if (qpnp_pon_check_hard_reset_stored()) {
 		/* Set warm reset as true when device is in dload mode
 		 *  or device doesn't boot up into recovery, bootloader or rtc.
@@ -275,7 +234,7 @@ Hence Qualcomm's PMIC hard reboot implementation has been taken, but disabled. *
 		if (get_dload_mode() ||
 			((cmd != NULL && cmd[0] != '\0') &&
 			strcmp(cmd, "recovery") &&
-			strcmp(cmd, "bootloader") &&
+			strcmp(cmd, "download") &&
 			strcmp(cmd, "rtc")))
 			need_warm_reset = true;
 	} else {
@@ -293,19 +252,20 @@ Hence Qualcomm's PMIC hard reboot implementation has been taken, but disabled. *
 	} else {
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
 	}
-	 if (cmd != NULL) {
-                if (!strncmp(cmd, "bootloader", 10)) {
-                        qpnp_pon_set_restart_reason(
-                                PON_RESTART_REASON_BOOTLOADER);
-                        __raw_writel(0x77665500, restart_reason);
-                } else if (!strncmp(cmd, "recovery", 8)) {
-                        qpnp_pon_set_restart_reason(
-                                PON_RESTART_REASON_RECOVERY);
-                        __raw_writel(0x77665502, restart_reason);
-                } else if (!strcmp(cmd, "rtc")) {
-                        qpnp_pon_set_restart_reason(
-                                PON_RESTART_REASON_RTC);
-                        __raw_writel(0x77665503, restart_reason);
+
+	if (cmd != NULL) {
+		if (!strncmp(cmd, "download", 8)) {
+			qpnp_pon_set_restart_reason(
+				PON_RESTART_REASON_DOWNLOAD);
+			__raw_writel(0x12345671, restart_reason);
+		} else if (!strncmp(cmd, "recovery", 8)) {
+			qpnp_pon_set_restart_reason(
+				PON_RESTART_REASON_RECOVERY);
+			__raw_writel(0x77665502, restart_reason);
+		} else if (!strcmp(cmd, "rtc")) {
+			qpnp_pon_set_restart_reason(
+				PON_RESTART_REASON_RTC);
+			__raw_writel(0x77665503, restart_reason);
                 } else if (!strcmp(cmd, "dm-verity device corrupted")) {
                         qpnp_pon_set_restart_reason(
                                 PON_RESTART_REASON_DMVERITY_CORRUPTED);
@@ -318,40 +278,6 @@ Hence Qualcomm's PMIC hard reboot implementation has been taken, but disabled. *
                         qpnp_pon_set_restart_reason(
                                 PON_RESTART_REASON_KEYS_CLEAR);
                         __raw_writel(0x7766550a, restart_reason);
-                } else if (!strncmp(cmd, "oem-", 4)) {
-                        unsigned long code;
-                        int ret;
-                        ret = kstrtoul(cmd + 4, 16, &code);
-                        if (!ret)
-                                __raw_writel(0x6f656d00 | (code & 0xff),
-                                             restart_reason);
-                } else if (!strncmp(cmd, "edl", 3)) {
-                        enable_emergency_dload_mode();
-                } else if (!strncmp(cmd, "download", 8)) {
-                        __raw_writel(0x12345671, restart_reason);
-                } else {
-                        __raw_writel(0x77665501, restart_reason);
-                }
-        }
-#else
-	pr_info("preparing for restart now\n");
-	warm_reboot_set = 0;
-
-	if (cmd != NULL) {
-		printk(KERN_NOTICE " Reboot cmd=%s\n",cmd);
-		if (!strncmp(cmd, "bootloader", 10)) {
-			__raw_writel(0x77665500, restart_reason);
-			warm_reboot_set = 1;
-		} else if (!strncmp(cmd, "recovery", 8)) {
-			__raw_writel(0x77665502, restart_reason);
-		} else if (!strcmp(cmd, "rtc")) {
-			__raw_writel(0x77665503, restart_reason);
-                } else if (!strcmp(cmd, "dm-verity device corrupted")) {
-                        __raw_writel(0x77665508, restart_reason);
-                } else if (!strcmp(cmd, "dm-verity enforcing")) {
-                        __raw_writel(0x77665509, restart_reason);
-                } else if (!strcmp(cmd, "keys clear")) {
-                        __raw_writel(0x7766550a, restart_reason);
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned long code;
 			int ret;
@@ -359,85 +285,14 @@ Hence Qualcomm's PMIC hard reboot implementation has been taken, but disabled. *
 			if (!ret)
 				__raw_writel(0x6f656d00 | (code & 0xff),
 					     restart_reason);
-#ifdef CONFIG_SEC_DEBUG
-		} else if (!strncmp(cmd, "sec_debug_hw_reset", 18)) {
-			__raw_writel(0x776655ee, restart_reason);
-			warm_reboot_set = 1;
-#endif
-		} else if (!strncmp(cmd, "download", 8)) {
-		    __raw_writel(0x12345671, restart_reason);
-                    warm_reboot_set = 1;
-		} else if (!strncmp(cmd, "nvbackup", 8)) {
-				__raw_writel(0x77665511, restart_reason);
-				warm_reboot_set = 1;
-		} else if (!strncmp(cmd, "nvrestore", 9)) {
-				__raw_writel(0x77665512, restart_reason);
-				warm_reboot_set = 1;
-		} else if (!strncmp(cmd, "nverase", 7)) {
-				__raw_writel(0x77665514, restart_reason);
-				warm_reboot_set = 1;
-		} else if (!strncmp(cmd, "nvrecovery", 10)) {
-				__raw_writel(0x77665515, restart_reason);
-				warm_reboot_set = 1;
-		} else if (!strncmp(cmd, "sud", 3)) {
-				__raw_writel(0xabcf0000 | (cmd[3] - '0'),
-								restart_reason);
-		} else if (!strncmp(cmd, "debug", 5)
-						&& !kstrtoul(cmd + 5, 0, &value)) {
-				__raw_writel(0xabcd0000 | value, restart_reason);
-		} else if (!strncmp(cmd, "cpdebug", 7) /*  set cp debug level */
-						&& !kstrtoul(cmd + 7, 0, &value)) {
-				__raw_writel(0xfedc0000 | value, restart_reason);
-#if defined(CONFIG_MUIC_SUPPORT_RUSTPROOF)
-		} else if (!strncmp(cmd, "swsel", 5) /* set switch value */
-		&& !kstrtoul(cmd + 5, 0, &value)) {
-		__raw_writel(0xabce0000 | value, restart_reason);
-#endif
 		} else if (!strncmp(cmd, "edl", 3)) {
 			enable_emergency_dload_mode();
-				warm_reboot_set = 1;
-		} else if (strlen(cmd) == 0) {
-		    printk(KERN_NOTICE "%s : value of cmd is NULL.\n", __func__);
-		        __raw_writel(0x12345678, restart_reason);
-#ifdef CONFIG_SEC_PERIPHERAL_SECURE_CHK
-		} else if (!strncmp(cmd, "peripheral_hw_reset", 19)) {
-			__raw_writel(0x77665507, restart_reason);
-			warm_reboot_set = 1;
-#endif
 		} else {
+			qpnp_pon_set_restart_reason(PON_RESTART_REASON_UNKNOWN);
 			__raw_writel(0x77665501, restart_reason);
 		}
-		printk(KERN_NOTICE "%s : restart_reason = 0x%x\n",
-				__func__, __raw_readl(restart_reason));
-		pr_err("%s : restart_reason = 0x%x\n",
-				__func__, __raw_readl(restart_reason));
 	}
-#ifdef CONFIG_SEC_DEBUG
-	else {
-		printk(KERN_NOTICE "%s: clear reset flag\n", __func__);
-		warm_reboot_set = 1;
-		__raw_writel(0x12345678, restart_reason);
-	}
-#endif
-	printk(KERN_NOTICE "%s : restart_reason = 0x%x\n",
-			__func__, __raw_readl(restart_reason));
-	printk(KERN_NOTICE "%s : warm_reboot_set = %d\n",
-			__func__, warm_reboot_set);
-#ifdef CONFIG_RESTART_REASON_SEC_PARAM
-	//fixme : Enabling Hard reset
-	/* Memory contents will be lost when when PMIC is configured for HARD RESET */
-	if (warm_reboot_set == 1) {
-		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
-		printk(KERN_NOTICE "Configure as WARM RESET\n");
-	}
-	else {
-		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
-		printk(KERN_NOTICE "Configure as HARD RESET\n");
-	}
-#else
-		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
-#endif
-#endif
+
 	flush_cache_all();
 
 	/*outer_flush_all is not supported by 64bit kernel*/
@@ -471,11 +326,7 @@ static void deassert_ps_hold(void)
 	__raw_writel(0, msm_ps_hold);
 }
 
-#ifdef CONFIG_SEC_DEBUG
-void do_msm_restart(enum reboot_mode reboot_mode, const char *cmd)
-#else
 static void do_msm_restart(enum reboot_mode reboot_mode, const char *cmd)
-#endif
 {
 	int ret;
 	struct scm_desc desc = {
@@ -546,19 +397,6 @@ static void do_msm_poweroff(void)
 	return;
 }
 
-#ifdef CONFIG_SEC_DEBUG
-static int dload_mode_normal_reboot_handler(struct notifier_block *nb,
-				unsigned long l, void *p)
-{
-	set_dload_mode(0);
-	return 0;
-}
-
-static struct notifier_block dload_reboot_block = {
-	.notifier_call = dload_mode_normal_reboot_handler
-};
-#endif
-
 static int msm_restart_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -571,9 +409,6 @@ static int msm_restart_probe(struct platform_device *pdev)
 		scm_dload_supported = true;
 
 	atomic_notifier_chain_register(&panic_notifier_list, &panic_blk);
-#ifdef CONFIG_SEC_DEBUG
-	register_reboot_notifier(&dload_reboot_block);
-#endif
 	np = of_find_compatible_node(NULL, NULL, DL_MODE_PROP);
 	if (!np) {
 		pr_err("unable to find DT imem DLOAD mode node\n");
@@ -593,7 +428,6 @@ static int msm_restart_probe(struct platform_device *pdev)
 	}
 
 #endif
-#ifndef CONFIG_SEC_DEBUG
 	np = of_find_compatible_node(NULL, NULL,
 				"qcom,msm-imem-restart_reason");
 	if (!np) {
@@ -606,7 +440,7 @@ static int msm_restart_probe(struct platform_device *pdev)
 			goto err_restart_reason;
 		}
 	}
-#endif
+
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	msm_ps_hold = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(msm_ps_hold))
@@ -627,16 +461,9 @@ static int msm_restart_probe(struct platform_device *pdev)
 
 	set_dload_mode(download_mode);
 
-#ifdef CONFIG_SEC_DEBUG_LOW_LOG
-	if (!sec_debug_is_enabled()) {
-		set_dload_mode(0);
-	}
-#endif
-
 	return 0;
-#ifndef CONFIG_SEC_DEBUG
+
 err_restart_reason:
-#endif
 #ifdef CONFIG_MSM_DLOAD_MODE
 	iounmap(emergency_dload_mode_addr);
 	iounmap(dload_mode_addr);

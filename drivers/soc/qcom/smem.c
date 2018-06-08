@@ -67,13 +67,8 @@ static void *smem_ipc_log_ctx;
 	} while (0)
 
 #define SMEM_SPINLOCK_SMEM_ALLOC       "S:3"
-#ifdef CONFIG_SEC_DEBUG_SUBSYS
-void *smem_ram_base;
-phys_addr_t smem_ram_phys;
-#else
 static void *smem_ram_base;
 static phys_addr_t smem_ram_phys;
-#endif
 static resource_size_t smem_ram_size;
 static remote_spinlock_t remote_spinlock;
 static uint32_t num_smem_areas;

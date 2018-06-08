@@ -208,10 +208,6 @@ const int cpu_is_krait_v1(void);
 const int cpu_is_krait_v2(void);
 const int cpu_is_krait_v3(void);
 
-#ifdef CONFIG_SEC_DEBUG_SUBSYS
-extern const char *soc_revision;
-#endif
-
 static inline int cpu_is_msm7x01(void)
 {
 #ifdef CONFIG_ARCH_MSM7X01A
