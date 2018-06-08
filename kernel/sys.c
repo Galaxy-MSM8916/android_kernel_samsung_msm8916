@@ -46,10 +46,6 @@
 #include <linux/mempolicy.h>
 #include <linux/sched.h>
 
-#ifdef CONFIG_RESTART_REASON_SEC_PARAM
-#include <linux/sec_debug.h>
-#endif
-
 #include <linux/compat.h>
 #include <linux/syscalls.h>
 #include <linux/kprobes.h>
@@ -403,9 +399,6 @@ static void migrate_to_reboot_cpu(void)
  */
 void kernel_restart(char *cmd)
 {
-#ifdef CONFIG_RESTART_REASON_SEC_PARAM
-	sec_param_restart_reason(cmd);
-#endif
 	kernel_restart_prepare(cmd);
 	migrate_to_reboot_cpu();
 	syscore_shutdown();
