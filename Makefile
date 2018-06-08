@@ -378,6 +378,22 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-delete-null-pointer-checks \
 		   -std=gnu89
 
+# Silence some GCC 7.x warnings
+KBUILD_CFLAGS += $(call cc-disable-warning,unused-const-variable,)
+KBUILD_CFLAGS += $(call cc-disable-warning,misleading-indentation,)
+KBUILD_CFLAGS += $(call cc-disable-warning,duplicate-decl-specifier,)
+KBUILD_CFLAGS += $(call cc-disable-warning,memset-elt-size,)
+KBUILD_CFLAGS += $(call cc-disable-warning,memset-transposed-args,)
+KBUILD_CFLAGS += $(call cc-disable-warning,discarded-array-qualifiers,)
+KBUILD_CFLAGS += $(call cc-disable-warning,bool-compare,)
+KBUILD_CFLAGS += $(call cc-disable-warning,bool-operation,)
+KBUILD_CFLAGS += $(call cc-disable-warning,format-truncation,)
+KBUILD_CFLAGS += $(call cc-disable-warning,int-in-bool-context,)
+KBUILD_CFLAGS += $(call cc-disable-warning,switch-unreachable,)
+KBUILD_CFLAGS += $(call cc-disable-warning,array-bounds,)
+KBUILD_CFLAGS += $(call cc-disable-warning,logical-not-parentheses,)
+KBUILD_CFLAGS += $(call cc-disable-warning,format-overflow,)
+
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
