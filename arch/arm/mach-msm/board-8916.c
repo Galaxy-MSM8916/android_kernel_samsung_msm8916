@@ -25,13 +25,6 @@
 #include <soc/qcom/smem.h>
 #include <soc/qcom/spm.h>
 #include <soc/qcom/pm.h>
-#ifdef CONFIG_SEC_DEBUG
-#include <linux/sec_debug.h>
-#endif
-#ifdef CONFIG_SEC_THERMISTOR
-#include <linux/sec_thermistor.h>
-#include <linux/msm8916-thermistor.h>
-#endif
 #include "board-dt.h"
 #include "platsmp.h"
 
@@ -89,9 +82,6 @@ static void samsung_sys_class_init(void)
 static void __init msm8916_init(void)
 {
 	struct of_dev_auxdata *adata = msm8916_auxdata_lookup;
-#ifdef CONFIG_SEC_DEBUG
-	sec_debug_init();
-#endif
 
 #ifdef CONFIG_PROC_AVC
     	sec_avc_log_init();

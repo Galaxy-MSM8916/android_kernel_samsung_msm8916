@@ -88,13 +88,6 @@ static u32 dump_size;
 struct debug_mdp *debug_mdp;
 //MDP Instace Variable
 #ifdef __KERNEL__
-#ifdef CONFIG_SEC_DEBUG_SCHED_LOG
-extern struct sec_debug_log *secdbg_log;
-extern struct sec_debug_subsys_data_krait *secdbg_krait;
-extern struct _dlogdebug __start___dlog[];
-extern struct _dlogdebug __stop___dlog[];
-extern struct mdss_data_type *mdss_res;
-#endif
 static spinlock_t xlock;
 extern struct msm_mdp_interface mdp5;
 static int sec_debug_level = 1;
@@ -700,12 +693,6 @@ static enum  {	DLOG_BUFFER_READING,	KLOG_BUFFER_READING,	SECLOG_BUFFER_READING, 
 		spin_lock_irqsave(&xlock, flags);
 		read_ongoing = 1;
 		debug_mdp->reserv = CONFIG_NR_CPUS;
-#ifdef CONFIG_SEC_DEBUG_SCHED_LOG
-		debug_mdp->klog_size =secdbg_krait->log.size;
-		debug_mdp->seclog_size = 0;
-		pr_debug("Klog Size: %d SecLog Size: %d\n", debug_mdp->klog_size, debug_mdp->seclog_size);
-
-#endif
 //		sec_debug_display_klog_addr(&klog_addr);
 
 		spin_unlock_irqrestore(&xlock, flags);
@@ -727,12 +714,6 @@ static enum  {	DLOG_BUFFER_READING,	KLOG_BUFFER_READING,	SECLOG_BUFFER_READING, 
 					spin_unlock_irqrestore(&xlock, flags);
 #endif
 
-#ifndef CONFIG_SEC_DEBUG_SCHED_LOG
-					read_state = DLOG_BUFFER_READING;
-					read_byte = 0;
-					pr_info("Reading complete...\n");
-					return 0;
-#endif
 	}
 
 	if(read_state == DLOG_BUFFER_READING)
@@ -748,26 +729,6 @@ static enum  {	DLOG_BUFFER_READING,	KLOG_BUFFER_READING,	SECLOG_BUFFER_READING, 
 		pr_debug("-read: %lu, fpos = %llu :count = %d:retval: %d: dump_size: %d\n",read_byte,*f_pos,count,retval,debug_mdp->size);
 	}
 
-#ifdef CONFIG_SEC_DEBUG_SCHED_LOG
-
-	if(read_state == KLOG_BUFFER_READING && read_byte >= debug_mdp->size + debug_mdp->klog_size ) {
-
-		read_state = DLOG_BUFFER_READING;
-					read_byte = 0;
-					pr_info("Reading complete...\n");
-	}
-
-
-
-	if(read_state == KLOG_BUFFER_READING)
-	{
-#if 0
-		int start = *f_pos - debug_mdp->size;
-#endif
-		retval = ((count + *f_pos - 1)< debug_mdp->size +debug_mdp->klog_size)? count-1:(debug_mdp->size +debug_mdp->klog_size- *f_pos);
-#if 0
-		ret = copy_to_user(buf, ((char *)klog_addr) + start, retval);
-#endif
 		if(ret < 0)
 					return 0;
 		read_byte += retval;
@@ -873,10 +834,6 @@ static enum  {	DLOG_BUFFER_READING,	KLOG_BUFFER_READING,	SECLOG_BUFFER_READING, 
 		u32 reg_log_len = 0;
 		u32 clock_state_len = 0;
 		struct dentry *dent = debugfs_create_dir("dlog", NULL);
-
-#if defined(CONFIG_SEC_DEBUG)
-		sec_debug_level = sec_debug_is_enabled();
-#endif
 
 		if(sec_debug_level){
 			log_buff_len = DLOG_BUFFER_SIZE*1024;

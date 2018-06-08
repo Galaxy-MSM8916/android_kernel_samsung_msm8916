@@ -9,7 +9,6 @@
 #define START_MAGIC 0xDEADBABE
 #define FUNC_END 0x9999
 typedef unsigned int u32;
-#include <linux/sec_debug.h>
 /*
  * An instance of this structure is created in a special
  * ELF section at every display debug callsite.  At runtime,
@@ -163,40 +162,6 @@ struct sec_debug_log8 {
 	atomic_t idx_timer[2];
 	struct timer_log timer_log[2][SCHED_LOG_MAX];
 };
-
-#else
-#ifdef CONFIG_SEC_DEBUG_SCHED_LOG
-
-//Copy defination from sec_debug file
-struct sec_debug_log {
-	atomic_t idx_sched[CONFIG_NR_CPUS];
-	struct sched_log sched[CONFIG_NR_CPUS][SCHED_LOG_MAX];
-
-	atomic_t idx_irq[CONFIG_NR_CPUS];
-	struct irq_log irq[CONFIG_NR_CPUS][SCHED_LOG_MAX];
-
-	atomic_t idx_irq_exit[CONFIG_NR_CPUS];
-	struct irq_exit_log irq_exit[CONFIG_NR_CPUS][SCHED_LOG_MAX];
-
-	atomic_t idx_timer[CONFIG_NR_CPUS];
-	struct timer_log timer_log[CONFIG_NR_CPUS][SCHED_LOG_MAX];
-
-#ifdef CONFIG_SEC_DEBUG_MSG_LOG
-	atomic_t idx_secmsg[CONFIG_NR_CPUS];
-	struct secmsg_log secmsg[CONFIG_NR_CPUS][MSG_LOG_MAX];
-#endif
-#ifdef CONFIG_SEC_DEBUG_DCVS_LOG
-	atomic_t dcvs_log_idx ;
-	struct dcvs_debug dcvs_log[DCVS_LOG_MAX] ;
-#endif
-#ifdef CONFIG_SEC_DEBUG_FUELGAUGE_LOG
-	atomic_t fg_log_idx;
-	struct fuelgauge_debug fg_log[FG_LOG_MAX] ;
-#endif
-};
-#endif
-#endif
-
 
 #if !defined(__DLOG_IMPLEMENTAION_MODULE__) &&  defined(CONFIG_SAMSUNG_DEBUG_DISPLAY)
 #undef pr_debug
