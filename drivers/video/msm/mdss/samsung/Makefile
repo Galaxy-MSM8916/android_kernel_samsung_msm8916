@@ -4,7 +4,6 @@
 obj-y += ss_dsi_panel_common.o
 obj-y += ss_dsi_mdnie_lite_common.o
 obj-y += ss_dsi_smart_dimming_common.o
-obj-$(CONFIG_SAMSUNG_DEBUG_DISPLAY) += dlog.o
 #
 # panel directory make file
 #
