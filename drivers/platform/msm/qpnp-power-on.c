@@ -24,9 +24,6 @@
 #include <linux/input.h>
 #include <linux/log2.h>
 #include <linux/qpnp/power-on.h>
-#if defined(CONFIG_SEC_DEBUG)
-#include <linux/sec_debug.h>
-#endif
 
 #define CREATE_MASK(NUM_BITS, POS) \
 	((unsigned char) (((1 << (NUM_BITS)) - 1) << (POS)))
@@ -78,9 +75,7 @@
 #define QPNP_PON_S3_DBC_CTL(base)		(base + 0x75)
 #define QPNP_PON_TRIGGER_EN(base)		(base + 0x80)
 #define QPNP_PON_XVDD_RB_SPARE(base)		(base + 0x8E)
-#ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
 #define QPNP_PON_SOFT_RB_SPARE(base)		(base + 0x8F)
-#endif
 #define QPNP_PON_SEC_ACCESS(base)		(base + 0xD0)
 
 #define QPNP_PON_SEC_UNLOCK			0xA5
@@ -182,9 +177,7 @@ struct qpnp_pon {
 	struct dentry *debugfs;
 	u8 warm_reset_reason1;
 	u8 warm_reset_reason2;
-#ifdef CONFIG_QCOM_HARDREBOOT_IMPLEMENTATION
 	bool store_hard_reset_reason;
-#endif
 };
 
 static struct qpnp_pon *sys_reset_dev;
@@ -676,15 +669,6 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	}
 #endif
 
-#if defined(CONFIG_SEC_DEBUG)
-#if defined(CONFIG_QPNP_RESIN)
-	if (cfg->pon_type == PON_RESIN )
-		sec_debug_check_crash_key(cfg->key_code, pon->resin_state);
-	else
-#endif /* CONFIG_QPNP_RESIN */
-		sec_debug_check_crash_key(cfg->key_code, pon->powerkey_state);
-#endif /* CONFIG_SEC_DEBUG */
-
 	return 0;
 }
 
@@ -954,17 +938,6 @@ qpnp_config_reset(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 		dev_err(&pon->spmi->dev, "Unable to configure S2 timer\n");
 		return rc;
 	}
-#ifdef CONFIG_SEC_DEBUG
-	/* Configure reset type:
-	 * Debug level MID/HIGH: WARM Reset
-	 * Debug level LOW: HARD Reset
-	 */
-	if (sec_debug_is_enabled()) {
-		cfg->s2_type = 1;
-	} else {
-		cfg->s2_type = 8;
-	}
-#endif
 	rc = qpnp_pon_masked_write(pon, cfg->s2_cntl_addr,
 				QPNP_PON_S2_CNTL_TYPE_MASK, (u8)cfg->s2_type);
 	if (rc) {
@@ -999,18 +972,6 @@ qpnp_control_s2_reset(struct qpnp_pon *pon, struct qpnp_pon_config *cfg, int on)
 	return 0;
 }
 #endif
-#if defined (CONFIG_SEC_DEBUG) || defined (WAKELOCK_ON_PWRKEY_PRESS)
-static int qpnp_pon_kpdpwr_force_scan(void)
-{
-#ifdef WAKELOCK_ON_PWRKEY_PRESS
-	return 1;
-#elif defined (CONFIG_SEC_DEBUG)
-	return sec_debug_is_enabled();
-#else
-	return 0;
-#endif
-}
-#endif
 
 static int
 qpnp_pon_request_irqs(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
@@ -1019,13 +980,6 @@ qpnp_pon_request_irqs(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 
 	switch (cfg->pon_type) {
 	case PON_KPDPWR:
-#if defined (CONFIG_SEC_DEBUG) || defined (WAKELOCK_ON_PWRKEY_PRESS)
-		if (qpnp_pon_kpdpwr_force_scan()) {
-			rc = qpnp_pon_input_dispatch(pon, PON_KPDPWR);
-			if (rc)
-				dev_err(&pon->spmi->dev, "PON_KPDPWR input dispatch failed!\n");
-		}
-#endif
 		rc = devm_request_irq(&pon->spmi->dev, cfg->state_irq,
 							qpnp_kpdpwr_irq,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,

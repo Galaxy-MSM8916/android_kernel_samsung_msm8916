@@ -847,15 +847,6 @@ config UID_CPUTIME
 	help
 	  Per UID based cpu time statistics exported to /proc/uid_cputime
 
-config SEC_MISC
-	bool "Samsung P series miscellaneous driver"
-	default n
-	---help---
-	  Samsung P series miscellaneous driver
-	  This creates sys fs entries for changing
-	  debug levels. The debug level is stored in
-	  Param partition
-
 config SEC_GPIO_SETTINGS
 	bool "Samsung centralized gpio settings"
 	default n
