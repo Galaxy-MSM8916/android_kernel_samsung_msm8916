@@ -253,14 +253,8 @@ void sdfat_time_unix2fat(struct sdfat_sb_info *sbi, struct timespec *ts,
 
 TIMESTAMP_T *tm_now(struct sdfat_sb_info *sbi, TIMESTAMP_T *tp)
 {
-	struct timespec ts;
+	struct timespec ts = CURRENT_TIME_SEC;
 	DATE_TIME_T dt;
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,8,0)
-	ts = CURRENT_TIME_SEC;
-#else
-	ktime_get_real_ts(&ts);
-#endif
 
 	sdfat_time_unix2fat(sbi, &ts, &dt);
 
@@ -384,3 +378,4 @@ void __sdfat_dmsg(int level, const char *fmt, ...)
 #endif
 }
 #endif
+
