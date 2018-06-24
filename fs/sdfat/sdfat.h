@@ -80,10 +80,10 @@
 	& ((1 << (fsi)->sect_per_clus_bits) - 1)) == 0)
 
 #define CLUS_TO_SECT(fsi, x)	\
-	((((unsigned long long)(x) - CLUS_BASE) << (fsi)->sect_per_clus_bits) + (fsi)->data_start_sector)
+	((((x) - CLUS_BASE) << (fsi)->sect_per_clus_bits) + (fsi)->data_start_sector)
 
 #define SECT_TO_CLUS(fsi, sec)	\
-	((u32)((((sec) - (fsi)->data_start_sector) >> (fsi)->sect_per_clus_bits) + CLUS_BASE))
+	((((sec) - (fsi)->data_start_sector) >> (fsi)->sect_per_clus_bits) + CLUS_BASE)
 
 /* variables defined at sdfat.c */
 extern const char *FS_TYPE_STR[];
