@@ -13,7 +13,7 @@
 #include "msm8916.dtsi"
 #include "msm8916-pinctrl-sec-fortuna-r11.dtsi"
 #include "../../../../../../drivers/video/msm/mdss/samsung/HX8389C_GH9607501A/dsi_panel_HX8389C_GH9607501A_qhd_video.dtsi" 
-#include "../../../../../../drivers/video/msm/mdss/samsung/S6D78A0_GH9607501A/dsi_panel_S6D78A0_GH9607501A_qhd_video.dtsi"
+// #include "../../../../../../drivers/video/msm/mdss/samsung/S6D78A0_GH9607501A/dsi_panel_S6D78A0_GH9607501A_qhd_video.dtsi"
 #include "msm8916-camera.dtsi"
 #include "msm8916-camera-sensor-cdp-r02.dtsi"
 #include "msm8916-sec-fortuna-battery-r01.dtsi"
