@@ -584,6 +584,9 @@ static int sm5703_fled_flash(struct sm_fled_info *fled_info, int turn_way)
 {
 	int ret = 0;
 	sm5703_fled_info_t *info = (sm5703_fled_info_t *)fled_info;
+#if (defined(CONFIG_SEC_J5_PROJECT) || defined(CONFIG_SEC_J5N_PROJECT)) && !defined(CONFIG_MACH_J5LTE_CHN_CMCC)  /* only for J5 LDO1 noise */
+	int limit_current;
+#endif
 	SM5703_FLED_INFO("Start : E\n");
 
 	SM5703_FLED_INFO("%s, info->boost = %d\n",__FUNCTION__,info->boost);
@@ -605,6 +608,18 @@ static int sm5703_fled_flash(struct sm_fled_info *fled_info, int turn_way)
 				sm5703_assign_bits(info->i2c_client,SM5703_FLEDCNTL1,SM5703_FLEDEN_MASK,SM5703_FLEDEN_FLASH_MODE);
 				break;
 			case FLASHLIGHT_MODE_TORCH:
+#if (defined(CONFIG_SEC_J5_PROJECT) || defined(CONFIG_SEC_J5N_PROJECT)) && !defined(CONFIG_MACH_J5LTE_CHN_CMCC)  /* only for J5 LDO1 noise */
+				limit_current = sm5703_reg_read(info->i2c_client,SM5703_VBUSCNTL);
+				SM5703_FLED_INFO("%s, change limit_current %d\n",__FUNCTION__,limit_current);
+
+				if(0x6 >= limit_current && limit_current >= 0x0)/* 100mA ~ 400mA : Topoff(Max 200mA) + Torch(170mA) current at present*/
+				{
+					sm5703_reg_write(info->i2c_client,SM5703_VBUSCNTL,0x08); /* change limit current to 500mA for topoff current */
+					SM5703_FLED_INFO("%s, change vbuslimit to 500mA\n",__FUNCTION__);
+				}
+				else
+					SM5703_FLED_INFO("%s, non change vbuslimit \n",__FUNCTION__);
+#endif
 				sm5703_assign_bits(info->i2c_client,SM5703_FLEDCNTL1,SM5703_FLEDEN_MASK,SM5703_FLEDEN_MOVIE_MODE);
 				test = sm5703_reg_read(info->i2c_client,SM5703_FLEDCNTL4);
 				SM5703_FLED_ERR("<sm5703_fled_flash>Torch mode Register Settings  0x%x \n",test);
@@ -631,6 +646,18 @@ static int sm5703_fled_flash(struct sm_fled_info *fled_info, int turn_way)
 				gpio_free(led_irq_gpio2);
 				break;
 			case FLASHLIGHT_MODE_TORCH:
+#if (defined(CONFIG_SEC_J5_PROJECT) || defined(CONFIG_SEC_J5N_PROJECT)) && !defined(CONFIG_MACH_J5LTE_CHN_CMCC)  /* only for J5 LDO1 noise */
+				limit_current = sm5703_reg_read(info->i2c_client,SM5703_VBUSCNTL);
+				SM5703_FLED_INFO("%s, change limit_current %d\n",__FUNCTION__,limit_current);
+
+				if(0x6 >= limit_current && limit_current >= 0x0)/* 100mA ~ 400mA : Topoff(Max 200mA) + Torch(170mA) current at present, Don't set this range over 500mA */
+				{
+					sm5703_reg_write(info->i2c_client,SM5703_VBUSCNTL,0x08); /* change limit current to 500mA for topoff current */
+					SM5703_FLED_INFO("%s, change vbuslimit to 500mA\n",__FUNCTION__);
+				}
+				else
+					SM5703_FLED_INFO("%s, non change vbuslimit \n",__FUNCTION__);
+#endif
 				sm5703_assign_bits(info->i2c_client,SM5703_FLEDCNTL1,SM5703_FLEDEN_MASK,SM5703_FLEDEN_EXTERNAL);
 				gpio_request(led_irq_gpio1, NULL);
 				gpio_request(led_irq_gpio2, NULL);

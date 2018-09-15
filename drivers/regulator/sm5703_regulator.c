@@ -20,6 +20,9 @@
 #include <linux/of.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/battery/charger/sm5703_charger.h>
+#if (defined(CONFIG_SEC_J5_PROJECT) || defined(CONFIG_SEC_J5N_PROJECT)) && !defined(CONFIG_MACH_J5LTE_CHN_CMCC)  /* only for J5 LDO1 noise */
+#include <linux/battery/sec_charger.h>
+#endif
 
 #define ALIAS_NAME "sm5703-regulator"
 
@@ -334,6 +337,53 @@ static int sm5703_usbldo_regulator_get_voltage(struct regulator_dev *rdev)
 
 #endif //(LINUX_VERSION_CODE<KERNEL_VERSION(2,6,39))
 
+#if (defined(CONFIG_SEC_J5_PROJECT) || defined(CONFIG_SEC_J5N_PROJECT)) && !defined(CONFIG_MACH_J5LTE_CHN_CMCC)  /* only for J5 LDO1 noise */
+static int sm5703_regulator_enable(struct regulator_dev *rdev)
+{
+	struct sm5703_regulator_info *info = rdev_get_drvdata(rdev);
+	int ret;
+	union power_supply_propval value;
+
+	pr_info("%s Enable regulator %s\n", ALIAS_NAME, rdev->desc->name);
+	pr_info("%s desc.id = %d\n", __func__,info->desc.id);
+
+	ret = sm5703_set_bits(info->i2c, info->enable_reg, info->enable_bit);
+
+	if (info->desc.id == SM5703_ID_LDO1)
+	{
+		value.intval = 5;
+		psy_do_property("sm5703-charger", set,
+				POWER_SUPPLY_PROP_INPUT_CURRENT_MAX, value);
+		pr_info("%s %s input current",rdev->desc->name, __func__);
+	}
+	pr_info("%s %s %s ret (%d)", ALIAS_NAME, rdev->desc->name, __func__, ret);
+
+	return ret;
+}
+
+static int sm5703_regulator_disable(struct regulator_dev *rdev)
+{
+	struct sm5703_regulator_info *info = rdev_get_drvdata(rdev);
+	int ret;
+	union power_supply_propval value;
+
+	pr_info("%s Disable regulator %s\n", ALIAS_NAME, rdev->desc->name);
+	pr_info("%s desc.id = %d\n", __func__,info->desc.id);
+
+	ret = sm5703_clr_bits(info->i2c, info->enable_reg, info->enable_bit);
+
+	if (info->desc.id == SM5703_ID_LDO1)
+	{
+		value.intval = 6;
+		psy_do_property("sm5703-charger", set,
+				POWER_SUPPLY_PROP_INPUT_CURRENT_MAX, value);
+		pr_info("%s %s input current",rdev->desc->name, __func__);
+	}
+	pr_info("%s %s ret (%d)", ALIAS_NAME, __func__, ret);
+
+	return ret;
+}
+#else
 static int sm5703_regulator_enable(struct regulator_dev *rdev)
 {
 	struct sm5703_regulator_info *info = rdev_get_drvdata(rdev);
@@ -358,6 +408,7 @@ static int sm5703_regulator_disable(struct regulator_dev *rdev)
 
 	return ret;
 }
+#endif
 static int sm5703_regulator_is_enabled(struct regulator_dev *rdev)
 {
 	struct sm5703_regulator_info *info = rdev_get_drvdata(rdev);
