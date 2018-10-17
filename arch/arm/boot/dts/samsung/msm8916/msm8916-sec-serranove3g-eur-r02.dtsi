@@ -45,6 +45,7 @@
 	samsung,simslot {
 		compatible = "simslot";
 		samsung,sim-slot = <&msm_gpio 101 0x1>;
+		low-is-dual;
 		status = "ok";
 	};
 
