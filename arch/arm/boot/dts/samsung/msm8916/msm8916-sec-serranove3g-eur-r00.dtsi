@@ -44,7 +44,8 @@
 
 	samsung,simslot {
 		compatible = "simslot";
-		samsung,sim-slot = <&msm_gpio 101 0x1>;
+		samsung,sim-slot = <&msm_gpio 72 0x1>;
+		low-is-dual;
 		status = "ok";
 	};
 
@@ -107,7 +108,7 @@
 			mxts,tsppwr_en1 = <&msm_gpio 8 0x01>;			
 			mxts,irq-gpio = <&msm_gpio 13 0x00>;
 			mxts,tsp_coord = <24 14 540 960>;
-			mxts,pname = "I9195";
+			mxts,pname = "I9192I";
 		};
 	};
 
