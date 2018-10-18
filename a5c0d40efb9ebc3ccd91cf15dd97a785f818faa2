@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "f360e5cf_f6b42ec4",
+        "filename": "arch/arm/configs/msm8916_sec_serranove3g_eur_defconfig",
+        "patchSetId": 2
+      },
+      "lineNbr": 171,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2018-10-18T19:20:28Z",
+      "side": 1,
+      "message": "this isn\u0027t necessary, already in msm8916_sec_defconfig",
+      "range": {
+        "startLine": 71,
+        "startChar": 0,
+        "endLine": 171,
+        "endChar": 24
+      },
+      "revId": "a5c0d40efb9ebc3ccd91cf15dd97a785f818faa2",
+      "serverId": "5091bff9-ead9-4606-8fa0-a30165edc640",
+      "unresolved": false
+    }
+  ]
+}
