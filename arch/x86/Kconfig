@@ -961,7 +961,6 @@ config VM86
 
 config X86_16BIT
 	bool "Enable support for 16-bit segments"
-	default y
 	---help---
 	  This option is required by programs like Wine to run 16-bit
 	  protected mode legacy code on x86 processors.  Disabling

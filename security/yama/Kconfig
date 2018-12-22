@@ -3,7 +3,7 @@ config SECURITY_YAMA
 	depends on SECURITY
 	select SECURITYFS
 	select SECURITY_PATH
-	default n
+	default y
 	help
 	  This selects Yama, which extends DAC support with additional
 	  system-wide security settings beyond regular Linux discretionary
