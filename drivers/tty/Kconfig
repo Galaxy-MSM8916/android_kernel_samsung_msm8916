@@ -133,7 +133,6 @@ config DEVPTS_MULTIPLE_INSTANCES
 
 config LEGACY_PTYS
 	bool "Legacy (BSD) PTY support"
-	default y
 	---help---
 	  A pseudo terminal (PTY) is a software device consisting of two
 	  halves: a master and a slave. The slave device behaves identical to

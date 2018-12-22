@@ -960,7 +960,7 @@ config VM86
 	  cards via BIOS. Disabling this option saves about 6K.
 
 config X86_16BIT
-	bool "Enable support for 16-bit segments" if EXPERT
+	bool "Enable support for 16-bit segments"
 	default y
 	---help---
 	  This option is required by programs like Wine to run 16-bit
