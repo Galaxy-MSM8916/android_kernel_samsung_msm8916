@@ -126,6 +126,9 @@ struct le_scan_params {
 
 #define HCI_MAX_SHORT_NAME_LENGTH	10
 
+/* Min encryption key size to match with SMP */
+#define HCI_MIN_ENC_KEY_SIZE		7
+
 struct amp_assoc {
 	__u16	len;
 	__u16	offset;
