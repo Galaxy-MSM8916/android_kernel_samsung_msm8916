@@ -785,6 +785,13 @@ config SEC_J5_PROJECT
 	help
 	  Support for Samsung J5 Project
 
+config MACH_J5LTE_KOR_OPEN
+	depends on SEC_J5_PROJECT
+	default n
+	bool "Samsung J5LTE KOR OPEN"
+	help
+	  Support for Samsung J5LTE KOR OPEN device.
+
 config MACH_J5LTE_EUR_OPEN
 	depends on SEC_J5_PROJECT
 	default n
