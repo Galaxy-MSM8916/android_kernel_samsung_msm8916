@@ -461,6 +461,7 @@ ifeq ($(CONFIG_SEC_J5_PROJECT),y)
 		dtb-y += msm8916-sec-j5lte-chn-r00.dtb
 		dtb-y += msm8916-sec-j5lte-chn-r01.dtb
 	else ifeq ($(CONFIG_MACH_J5LTE_KOR_OPEN),y)
+		dtb-y += msm8916-sec-j5lte-kor-r01.dtb
 		dtb-y += msm8916-sec-j5lte-kor-r05.dtb
 	else ifeq ($(CONFIG_MACH_J5LTE_LTN_DTV),y)
 		dtb-y += msm8916-sec-j5lte-ltn-dtv-r04.dtb
