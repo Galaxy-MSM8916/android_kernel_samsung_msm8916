@@ -651,7 +651,7 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type,
 int hci_conn_check_link_mode(struct hci_conn *conn)
 {
 	BT_DBG("hcon %pK", conn);
-	return ((HCI_MIN_ENC_KEY_SIZE < conn->enc_key_size) && (!(hci_conn_ssp_enabled(conn) && !(conn->link_mode & HCI_LM_ENCRYPT)))) ? 1 : 0;
+	return ((HCI_MIN_ENC_KEY_SIZE <= conn->enc_key_size) && (!(hci_conn_ssp_enabled(conn) && !(conn->link_mode & HCI_LM_ENCRYPT)))) ? 1 : 0;
 }
 
 /* Authenticate remote device */
