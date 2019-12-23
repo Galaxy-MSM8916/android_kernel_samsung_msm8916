@@ -2608,6 +2608,13 @@ static __always_inline void slab_free(struct kmem_cache *s,
 
 	slab_free_hook(s, x);
 
+	if (!(s->flags & (SLAB_DESTROY_BY_RCU | SLAB_POISON))) {
+		size_t offset = s->offset ? 0 : sizeof(void *);
+		memset(x + offset, 0, s->object_size - offset);
+		if (s->ctor)
+			s->ctor(x);
+	}
+
 redo:
 	/*
 	 * Determine the currently cpus per cpu slab.
