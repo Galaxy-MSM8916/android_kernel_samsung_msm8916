@@ -169,3 +169,4 @@ config NFS_DEBUG
 	bool
 	depends on NFS_FS && SUNRPC_DEBUG
 	select CRC32
+	default y

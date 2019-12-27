@@ -25,7 +25,7 @@
 enum slab_state slab_state;
 LIST_HEAD(slab_caches);
 DEFINE_MUTEX(slab_mutex);
-struct kmem_cache *kmem_cache __ro_after_init;
+struct kmem_cache *kmem_cache;
 
 #ifdef CONFIG_DEBUG_VM
 static int kmem_cache_sanity_check(struct mem_cgroup *memcg, const char *name,
@@ -335,7 +335,7 @@ EXPORT_SYMBOL(kmalloc_dma_caches);
  * of two cache sizes there. The size of larger slabs can be determined using
  * fls.
  */
-static s8 size_index[24] __ro_after_init = {
+static s8 size_index[24] = {
 	3,	/* 8 */
 	4,	/* 16 */
 	5,	/* 24 */

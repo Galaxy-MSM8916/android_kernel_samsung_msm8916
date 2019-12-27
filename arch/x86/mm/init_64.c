@@ -1097,7 +1097,7 @@ void __init mem_init(void)
 const int rodata_test_data = 0xC3;
 EXPORT_SYMBOL_GPL(rodata_test_data);
 
-int kernel_set_to_readonly __ro_after_init;
+int kernel_set_to_readonly;
 
 void set_kernel_text_rw(void)
 {
@@ -1146,8 +1146,9 @@ void mark_rodata_ro(void)
 
 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
 	       (end - start) >> 10);
-	kernel_set_to_readonly = 1;
 	set_memory_ro(start, (end - start) >> PAGE_SHIFT);
+
+	kernel_set_to_readonly = 1;
 
 	/*
 	 * The rodata/data/bss/brk section (but not the kernel text!)

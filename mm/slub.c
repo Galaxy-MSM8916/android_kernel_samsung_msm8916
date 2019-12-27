@@ -3314,11 +3314,7 @@ size_t ksize(const void *object)
 	page = virt_to_head_page(object);
 
 	if (unlikely(!PageSlab(page))) {
-#ifdef CONFIG_BUG_ON_DATA_CORRUPTION
-		BUG_ON(!PageCompound(page));
-#else
 		WARN_ON(!PageCompound(page));
-#endif
 		return PAGE_SIZE << compound_order(page);
 	}
 

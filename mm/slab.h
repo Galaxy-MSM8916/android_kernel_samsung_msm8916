@@ -196,11 +196,7 @@ static inline void memcg_release_pages(struct kmem_cache *s, int order)
 static inline bool slab_equal_or_root(struct kmem_cache *s,
 				      struct kmem_cache *p)
 {
-#ifdef CONFIG_SLAB_HARDENED
-	return p == s;
-#else
 	return true;
-#endif
 }
 
 static inline const char *cache_name(struct kmem_cache *s)
@@ -235,9 +231,6 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 		return s;
 
 	page = virt_to_head_page(x);
-#ifdef CONFIG_SLAB_HARDENED
-	BUG_ON(!PageSlab(page));
-#endif
 	cachep = page->slab_cache;
 	if (slab_equal_or_root(cachep, s))
 		return cachep;
