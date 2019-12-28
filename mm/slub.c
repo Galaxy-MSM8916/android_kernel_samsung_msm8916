@@ -3380,7 +3380,7 @@ size_t ksize(const void *object)
 	page = virt_to_head_page(object);
 
 	if (unlikely(!PageSlab(page))) {
-		WARN_ON(!PageCompound(page));
+		BUG_ON(!PageCompound(page));
 		return PAGE_SIZE << compound_order(page);
 	}
 
