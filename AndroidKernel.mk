@@ -1,3 +1,7 @@
+export KBUILD_BUILD_TIMESTAMP := $(shell $(DATE))
+export KBUILD_BUILD_USER := user
+export KBUILD_BUILD_HOST := host
+
 #Android makefile to build kernel as a part of Android Build
 PERL		= perl
 
