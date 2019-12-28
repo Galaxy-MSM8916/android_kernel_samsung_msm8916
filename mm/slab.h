@@ -226,10 +226,8 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 	if (slab_equal_or_root(cachep, s))
 		return cachep;
 
-	pr_err("%s: Wrong slab cache. %s but object is from %s\n",
+	panic("%s: Wrong slab cache. %s but object is from %s\n",
 		__FUNCTION__, cachep->name, s->name);
-	WARN_ON_ONCE(1);
-	return s;
 }
 #endif
 
