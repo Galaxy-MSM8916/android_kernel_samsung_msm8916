@@ -199,6 +199,8 @@ struct track {
 
 enum track_item { TRACK_ALLOC, TRACK_FREE };
 
+static const bool slub_cookie = true;
+
 #ifdef CONFIG_SYSFS
 static int sysfs_slab_add(struct kmem_cache *);
 static int sysfs_slab_alias(struct kmem_cache *, const char *);
@@ -283,6 +285,36 @@ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
 	*(void **)freepointer_addr = (void *)((unsigned long)fp ^ s->random ^ freepointer_addr);
 }
 
+#ifdef CONFIG_64BIT
+static const unsigned long canary_mask = ~0xFFUL;
+#else
+static const unsigned long canary_mask = ~0UL;
+#endif
+
+static inline unsigned long *get_cookie(struct kmem_cache *s, void *object)
+{
+	if (s->offset)
+		return object + s->offset + sizeof(void *);
+	else
+		return object + s->inuse;
+}
+
+static inline void set_cookie(struct kmem_cache *s, void *object, unsigned long value)
+{
+	if (slub_cookie) {
+		unsigned long *cookie = get_cookie(s, object);
+		*cookie = (value ^ (unsigned long)cookie) & canary_mask;
+	}
+}
+
+static inline void check_cookie(struct kmem_cache *s, void *object, unsigned long value)
+{
+	if (slub_cookie) {
+		unsigned long *cookie = get_cookie(s, object);
+		BUG_ON(*cookie != ((value ^ (unsigned long)cookie) & canary_mask));
+	}
+}
+
 /* Loop over all objects in a slab */
 #define for_each_object(__p, __s, __addr, __objects) \
 	for (__p = (__addr); __p < (__addr) + (__objects) * (__s)->size;\
@@ -310,7 +342,7 @@ static inline size_t slab_ksize(const struct kmem_cache *s)
 	 * back there or track user information then we can
 	 * only use the space before that information.
 	 */
-	if (s->flags & (SLAB_DESTROY_BY_RCU | SLAB_STORE_USER))
+	if ((s->flags & (SLAB_DESTROY_BY_RCU | SLAB_STORE_USER)) || slub_cookie)
 		return s->inuse;
 	/*
 	 * Else we can use all the padding etc for the allocation
@@ -476,9 +508,9 @@ static struct track *get_track(struct kmem_cache *s, void *object,
 	struct track *p;
 
 	if (s->offset)
-		p = object + s->offset + sizeof(void *);
+		p = object + s->offset + sizeof(void *) + sizeof(void *) * slub_cookie;
 	else
-		p = object + s->inuse;
+		p = object + s->inuse + sizeof(void *) * slub_cookie;
 
 	return p + alloc;
 }
@@ -613,6 +645,9 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
 	else
 		off = s->inuse;
 
+	if (slub_cookie)
+		off += sizeof(void *);
+
 	if (s->flags & SLAB_STORE_USER)
 		off += 2 * sizeof(struct track);
 
@@ -743,6 +778,9 @@ static int check_pad_bytes(struct kmem_cache *s, struct page *page, u8 *p)
 
 	if (s->offset)
 		/* Freepointer is placed after the object. */
+		off += sizeof(void *);
+
+	if (slub_cookie)
 		off += sizeof(void *);
 
 	if (s->flags & SLAB_STORE_USER)
@@ -1360,6 +1398,7 @@ static void setup_object(struct kmem_cache *s, struct page *page,
 				void *object)
 {
 	setup_object_debug(s, page, object);
+	set_cookie(s, object, s->random_inactive);
 	if (unlikely(s->ctor))
 		s->ctor(object);
 }
@@ -2420,6 +2459,11 @@ redo:
 	if (unlikely(gfpflags & __GFP_ZERO) && object)
 		memset(object, 0, s->object_size);
 
+	if (object) {
+		check_cookie(s, object, s->random_inactive);
+		set_cookie(s, object, s->random_active);
+	}
+
 	slab_post_alloc_hook(s, gfpflags, object);
 
 	return object;
@@ -2622,6 +2666,9 @@ static __always_inline void slab_free(struct kmem_cache *s,
 	unsigned long tid;
 
 	slab_free_hook(s, x);
+
+	check_cookie(s, object, s->random_active);
+	set_cookie(s, object, s->random_inactive);
 
 	if (!(s->flags & (SLAB_DESTROY_BY_RCU | SLAB_POISON))) {
 		size_t offset = s->offset ? 0 : sizeof(void *);
@@ -2874,6 +2921,7 @@ static void early_kmem_cache_node_alloc(int node)
 	init_object(kmem_cache_node, n, SLUB_RED_ACTIVE);
 	init_tracking(kmem_cache_node, n);
 #endif
+	set_cookie(kmem_cache_node, n, kmem_cache_node->random_active);
 	init_kmem_cache_node(n);
 	inc_slabs_node(kmem_cache_node, node, page->objects);
 
@@ -2986,6 +3034,9 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
 		s->offset = size;
 		size += sizeof(void *);
 	}
+
+	if (slub_cookie)
+		size += sizeof(void *);
 
 #ifdef CONFIG_SLUB_DEBUG
 	if (flags & SLAB_STORE_USER)
@@ -3784,6 +3835,8 @@ int __kmem_cache_create(struct kmem_cache *s, unsigned long flags)
 		kmem_cache_close(s);
 
 	s->random = get_random_long();
+	s->random_active = get_random_long();
+	s->random_inactive = get_random_long();
 
 	return err;
 }
