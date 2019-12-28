@@ -2687,7 +2687,7 @@ static int slub_min_objects;
  * Merge control. If this is set then no merging of slab caches will occur.
  * (Could be removed. This was introduced to pacify the merge skeptics.)
  */
-static int slub_nomerge;
+static int slub_nomerge = 1;
 
 /*
  * Calculate the order of allocation given an slab object size.
