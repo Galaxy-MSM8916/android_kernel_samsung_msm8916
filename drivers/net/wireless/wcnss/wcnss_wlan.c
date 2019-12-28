@@ -186,7 +186,7 @@ static DEFINE_SPINLOCK(reg_spinlock);
 #define WCNSS_USR_HAS_CAL_DATA    (WCNSS_USR_CTRL_MSG_START + 2)
 #define WCNSS_USR_WLAN_MAC_ADDR   (WCNSS_USR_CTRL_MSG_START + 3)
 
-#define MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
+#define MAC_ADDRESS_STR "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx"
 
 /* message types */
 #define WCNSS_CTRL_MSG_START	0x01000000
