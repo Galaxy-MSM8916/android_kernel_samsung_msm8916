@@ -95,6 +95,8 @@ struct kmem_cache {
 	int max_attr_size; /* for propagation, maximum size of a stored attr */
 #endif
 
+	unsigned long random;
+
 #ifdef CONFIG_NUMA
 	/*
 	 * Defragmentation by allocating from a remote node.

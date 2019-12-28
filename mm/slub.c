@@ -33,6 +33,7 @@
 #include <linux/stacktrace.h>
 #include <linux/prefetch.h>
 #include <linux/memcontrol.h>
+#include <linux/random.h>
 
 #include <trace/events/kmem.h>
 
@@ -248,20 +249,28 @@ static inline int check_valid_pointer(struct kmem_cache *s,
 
 static inline void *get_freepointer(struct kmem_cache *s, void *object)
 {
-	return *(void **)(object + s->offset);
+	unsigned long freepointer_addr = (unsigned long)object + s->offset;
+	return (void *)(*(unsigned long *)freepointer_addr ^ s->random ^ freepointer_addr);
 }
 
 static void prefetch_freepointer(const struct kmem_cache *s, void *object)
 {
-	prefetch(object + s->offset);
+	unsigned long freepointer_addr = (unsigned long)object + s->offset;
+	if (object) {
+		void **freepointer_ptr = (void **)(*(unsigned long *)freepointer_addr ^ s->random ^ freepointer_addr);
+		prefetch(freepointer_ptr);
+	}
 }
 
 static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
 {
+	unsigned long __maybe_unused freepointer_addr;
 	void *p;
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-	probe_kernel_read(&p, (void **)(object + s->offset), sizeof(p));
+	freepointer_addr = (unsigned long)object + s->offset;
+	probe_kernel_read(&p, (void **)freepointer_addr, sizeof(p));
+	return (void *)((unsigned long)p ^ s->random ^ freepointer_addr);
 #else
 	p = get_freepointer(s, object);
 #endif
@@ -270,7 +279,8 @@ static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
 
 static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
 {
-	*(void **)(object + s->offset) = fp;
+	unsigned long freepointer_addr = (unsigned long)object + s->offset;
+	*(void **)freepointer_addr = (void *)((unsigned long)fp ^ s->random ^ freepointer_addr);
 }
 
 /* Loop over all objects in a slab */
@@ -3772,6 +3782,8 @@ int __kmem_cache_create(struct kmem_cache *s, unsigned long flags)
 
 	if (err)
 		kmem_cache_close(s);
+
+	s->random = get_random_long();
 
 	return err;
 }
