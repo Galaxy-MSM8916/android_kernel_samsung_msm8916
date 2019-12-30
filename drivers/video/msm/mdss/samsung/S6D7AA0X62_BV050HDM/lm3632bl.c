@@ -30,7 +30,7 @@
 #include <linux/device.h>
 #include <linux/of_gpio.h>
 #include <linux/mfd/lm3632.h>
-#include <ss_dsi_panel_S6D7AA0X62_BV050HDM.h>
+#include "ss_dsi_panel_S6D7AA0X62_BV050HDM.h"
 
 #include "../../mdss.h"
 #include "../../mdss_panel.h"
