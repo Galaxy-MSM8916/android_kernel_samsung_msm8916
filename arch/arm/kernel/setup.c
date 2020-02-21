@@ -31,6 +31,7 @@
 #include <linux/compiler.h>
 #include <linux/sort.h>
 #include <linux/dma-mapping.h>
+#include <linux/security.h>
 
 #include <asm/unified.h>
 #include <asm/cp15.h>
@@ -953,6 +954,10 @@ void __init setup_arch(char **cmdline_p)
 		mdesc->init_early();
 
 	init_random_pool();
+
+#ifdef SECURITY_SECURELEVEL
+	set_securelevel(1);
+#endif
 }
 
 
