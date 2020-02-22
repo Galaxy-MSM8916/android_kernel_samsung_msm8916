@@ -62,7 +62,6 @@
 #include <linux/capability.h>
 #include <linux/binfmts.h>
 #include <linux/sched/sysctl.h>
-#include <linux/tpe.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
@@ -1875,40 +1874,6 @@ static struct ctl_table fs_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
 	},
-#ifdef CONFIG_SECURITY_TPE
-	{
-		.procname	= "tpe",
-		.data		= &security_tpe,
-		.maxlen		= sizeof(int),
-		.mode		= 0600,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.procname	= "tpe_gid",
-		.data		= &security_tpe_gid,
-		.maxlen		= sizeof(int),
-		.mode		= 0600,
-		.proc_handler	= &proc_dointvec,
-	},
-#endif
-#ifdef CONFIG_SECURITY_TPE_INVERT
-	{
-		.procname	= "tpe_invert",
-		.data		= &security_tpe_invert,
-		.maxlen		= sizeof(int),
-		.mode		= 0600,
-		.proc_handler	= &proc_dointvec,
-	},
-#endif
-#ifdef CONFIG_SECURITY_TPE_ALL
-	{
-		.procname	= "tpe_restrict_all",
-		.data		= &security_enable_tpe_all,
-		.maxlen		= sizeof(int),
-		.mode		= 0600,
-		.proc_handler	= &proc_dointvec,
-	},
-#endif
 	{ }
 };
 

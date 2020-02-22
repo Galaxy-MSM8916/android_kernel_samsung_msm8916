@@ -60,7 +60,6 @@ obj-y				+= devpts/
 
 obj-$(CONFIG_PROFILING)		+= dcookies.o
 obj-$(CONFIG_DLM)		+= dlm/
-obj-$(CONFIG_SECURITY_TPE)	+= tpe.o
  
 # Do not add any filesystems before this line
 obj-$(CONFIG_FSCACHE)		+= fscache/
