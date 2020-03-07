@@ -21,6 +21,7 @@
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include <linux/delay.h>
+#include <linux/sec_class.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
@@ -28,6 +29,7 @@
 #include <linux/gpio.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
+#include <linux/sec_class.h>
 #include <linux/spinlock.h>
 #if defined(CONFIG_QPNP_RESIN)
 #include <linux/qpnp/power-on.h>
