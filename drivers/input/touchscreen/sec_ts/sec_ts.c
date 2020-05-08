@@ -32,10 +32,6 @@
 
 #include "sec_ts.h"
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #ifdef CONFIG_OF
 #ifndef USE_OPEN_CLOSE
 #define USE_OPEN_CLOSE
@@ -1832,11 +1828,7 @@ static int sec_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	sec_ts_raw_device_init(ts);
 	sec_ts_fn_init(ts);
-#ifdef USE_OPEN_CLOSE
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(ts->input_dev);
-#endif
-#endif
+
 	return 0;
 
 err_irq:
@@ -1960,11 +1952,7 @@ static void sec_ts_input_close(struct input_dev *dev)
 static int sec_ts_remove(struct i2c_client *client)
 {
 	struct sec_ts_data *ts = i2c_get_clientdata(client);
-#ifdef USE_OPEN_CLOSE
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
-#endif
+
 	tsp_debug_info(true, &ts->client->dev, "%s\n", __func__);
 
 	free_irq(client->irq, ts);

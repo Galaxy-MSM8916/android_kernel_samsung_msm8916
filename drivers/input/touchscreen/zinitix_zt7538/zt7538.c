@@ -16,10 +16,6 @@
  */
 #include "zt7538.h"
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 u32 BUTTON_MAPPING_KEY[MAX_SUPPORTED_BUTTON_NUM] = {KEY_RECENT, KEY_BACK};
 
 static int cal_mode;
@@ -4662,9 +4658,6 @@ static int zt7538_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
 	dev_info(&client->dev, "zinitix touch probe done.\n");
 
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(info->input_dev);
-#endif
 	return 0;
 
 #ifdef SEC_FACTORY_TEST
@@ -4706,9 +4699,7 @@ static int zt7538_ts_remove(struct i2c_client *client)
 {
 	struct zt7538_ts_info *info = i2c_get_clientdata(client);
 	struct zt7538_ts_dt_data *pdata = info->pdata;
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	disable_irq(info->irq);
 	down(&info->work_lock);
 

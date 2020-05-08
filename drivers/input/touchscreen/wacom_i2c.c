@@ -20,10 +20,6 @@
 #include <linux/gpio.h>
 #include <asm/unaligned.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #define WACOM_CMD_QUERY0	0x04
 #define WACOM_CMD_QUERY1	0x00
 #define WACOM_CMD_QUERY2	0x33
@@ -218,9 +214,6 @@ static int wacom_i2c_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, wac_i2c);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input);
-#endif
 	return 0;
 
 err_free_irq:
@@ -235,9 +228,7 @@ err_free_mem:
 static int wacom_i2c_remove(struct i2c_client *client)
 {
 	struct wacom_i2c *wac_i2c = i2c_get_clientdata(client);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	free_irq(client->irq, wac_i2c);
 	input_unregister_device(wac_i2c->input);
 	kfree(wac_i2c);

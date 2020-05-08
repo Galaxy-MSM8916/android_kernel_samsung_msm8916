@@ -46,10 +46,6 @@
 #include <linux/atomic.h>
 #endif
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 /* Family ID */
 #define MXT224_ID	0x80
 #define MXT224E_ID	0x81
@@ -3669,9 +3665,6 @@ static int mxt_probe(struct i2c_client *client,
 
 	mxt_secure_touch_init(data);
 
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input_dev);
-#endif
 	return 0;
 
 err_unregister_device:
@@ -3723,9 +3716,6 @@ static int mxt_remove(struct i2c_client *client)
 	int retval;
 	struct mxt_data *data = i2c_get_clientdata(client);
 
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
 	sysfs_remove_group(&client->dev.kobj, &mxt_attr_group);
 	if (data->pdata->create_vkeys) {
 		sysfs_remove_group(vkey_kobj, &vkey_grp);

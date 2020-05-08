@@ -50,10 +50,6 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #define TS_NAME			"wm97xx"
 #define WM_CORE_VERSION		"1.00"
 #define DEFAULT_PRESSURE	0xb0c0
@@ -704,9 +700,7 @@ static int wm97xx_probe(struct device *dev)
 	ret = platform_device_add(wm->touch_dev);
 	if (ret < 0)
 		goto touch_reg_err;
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(wm->input_dev);
-#endif
+
 	return ret;
 
  touch_reg_err:
@@ -729,9 +723,7 @@ static int wm97xx_probe(struct device *dev)
 static int wm97xx_remove(struct device *dev)
 {
 	struct wm97xx *wm = dev_get_drvdata(dev);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	platform_device_unregister(wm->battery_dev);
 	platform_device_unregister(wm->touch_dev);
 	input_unregister_device(wm->input_dev);

@@ -18,10 +18,6 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 /* ADC controller bit defines */
 #define ADC_DELAY	0xf00
 #define ADC_DOWN	0x01
@@ -293,9 +289,7 @@ static int w90x900ts_probe(struct platform_device *pdev)
 		goto fail5;
 
 	platform_set_drvdata(pdev, w90p910_ts);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input_dev);
-#endif
+
 	return 0;
 
 fail5:	free_irq(w90p910_ts->irq_num, w90p910_ts);
@@ -311,9 +305,7 @@ static int w90x900ts_remove(struct platform_device *pdev)
 {
 	struct w90p910_ts *w90p910_ts = platform_get_drvdata(pdev);
 	struct resource *res;
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	free_irq(w90p910_ts->irq_num, w90p910_ts);
 	del_timer_sync(&w90p910_ts->timer);
 	iounmap(w90p910_ts->ts_reg);

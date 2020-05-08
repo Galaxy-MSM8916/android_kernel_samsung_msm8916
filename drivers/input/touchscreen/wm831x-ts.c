@@ -26,10 +26,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 /*
  * R16424 (0x4028) - Touch Control 1
  */
@@ -373,9 +369,6 @@ static int wm831x_ts_probe(struct platform_device *pdev)
 		goto err_pd_irq;
 
 	platform_set_drvdata(pdev, wm831x_ts);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input_dev);
-#endif
 	return 0;
 
 err_pd_irq:
@@ -390,9 +383,7 @@ err_alloc:
 static int wm831x_ts_remove(struct platform_device *pdev)
 {
 	struct wm831x_ts *wm831x_ts = platform_get_drvdata(pdev);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	free_irq(wm831x_ts->pd_irq, wm831x_ts);
 	free_irq(wm831x_ts->data_irq, wm831x_ts);
 

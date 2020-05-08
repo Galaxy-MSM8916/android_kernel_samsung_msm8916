@@ -47,10 +47,6 @@
 #include "ist30xxc_cmcs_jit.h"
 #endif
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #ifdef CONFIG_DUAL_TOUCH_IC_CHECK
 static int probe_finished = 0;
 #endif
@@ -1827,9 +1823,7 @@ static int ist30xx_probe(struct i2c_client *client,
 	ret = ist30xx_write_cmd(data->client,
 		IST30XX_HIB_CMD, (eHCOM_FW_HOLD << 16) | (0 & 0xFFFF));
 	tsp_info("%s: release FW_HOLD\n", __func__);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input_dev);
-#endif
+
 	return 0;
 
 err_sec_sysfs:
@@ -1870,9 +1864,7 @@ err_alloc_dev:
 static int ist30xx_remove(struct i2c_client *client)
 {
 	struct ist30xx_data *data = i2c_get_clientdata(client);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 #ifdef CONFIG_DUAL_TOUCH_IC_CHECK
 	if(!probe_finished)
 	{

@@ -35,10 +35,6 @@
 #include <linux/input/eeti_ts.h>
 #include <linux/slab.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 static bool flip_x;
 module_param(flip_x, bool, 0644);
 MODULE_PARM_DESC(flip_x, "flip x coordinate");
@@ -237,9 +233,6 @@ static int eeti_ts_probe(struct i2c_client *client,
 	eeti_ts_stop(priv);
 
 	device_init_wakeup(&client->dev, 0);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input);
-#endif
 	return 0;
 
 err3:
@@ -257,9 +250,7 @@ err0:
 static int eeti_ts_remove(struct i2c_client *client)
 {
 	struct eeti_ts_priv *priv = i2c_get_clientdata(client);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	free_irq(priv->irq, priv);
 	/*
 	 * eeti_ts_stop() leaves IRQ disabled. We need to re-enable it

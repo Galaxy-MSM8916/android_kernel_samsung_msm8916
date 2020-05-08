@@ -15,10 +15,6 @@
 
 #include <linux/synaptics_s7301.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #define REPORT_MT_NOZ(x, y, w_max, w_min) \
 do {     \
 	input_report_abs(data->input, ABS_MT_POSITION_X, x);	\
@@ -1440,9 +1436,7 @@ printk("pdata->max_x : %d, pdata->max_y : %d, pdata->max_pressure : %d, pdata->m
 		ret = -ENODEV;
 		goto err_make_sysfs_failed;
 	}
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input);
-#endif
+
 	return 0;
 
 err_make_sysfs_failed:
@@ -1460,9 +1454,7 @@ err_check_functionality_failed:
 static int synaptics_ts_remove(struct i2c_client *client)
 {
 	struct synaptics_drv_data *data = i2c_get_clientdata(client);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 //	unregister_early_suspend(&data->early_suspend);
 	free_irq(client->irq, data);
 	remove_tsp_sysfs(data);
