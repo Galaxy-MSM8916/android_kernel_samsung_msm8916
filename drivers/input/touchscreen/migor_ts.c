@@ -29,10 +29,6 @@
 #include <linux/i2c.h>
 #include <linux/timer.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #define EVENT_PENDOWN 1
 #define EVENT_REPEAT  2
 #define EVENT_PENUP   3
@@ -182,9 +178,7 @@ static int migor_ts_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, priv);
 	device_init_wakeup(&client->dev, 1);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input);
-#endif
+
 	return 0;
 
  err_free_irq:
@@ -198,9 +192,7 @@ static int migor_ts_probe(struct i2c_client *client,
 static int migor_ts_remove(struct i2c_client *client)
 {
 	struct migor_ts_priv *priv = i2c_get_clientdata(client);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	free_irq(priv->irq, priv);
 	input_unregister_device(priv->input);
 	kfree(priv);

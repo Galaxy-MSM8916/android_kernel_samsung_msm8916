@@ -209,14 +209,6 @@ config INPUT_BOOSTER
 	help
 	  Say Y here if you want to boost when some keys and touches are pressed. If unsure, say N.
 
-config TOUCH_DISABLER
-	bool "touch disabler"
-	depends on INPUT
-	default n
-	help
-	  Say Y here if you want to enable/disable touch devices on change
-	  primary panel status on Samsung touch panels. If unsure, say N.
-
 
 comment "Input Device Drivers"
 

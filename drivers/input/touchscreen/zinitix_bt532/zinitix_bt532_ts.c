@@ -66,9 +66,6 @@
 #endif
 #endif
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
 
 #define NOT_SUPPORTED_TOUCH_DUMMY_KEY
 #define SUPPORTED_PALM_TOUCH
@@ -6099,10 +6096,6 @@ static int bt532_ts_probe(struct i2c_client *client,
 	bt532_set_tsp_info(info);
 #endif
 
-
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(info->input_dev);
-#endif
 	return 0;
 
 #ifdef SEC_FACTORY_TEST
@@ -6144,10 +6137,6 @@ static int bt532_ts_remove(struct i2c_client *client)
 {
 	struct bt532_ts_info *info = i2c_get_clientdata(client);
 	struct bt532_ts_platform_data *pdata = info->pdata;
-
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
 
 	disable_irq(info->irq);
 	down(&info->work_lock);

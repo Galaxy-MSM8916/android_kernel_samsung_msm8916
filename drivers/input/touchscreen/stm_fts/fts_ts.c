@@ -70,10 +70,6 @@
 #include <linux/input/mt.h>
 #include "fts_ts.h"
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 static struct i2c_driver fts_i2c_driver;
 
 static bool MutualTouchMode = false;
@@ -1539,11 +1535,7 @@ static int fts_probe(struct i2c_client *client, const struct i2c_device_id *idp)
 #endif
 	complete_all(&info->init_done);
 #endif /* TSP_INIT_COMPLETE */
-#ifdef USE_OPEN_CLOSE
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(info->input_dev);
-#endif
-#endif
+
 	return 0;
 
 #ifdef SEC_TSP_FACTORY_TEST
@@ -1587,11 +1579,7 @@ err_input_allocate_device:
 static int fts_remove(struct i2c_client *client)
 {
 	struct fts_ts_info *info = i2c_get_clientdata(client);
-#ifdef USE_OPEN_CLOSE
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
-#endif
+
 	tsp_debug_info(true, &info->client->dev, "FTS removed \n");
 
 #ifdef CONFIG_HAS_EARLYSUSPEND

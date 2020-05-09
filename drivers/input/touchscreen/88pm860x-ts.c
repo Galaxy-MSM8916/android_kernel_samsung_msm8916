@@ -17,10 +17,6 @@
 #include <linux/mfd/88pm860x.h>
 #include <linux/slab.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #define MEAS_LEN		(8)
 #define ACCURATE_BIT		(12)
 
@@ -287,9 +283,6 @@ static int pm860x_touch_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, touch);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(touch->idev);
-#endif
 	return 0;
 out_rg:
 	free_irq(touch->irq, touch);
@@ -303,9 +296,7 @@ out:
 static int pm860x_touch_remove(struct platform_device *pdev)
 {
 	struct pm860x_touch *touch = platform_get_drvdata(pdev);
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
+
 	input_unregister_device(touch->idev);
 	free_irq(touch->irq, touch);
 	platform_set_drvdata(pdev, NULL);

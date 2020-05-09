@@ -41,10 +41,6 @@
 #include <linux/input/input_booster.h>
 #endif
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #define ABOV_TK_NAME "abov-ft1604"
 
 /* registers */
@@ -1641,10 +1637,6 @@ static int abov_tk_probe(struct i2c_client *client,
 		info->led_twinkle_check =  1;
 		schedule_delayed_work(&info->led_twinkle_work, msecs_to_jiffies(400));
 	}
-#endif
-
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_tk_dev(input_dev);
 #endif
 
 	dev_err(&client->dev, "%s done\n", __func__);

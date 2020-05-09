@@ -57,10 +57,6 @@
 
 #include <asm/unaligned.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 #ifdef CONFIG_INPUT_BOOSTER
 #include <linux/input/input_booster.h>
 #endif
@@ -5770,11 +5766,7 @@ static int mms_ts_probe(struct i2c_client *client,
 		p_ghost_check = &info->ghost_check;
 #endif
 
-#ifdef USE_OPEN_CLOSE
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input_dev);
-#endif
-#endif
+
 	return 0;
 
 err_req_irq:
@@ -5842,11 +5834,7 @@ void tsp_dump(void)
 static int mms_ts_remove(struct i2c_client *client)
 {
 	struct mms_ts_info *info = i2c_get_clientdata(client);
-#ifdef USE_OPEN_CLOSE
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(NULL);
-#endif
-#endif
+
 	if (info->enabled)
 		info->power(info,0);
 

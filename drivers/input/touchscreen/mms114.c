@@ -18,10 +18,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
-#if defined(CONFIG_TOUCH_DISABLER)
-#include <linux/input/touch_disabler.h>
-#endif
-
 /* Write only registers */
 #define MMS114_MODE_CONTROL		0x01
 #define MMS114_OPERATION_MODE_MASK	0xE
@@ -516,9 +512,7 @@ static int mms114_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Failed to register input device\n");
 		return error;
 	}
-#if defined(CONFIG_TOUCH_DISABLER)
-	touch_disabler_set_ts_dev(input_dev);
-#endif
+
 	return 0;
 }
 
