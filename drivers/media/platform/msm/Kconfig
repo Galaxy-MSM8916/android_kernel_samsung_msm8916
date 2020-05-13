@@ -55,7 +55,12 @@ if SEC_O7_PROJECT
 source "drivers/media/platform/msm/camera_v2_o7/Kconfig"
 endif # SEC_O7_PROJECT
 if SEC_J5X_PROJECT
+if !( MACH_J5XLTE_CHN_CMCC )
 source "drivers/media/platform/msm/camera_v2_j5x/Kconfig"
+endif # SEC_J5X_PROJECT
+if MACH_J5XLTE_CHN_CMCC
+source "drivers/media/platform/msm/camera_v2_j3x/Kconfig"
+endif # MACH_J5XLTE_CHN_CMCC
 endif # SEC_J5X_PROJECT
 if SEC_GT58_PROJECT || SEC_GT510_PROJECT
 source "drivers/media/platform/msm/camera_v2_gt5/Kconfig"
