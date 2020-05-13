@@ -48,6 +48,11 @@
 
 #define EN_FLED_IRQ 0
 
+#if defined(CONFIG_SEC_XCOVER3_PROJECT) || defined(CONFIG_MACH_J3LTE_CHN_CTC) || defined(CONFIG_MACH_J3LTE_CHN_TW)\
+|| defined(CONFIG_MACH_J3LTE_SEA_XTC) || defined(CONFIG_MACH_J3LTE_SEA_XSA) || defined(CONFIG_MACH_J3XPROLTE_CHN_CTC) || defined(CONFIG_MACH_J3XPROLTE_CHN_CMCC)|| defined(CONFIG_MACH_J3XPROLTE_CHN_OPEN)
+#define CONFIG_ACTIVE_FLASH
+#endif
+
 #if 1 //LED
 extern struct class *camera_class;
 struct device *flash_dev;
@@ -195,7 +200,16 @@ static int sm5703_fled_init(struct sm_fled_info *fled_info)
 			SM5703_IMLED_MASK, info->pdata->fled_movie_current);
 
 	sm5703_reg_write(info->i2c_client, SM5703_FLEDCNTL1,0x1C);//ENABSTMR:Enable | ABSTMR:1.6sec | FLEDEN:Disable
+#if defined(CONFIG_SEC_O7_PROJECT) || defined(CONFIG_MACH_J3LTE_USA_SPR)  || defined(CONFIG_MACH_J3LTE_USA_VZW)
+	sm5703_reg_write(info->i2c_client, SM5703_FLEDCNTL2,0x84);//nENSAFET:Disable | SAFET:400us | nONESHOT:Enable | ONETIMER:500ms
+#else
 	sm5703_reg_write(info->i2c_client, SM5703_FLEDCNTL2,0x94);//nENSAFET:Disable | SAFET:400us | nONESHOT:Disable | ONETIMER:500ms
+#endif
+
+#if defined(CONFIG_SEC_XCOVER3_PROJECT) || defined(CONFIG_MACH_J3LTE_CHN_CTC) || defined(CONFIG_MACH_J3LTE_CHN_TW)\
+|| defined(CONFIG_MACH_J3LTE_SEA_XTC) || defined(CONFIG_MACH_J3LTE_SEA_XSA) || defined(CONFIG_MACH_J3XPROLTE_CHN_CTC) || defined(CONFIG_MACH_J3XPROLTE_CHN_CMCC)|| defined(CONFIG_MACH_J3XPROLTE_CHN_OPEN)
+	sm5703_reg_write(info->i2c_client, SM5703_Q3LIMITCNTL, 0x80);
+#endif
 
 	mutex_unlock(&info->led_lock);
 	return 0;
@@ -523,6 +537,27 @@ int32_t sm5703_fled_notification(struct sm_fled_info *fled_info)
 }
 EXPORT_SYMBOL(sm5703_fled_notification);
 
+#if defined(CONFIG_SEC_XCOVER3_PROJECT) || defined(CONFIG_MACH_J3LTE_CHN_CTC)|| defined(CONFIG_MACH_J3LTE_CHN_TW)\
+|| defined(CONFIG_MACH_J3LTE_SEA_XTC) || defined(CONFIG_MACH_J3LTE_SEA_XSA) || defined(CONFIG_MACH_J3XPROLTE_CHN_CTC) || defined(CONFIG_MACH_J3XPROLTE_CHN_CMCC)|| defined(CONFIG_MACH_J3XPROLTE_CHN_OPEN)
+int preflash = 0;
+int32_t sm5703_fled_set_preflash(struct sm_fled_info *fled_info)
+{
+	if(fled_info){
+		preflash = 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(sm5703_fled_set_preflash);
+
+int32_t sm5703_fled_unset_preflash(struct sm_fled_info *fled_info)
+{
+	if(fled_info){
+		preflash = 0;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(sm5703_fled_unset_preflash);
+#endif
 
 static int sm5703_fled_set_mode(struct sm_fled_info *fled_info,
 		flashlight_mode_t mode)
