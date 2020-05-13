@@ -294,6 +294,13 @@ config S5K4H5YB
 		S.LSI. 8 MP Bayer Sensor with auto focus, uses
 		4 mipi lanes full resolution @30fps and
 
+config S5K4H5YC
+	bool "Sensor S5K4H5YC (BAYER 8M)"
+	depends on MSMB_CAMERA
+	---help---
+		S.LSI. 8 MP Bayer Sensor with auto focus, uses
+		4 mipi lanes full resolution @30fps and
+
 config S5K3L2XX
 	bool "Sensor S5K3L2XX (BAYER 13M)"
 	depends on MSMB_CAMERA
