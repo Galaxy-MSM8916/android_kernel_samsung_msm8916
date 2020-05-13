@@ -179,6 +179,10 @@ ifdef CONFIG_SEC_J3_PROJECT
 fw-shipped-$(CONFIG_TOUCHSCREEN_IST30XXC) += tsp_imagis/ist3038c_j3.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_IST30XXC) += tsp_imagis/ist3038c_j3_cmcs.bin
 endif
+ifdef CONFIG_SEC_J3XPRO_PROJECT
+fw-shipped-$(CONFIG_TOUCHSCREEN_IST30XXC) += tsp_imagis/ist3038c_j3.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_IST30XXC) += tsp_imagis/ist3038c_j3_cmcs.bin
+endif
 ifdef CONFIG_SEC_J5X_PROJECT
 fw-shipped-$(CONFIG_TOUCHSCREEN_IST30XXC_CMCS) += tsp_imagis/ist3038c_j5x.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_IST30XXC_CMCS) += tsp_imagis/ist3038c_j5x_cmcs.bin
