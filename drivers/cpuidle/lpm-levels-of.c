@@ -58,6 +58,134 @@ static void *get_avail_val(struct kobject *kobj, struct kobj_attribute *attr)
 	return arg;
 }
 
+#if defined(CONFIG_ARCH_MSM8939)|| defined (CONFIG_ARCH_MSM8929)
+static struct lpm_cluster *performance_cluster;
+static struct lpm_cluster *power_cluster;
+
+static int cpu_lpm_set_mode(int cpu_no, int power_level, bool on)
+{
+	int ret = 0, mode=0;
+	struct kernel_param kp;
+	struct lpm_level_avail *level_list = NULL;
+	level_list = cpu_level_available[cpu_no];
+
+	if (power_level == 0) /*  WFI */ {
+		mode = MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT;
+	} else if (power_level == 1) /*  SPC */ {
+		mode = MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE;
+	} else if (power_level == 2) /*  PC  */ {
+		mode = MSM_PM_SLEEP_MODE_POWER_COLLAPSE;
+	} else {
+		pr_err("Bad mode for cpu lpm mode!\n");
+		return -EINVAL;
+	}
+
+	kp.arg = &level_list[mode].idle_enabled;;
+	if (on)
+		ret = param_set_bool("Y", &kp);
+	else
+		ret = param_set_bool("N", &kp);
+
+	return ret;
+}
+
+int lpm_set_mode(u8 cpu_mask, u32 power_level, bool on)
+{
+	int cpu = 0, j = 0, k =0;
+	int ret = 0;
+
+	for_each_possible_cpu(cpu) {
+		if (cpu_mask & (1 << cpu)) {
+			for (j=cpu*4, k=0; k<3; j++,k++) {
+				if (power_level & (1 << j)) {
+					ret = cpu_lpm_set_mode(cpu, k, on);
+					if (ret)
+						return ret;
+				}
+			}
+		}
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(lpm_set_mode);
+
+ssize_t lpm_bundle_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	int i = 0, j = 0;
+	int cpu;
+	u32 len = 0, size = 0;
+	struct lpm_level_avail *level_list = NULL;
+	int idle_enabled_list[3] = { 0 , };
+
+	len = snprintf(&buf[size], PAGE_SIZE - size,
+					"[CPUIDLE] %s, %s\n",__func__,attr->attr.name);
+	size += len;
+	if (!performance_cluster || !power_cluster) {
+		pr_err("[LPM] Why null????\n");
+		return size;
+	}
+
+	for (i = 0; i < performance_cluster->nlevels; i++) {
+		len = snprintf(&buf[size], PAGE_SIZE - size, "%s idle_enabled : %d\n",
+						performance_cluster->levels[i].level_name,
+						performance_cluster->levels[i].available.idle_enabled);
+		size += len;
+	}
+
+	for_each_cpu(cpu, &performance_cluster->child_cpus) {
+		level_list = cpu_level_available[cpu];
+		idle_enabled_list[0] =
+				level_list[MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT].idle_enabled;
+		idle_enabled_list[1] =
+				level_list[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE].idle_enabled;
+		idle_enabled_list[2] =
+				level_list[MSM_PM_SLEEP_MODE_POWER_COLLAPSE].idle_enabled;
+		for (j = 0; j < performance_cluster->cpu->nlevels; j++) {
+			len = snprintf(&buf[size], PAGE_SIZE - size,
+					"CPU%d, name:%s idle_enabled:%d\n",
+					cpu,performance_cluster->cpu->levels[j].name,
+					idle_enabled_list[j]);
+			size += len;
+		}
+	}
+
+	len = snprintf(&buf[size], PAGE_SIZE - size,
+			"[LPM] %s Cluster :\n",power_cluster->cluster_name);
+	size += len;
+	for (i = 0; i < power_cluster->nlevels; i++) {
+		len = snprintf(&buf[size], PAGE_SIZE - size, "%s idle_enabled : %d\n",
+				power_cluster->levels[i].level_name,
+				power_cluster->levels[i].available.idle_enabled);
+		size += len;
+	}
+
+	for_each_cpu(cpu, &power_cluster->child_cpus) {
+		level_list = cpu_level_available[cpu];
+		idle_enabled_list[0] =
+				level_list[MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT].idle_enabled;
+		idle_enabled_list[1] =
+				level_list[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE].idle_enabled;
+		idle_enabled_list[2] =
+				level_list[MSM_PM_SLEEP_MODE_POWER_COLLAPSE].idle_enabled;
+		for (j = 0; j < power_cluster->cpu->nlevels; j++) {
+			len = snprintf(&buf[size], PAGE_SIZE - size,
+					"CPU%d, name:%s  idle_enabled:%d\n",
+					cpu,power_cluster->cpu->levels[j].name,
+					idle_enabled_list[j]);
+			size += len;
+		}
+	}
+
+
+	return size;
+}
+
+static struct kobj_attribute lpm_bundle_attribute =
+		__ATTR(lpm_bundle, 0440, lpm_bundle_show, NULL);
+#endif
+
 ssize_t lpm_enable_show(struct kobject *kobj, struct kobj_attribute *attr,
 				char *buf)
 {
@@ -215,6 +343,16 @@ int create_cluster_lvl_nodes(struct lpm_cluster *p, struct kobject *kobj)
 
 	if (!p)
 		return -ENODEV;
+
+#if defined(CONFIG_ARCH_MSM8939)|| defined (CONFIG_ARCH_MSM8929)
+	printk("[LPM] %s create\n",p->cluster_name);
+	if (!strncmp(p->cluster_name, "power", 5))
+		power_cluster = p;
+	else if (!strncmp(p->cluster_name, "performance", 11))
+		performance_cluster = p;
+	else if (!strncmp(p->cluster_name, "system", 6))
+		ret = sysfs_create_file(kobj, &lpm_bundle_attribute.attr);
+#endif
 
 	cluster_kobj = kobject_create_and_add(p->cluster_name, kobj);
 	if (!cluster_kobj)
