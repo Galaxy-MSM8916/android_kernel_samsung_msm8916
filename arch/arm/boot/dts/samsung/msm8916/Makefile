@@ -434,6 +434,8 @@ endif
 ifeq ($(CONFIG_SEC_J5X_PROJECT),y)
 	ifeq ($(CONFIG_MACH_J5XLTE_CHN_CMCC),y)
 		dtb-y += msm8916-sec-j5xlte-chn-r00.dtb
+		dtb-y += msm8916-sec-j5xlte-chn-r02.dtb
+		dtb-y += msm8916-sec-j5xlte-chn-r03.dtb
 	else ifeq ($(CONFIG_MACH_J5XLTE_EUR_OPEN),y)
 		dtb-y += msm8916-sec-j5xlte-eur-r00.dtb
 		dtb-y += msm8916-sec-j5xlte-eur-r01.dtb
