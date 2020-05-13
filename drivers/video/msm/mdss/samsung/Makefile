@@ -134,6 +134,9 @@ obj-$(CONFIG_PANEL_EA8061_AMS549HZ01) += EA8061_AMS549HZ01/
 # J1_2016_SPR Panel EA8061S_AMS450JV01
 obj-$(CONFIG_PANEL_EA8061S_AMS450JV01_WVGA) += EA8061S_AMS450JV01/
 
+# J5X CHN
+obj-$(CONFIG_PANEL_S6D7AA0X62_BV050HDM_HD_5_0) += S6D7AA0X62_BV050HDM_5_0/
+
 # To build ALL panel files(For build error checking)
 #
 ifeq ($(CONFIG_DISPLAY_BUILD_ALL),y)
@@ -277,6 +280,10 @@ endif
 
 ifeq ($(shell [ -d $(DISPLAY_DIR)/S6D7AA0X62_BV050HDM_J7LTECHN ] && echo y), y)
 obj-y += S6D7AA0X62_BV050HDM_J7LTECHN/
+endif
+
+ifeq ($(shell [ -d $(DISPLAY_DIR)/S6D7AA0X62_BV050HDM_5_0 ] && echo y), y)
+obj-y += S6D7AA0X62_BV050HDM_5_0/
 endif
 
 ifeq ($(shell [ -d $(DISPLAY_DIR)/NT51017_B4P096WX5VP09 ] && echo y), y)
