@@ -1,0 +1,16 @@
+/ {
+	memory {
+		external_image_mem: external_image__region@0 {
+			reg = <0x0 0x85A00000 0x0 0x0E00000>;
+		};
+		cont_splash_mem: splash_region@83000000 {
+			reg = <0x0 0x83000000 0x0 0x2000000>;
+		};
+	};
+};
+&soc {
+	qcom_seecom: qseecom@86000000 {
+		reg = <0x85A00000 0x500000>;
+	};
+	/delete-node/ i2c@78b7000;
+};
