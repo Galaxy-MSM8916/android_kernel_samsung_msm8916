@@ -742,7 +742,28 @@ config MACH_J1XLTE_USA_TFNVZW
 	bool "Samsung J1XLTE USA TFNVZW"
 	help
 	  Support for Samsung J1XLTE USA TFNVZW device.
-	  
+
+config SEC_J3XPRO_PROJECT
+	depends on ARCH_MSM8916
+	default n
+	bool "Samsung J3XPRO Project"
+	help
+	  Support for Samsung J3XPRO Project
+
+config MACH_J3XPROLTE_CHN_CTC
+	depends on SEC_J3XPRO_PROJECT
+	default n
+	bool "Samsung J3XPROLTE CHN CTC"
+	help
+	  Support for Samsung J3XPROLTE CHN CTC device.
+
+config MACH_J3XPROLTE_CHN_OPEN
+	depends on SEC_J3XPRO_PROJECT
+	default n
+	bool "Samsung J3XPROLTE CHN OPEN"
+	help
+	  Support for Samsung J3XPROLTE CHN OPEN device.
+
 config SEC_J5X_PROJECT
 	depends on ARCH_MSM8916
 	default n
@@ -756,6 +777,14 @@ config MACH_J5XLTE_EUR_OPEN
 	bool "Samsung J5XLTE EUR OPEN"
 	help
 	  Support for Samsung J5XLTE EUR OPEN device.
+
+config MACH_J5XLTE_CHN_CMCC
+	depends on SEC_J5X_PROJECT
+	default n
+	bool "Samsung J5XLTE CHN CMCC"
+	help
+	  Support for Samsung J5XLTE CHN CMCC device.
+
 
 config MACH_J5XLTE_KOR_OPEN
 	depends on SEC_J5X_PROJECT
