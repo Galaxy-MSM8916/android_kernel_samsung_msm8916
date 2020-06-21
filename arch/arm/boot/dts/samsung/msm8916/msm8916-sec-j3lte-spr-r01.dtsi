@@ -371,18 +371,38 @@
 		qcom,earjack-read-vadc = <&pm8916_vadc>;
 
 		det-zones-list = <&det_zones 0 10000 10 0>,
-						 <&det_zones 970 10000 10 0>,
-						 <&det_zones 971 10000 10 1>,
+						 <&det_zones 995 10000 10 0>,
+						 <&det_zones 996 10000 10 1>,
 						 <&det_zones 9999 10000 10 1>;
-		but-zones-list = <&but_zones 0 0 311>,
-						<&but_zones 3 312 360>,	
-						 <&but_zones 1 361 480>,
+		but-zones-list = <&but_zones 0 0 287>,
+						<&but_zones 3 288 361>,
+						 <&but_zones 1 362 480>,
 						 <&but_zones 2 481 999>;
 		mpp-channel-scaling = <2 1 1>;
 		pinctrl-names = "earjack_gpio_active","earjack_gpio_suspend";
 		pinctrl-0 = <&earjack_det_act &earjack_switch_act>;
 		pinctrl-1 = <&earjack_det_sus &earjack_switch_sus>;
 	};
+};
+
+&soc {
+	qcom,lpm-levels {
+		qcom,pm-cluster@0{
+			qcom,pm-cluster-level@2{
+				reg = <2>;
+				label = "l2-pc";
+				qcom,spm-l2-mode = "pc";
+				//qcom,latency-us = <11030>;
+				qcom,latency-us = <17500>;
+				qcom,ss-power = <490>;
+				qcom,energy-overhead = <972390>;
+				qcom,time-overhead = <1580>;
+				qcom,min-child-idx = <2>;
+				qcom,notify-rpm;
+			};
+		};
+	};
+
 };
 
 &blsp1_uart1 {

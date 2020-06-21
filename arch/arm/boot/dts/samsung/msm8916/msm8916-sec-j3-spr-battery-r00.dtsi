@@ -123,7 +123,7 @@
 		battery0,topoff_soc = <0x0 0x5>; /*disable soc*/
 		battery0,volt_cal = <0x809E>;
 		battery0,curr_cal = <0x6C85>;
-		battery0,tem_poff = <3320 100 3280 80>;
+		battery0,tem_poff = <3390 100 3300 80>;
 		battery0,min_charge_curr = <100>;
 		battery0,ext_temp_cal = <1 10 1 1 1 7 2 2>;
 	};
