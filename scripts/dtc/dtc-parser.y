@@ -24,7 +24,7 @@
 #include "dtc.h"
 #include "srcpos.h"
 
-YYLTYPE yylloc;
+extern YYLTYPE yylloc;
 
 extern int yylex(void);
 extern void print_error(char const *fmt, ...);
