@@ -383,7 +383,7 @@
 		      <0x0005c004 0x8>,
 		      <0x0005c00c 0x8>;
 		reg-names = "rcg-base", "efuse1", "efuse";
-		qcom,safe-freq = < 400000000 >;
+		qcom,safe-freq = < 800000000 >;
 		cpu-vdd-supply = <&apc_vreg_corner>;
 		clocks = <&clock_gcc clk_gpll0_ao_clk_src>,
 			 <&clock_gcc clk_a53sspll>;
@@ -391,18 +391,16 @@
 		#clock-cells = <1>;
 		qcom,speed0-bin-v0 =
 			<          0 0>,
-			<  200000000 1>,
+			<  302933000 1>,
 			<  400000000 2>,
 			<  533333000 3>,
 			<  800000000 4>,
-			<  998400000 5>,
-			< 1094400000 6>,
-			< 1152000000 7>,
-			< 1209600000 8>,
-			< 1363200000 9>,
-			< 1401600000 10>,
-			< 1478400000 11>,
-			< 1612800000 12>;
+			< 1094400000 5>,
+			< 1248000000 6>,
+			< 1363200000 7>,
+			< 1497600000 8>,
+			< 1728000000 9>,
+			< 2131200000 10>;
 	};
 
 	cpubw: qcom,cpubw@0 {
@@ -412,10 +410,10 @@
 		qcom,src-dst-ports = <1 512>;
 		qcom,active-only;
 		qcom,bw-tbl =
-			<  762 /* 100 MHz */>,
-			< 1525 /* 200 MHz */>,
 			< 3051 /* 400 MHz */>,
-			< 4066 /* 533 MHz */>;
+			< 4066 /* 533 MHz */>,
+			< 6102 /* 800 MHz */>,
+			< 8132 /* 1066 MHz */>;
 		qcom,ab-percent = < 30 >;
 	};
 
@@ -429,14 +427,10 @@
 		cpubw-cpufreq {
 			target-dev = <&cpubw>;
 			cpu-to-dev-map =
-				 <  200000  762>,
-				 <  400000  762>,
-				 <  533330  1525>,
-				 <  800000  1525>,
-				 <  998400  3051>,
-				 < 1094400  3051>,
-				 < 1152000  4066>,
-				 < 1209600  4066>;
+				 <  400000  3051>,
+				 <  533330  4066>,
+				 < 1248000  6102>,
+				 < 1497600  8132>;
 		};
 	};
 
@@ -450,18 +444,17 @@
 		clock-names = "cpu0_clk", "cpu1_clk",
 				"cpu2_clk", "cpu3_clk";
 		qcom,cpufreq-table =
-			 <  200000 >,
+			 <  302933 >,
 			 <  400000 >,
 			 <  533330 >,
 			 <  800000 >,
-			 <  998400 >,
 			 < 1094400 >,
-			 < 1152000 >,
-			 < 1209600 >,
+			 < 1190400 >,
+			 < 1248000 >,
 			 < 1363200 >,
-			 < 1401600 >,
-			 < 1478400 >,
-			 < 1612800 >;
+			 < 1497600 >,
+			 < 1728000 >,
+			 < 2131200 >;
 	};
 
 	qcom,sps {
@@ -716,7 +709,7 @@
 			 <&clock_gcc clk_gcc_sdcc1_apps_clk>;
 		clock-names = "iface_clk", "core_clk";
 
-		qcom,clk-rates = <400000 25000000 50000000 100000000 177770000>;
+		qcom,clk-rates = <400000 25000000 50000000 100000000 200000000>;
 		qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
 
 		status = "disabled";
@@ -1520,7 +1513,7 @@
 		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
 			 <&clock_gcc clk_gcc_blsp1_qup2_i2c_apps_clk>;
 		clock-names = "iface_clk", "core_clk";
-		qcom,clk-freq-out = <100000>;
+		qcom,clk-freq-out = <400000>;
 		qcom,clk-freq-in  = <19200000>;
 		pinctrl-names = "i2c_active", "i2c_sleep";
 		pinctrl-0 = <&i2c_0_active>;
@@ -1724,7 +1717,7 @@
 				"tsens_tz_sensor4", "tsens_tz_sensor4";
 		qcom,freq-mitigation-temp = <105>;
 		qcom,freq-mitigation-temp-hysteresis = <15>;
-		qcom,freq-mitigation-value = <400000>;
+		qcom,freq-mitigation-value = <800000>;
 		qcom,freq-mitigation-control-mask = <0x01>;
 		qcom,synchronous-cluster-id = <0>;
 		qcom,synchronous-cluster-map = <0 4 &CPU0 &CPU1 &CPU2 &CPU3>;
@@ -1740,7 +1733,7 @@
 
 		qcom,vdd-apps-rstr{
 			qcom,vdd-rstr-reg = "vdd-apps";
-			qcom,levels = <533330 800000 998400>;
+			qcom,levels = <800000 1094400 1190400>;
 			qcom,freq-req;
 		};
 	};
@@ -2178,8 +2171,8 @@
 		booster,wacom_stage = <0x0001>;	// supported stage with OR operation
 
 		booster,level = <2>;			// default level
-		booster,head = <200 1190400 0>;	// default head value <time cpu_freq bimc_freq>
-		booster,tail = <300 998400 0>;	// default tail value <time cpu_freq bimc_freq>
+		booster,head = <200 2131200 0>;	// default head value <time cpu_freq bimc_freq>
+		booster,tail = <300 1094400 0>;	// default tail value <time cpu_freq bimc_freq>
 		/* --- Old input booster version --- */
 
 		booster_key@1 {
@@ -2190,7 +2183,7 @@
 
 			/* Frequency table */
 			/* for level	:	1_Head */
-			input_booster,cpu_freqs = <1190400>;
+			input_booster,cpu_freqs = <2131200>;
 			input_booster,bimc_freqs = <0>;
 
 			/* Time table */
@@ -2206,7 +2199,7 @@
 
 			/* Frequency table */
 			/* for level	:	1_Head */
-			input_booster,cpu_freqs = <998400>;
+			input_booster,cpu_freqs = <1094400>;
 			input_booster,bimc_freqs = <0>;
 
 			/* Time table */
@@ -2221,7 +2214,7 @@
 
 			/* Frequency table */
 			/* for level	:	1_Head, 2_Head, 2_Tail */
-			input_booster,cpu_freqs = <1190400 1190400 998400>;
+			input_booster,cpu_freqs = <2131200 2131200 1094400>;
 			input_booster,bimc_freqs = <0 0 0>;
 
 			/* Time table */
@@ -2236,7 +2229,7 @@
 
 			/* Frequency table */
 			/* for level	:	1_Head 2_Tail*/
-			input_booster,cpu_freqs = <1190400 1190400>;
+			input_booster,cpu_freqs = <2131200 2131200>;
 			input_booster,bimc_freqs = <0 0>;
 
 			/* Time table */
@@ -2251,7 +2244,7 @@
 
 			/* Frequency table */
 			/* for level	:	1_Head 2_Tail*/
-			input_booster,cpu_freqs = <1190400 1190400>;
+			input_booster,cpu_freqs = <2131200 2131200>;
 			input_booster,bimc_freqs = <0 0>;
 
 			/* Time table */
@@ -2266,7 +2259,7 @@
 
 			/* Frequency table */
 			/* for level	:	1_Head 2_Tail*/
-			input_booster,cpu_freqs = <1190400 998400>;
+			input_booster,cpu_freqs = <2131200 1094400>;
 			input_booster,bimc_freqs = <0 0>;
 
 			/* Time table */
@@ -2281,7 +2274,7 @@
 
 			/* Frequency table */
 			/* for level	:	1_Head 2_Tail*/
-			input_booster,cpu_freqs = <1190400 0>;
+			input_booster,cpu_freqs = <2131200 0>;
 			input_booster,bimc_freqs = <0 0>;
 
 			/* Time table */
@@ -2296,7 +2289,7 @@
 
 			/* Frequency table */
 			/* for level	:	1_Head 2_Tail*/
-			input_booster,cpu_freqs = <1190400 998400>;
+			input_booster,cpu_freqs = <2131200 1094400>;
 			input_booster,bimc_freqs = <0 0>;
 
 			/* Time table */
