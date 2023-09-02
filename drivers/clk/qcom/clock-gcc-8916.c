@@ -341,20 +341,12 @@ static DEFINE_VDD_REGULATORS(vdd_sr2_pll, VDD_SR2_PLL_NUM, 2,
 				vdd_sr2_levels, NULL);
 
 static struct pll_freq_tbl apcs_pll_freq[] = {
-	F_APCS_PLL( 200000000, 10, 0x0, 0x1, 0x0, 0x0, 0x0),
-	F_APCS_PLL( 400000000, 16, 0x0, 0x1, 0x0, 0x0, 0x0),
-	F_APCS_PLL( 533330000, 25, 0x0, 0x1, 0x0, 0x0, 0x0),
-	F_APCS_PLL( 800000000, 42, 0x0, 0x1, 0x0, 0x0, 0x0),
-	F_APCS_PLL( 998400000, 52, 0x0, 0x1, 0x0, 0x0, 0x0),
 	F_APCS_PLL(1094400000, 57, 0x0, 0x1, 0x0, 0x0, 0x0),
-	F_APCS_PLL(1152000000, 60, 0x0, 0x1, 0x0, 0x0, 0x0),
-	F_APCS_PLL(1190400000, 62, 0x0, 0x1, 0x0, 0x0, 0x0),
-	F_APCS_PLL(1209600000, 63, 0x0, 0x1, 0x0, 0x0, 0x0),
 	F_APCS_PLL(1248000000, 65, 0x0, 0x1, 0x0, 0x0, 0x0),
 	F_APCS_PLL(1363200000, 71, 0x0, 0x1, 0x0, 0x0, 0x0),
-	F_APCS_PLL(1401600000, 73, 0x0, 0x1, 0x0, 0x0, 0x0),
-	F_APCS_PLL(1478400000, 77, 0x0, 0x1, 0x0, 0x0, 0x0),
-	F_APCS_PLL(1612800000, 84, 0x0, 0x1, 0x0, 0x0, 0x0),
+	F_APCS_PLL(1497600000, 78, 0x0, 0x1, 0x0, 0x0, 0x0),
+	F_APCS_PLL(1728000000, 90, 0x0, 0x1, 0x0, 0x0, 0x0),
+	F_APCS_PLL(2131200000, 111, 0x0, 0x1, 0x0, 0x0, 0x0),
 	PLL_F_END
 };
 
@@ -381,7 +373,7 @@ static struct pll_clk a53sspll = {
 		.vdd_class = &vdd_sr2_pll,
 		.fmax = (unsigned long [VDD_SR2_PLL_NUM]) {
 			[VDD_SR2_PLL_SVS] = 1000000000,
-			[VDD_SR2_PLL_NOM] = 1900000000,
+			[VDD_SR2_PLL_NOM] = 0x927c0000,
 		},
 		.num_fmax = VDD_SR2_PLL_NUM,
 		CLK_INIT(a53sspll.c),
@@ -559,9 +551,8 @@ static struct clk_freq_tbl ftbl_gcc_camss_vfe0_clk[] = {
 	F( 266670000,	   gpll0,   3,	  0,	0),
 	F( 320000000,	   gpll0, 2.5,	  0,	0),
 	F( 400000000,	   gpll0,   2,	  0,	0),
-	F( 475000000,      gpll2,   2,	  0,	0),
-	F( 550000000,      gpll2,   2,	  0,	0),
-	F( 650000000,      gpll2,   2,	  0,	0),
+	F( 465000000,      gpll2,   2,	  0,	0),
+	F( 900000000,      gpll2,   2,	  0,	0),
 	F_END
 };
 
@@ -575,7 +566,7 @@ static struct rcg_clk vfe0_clk_src = {
 		.dbg_name = "vfe0_clk_src",
 		.ops = &clk_ops_rcg,
 		VDD_DIG_FMAX_MAP3(LOW, 160000000, NOMINAL, 320000000, HIGH,
-			650000000),
+			900000000),
 		CLK_INIT(vfe0_clk_src.c),
 	},
 };
@@ -590,9 +581,10 @@ static struct clk_freq_tbl ftbl_gcc_oxili_gfx3d_465_clk[] = {
 	F( 200000000,  gpll0_aux,   4,	  0,	0),
 	F( 266670000,  gpll0_aux,   3,	  0,	0),
 	F( 294912000,	   gpll1,   3,	  0,	0),
-	F( 310000000,	   gpll2,   3,	  0,	0),
+	F( 320000000,	   gpll2, 2.5,	  0,	0),
 	F( 400000000,  gpll0_aux,   2,	  0,	0),
 	F( 465000000,      gpll2,   2,	  0,	0),
+	F( 900000000,      gpll2,   2,	  0,	0),
 	F_END
 };
 
@@ -606,11 +598,10 @@ static struct clk_freq_tbl ftbl_gcc_oxili_gfx3d_clk[] = {
 	F( 200000000,  gpll0_aux,   4,	  0,	0),
 	F( 266670000,  gpll0_aux,   3,	  0,	0),
 	F( 294912000,	   gpll1,   3,	  0,	0),
-	F( 310000000,	   gpll2,   3,	  0,	0),
+	F( 320000000,	   gpll2, 2.5,	  0,	0),
 	F( 400000000,  gpll0_aux,   2,	  0,	0),
-	F( 475000000,      gpll2,   2,	  0,	0),
-	F( 550000000,      gpll2,   2,	  0,	0),
-	F( 650000000,      gpll2,   2,	  0,	0),
+	F( 465000000,      gpll2,   2,	  0,	0),
+	F( 900000000,      gpll2,   2,	  0,	0),
 	F_END
 };
 
@@ -623,8 +614,8 @@ static struct rcg_clk gfx3d_clk_src = {
 	.c = {
 		.dbg_name = "gfx3d_clk_src",
 		.ops = &clk_ops_rcg,
-		VDD_DIG_FMAX_MAP3(LOW, 100000000, NOMINAL, 310000000, HIGH,
-			650000000),
+		VDD_DIG_FMAX_MAP3(LOW, 200000000, NOMINAL, 320000000, HIGH,
+			900000000),
 		CLK_INIT(gfx3d_clk_src.c),
 	},
 };
@@ -1009,7 +1000,7 @@ static struct rcg_clk csi1phytimer_clk_src = {
 static struct clk_freq_tbl ftbl_gcc_camss_cpp_clk[] = {
 	F( 160000000,	   gpll0,   5,	  0,	0),
 	F( 320000000,	   gpll0, 2.5,	  0,	0),
-	F( 650000000,	   gpll2,   2,	  0,	0),
+	F( 900000000,	   gpll2,   2,	  0,	0),
 	F_END
 };
 
@@ -1023,7 +1014,7 @@ static struct rcg_clk cpp_clk_src = {
 		.dbg_name = "cpp_clk_src",
 		.ops = &clk_ops_rcg,
 		VDD_DIG_FMAX_MAP3(LOW, 160000000, NOMINAL, 320000000, HIGH,
-			650000000),
+			900000000),
 		CLK_INIT(cpp_clk_src.c),
 	},
 };
@@ -1205,7 +1196,6 @@ static struct clk_freq_tbl ftbl_gcc_sdcc1_apps_clk[] = {
 	F(  50000000,	   gpll0,  16,	  0,	0),
 	F( 100000000,	   gpll0,   8,	  0,	0),
 	F( 160000000,	   gpll0,   5,	  0,	0),
-	F( 177770000,	   gpll0, 4.5,	  0,	0),
 	F( 200000000,	   gpll0,   4,	  0,	0),
 	F_END
 };
@@ -1232,7 +1222,6 @@ static struct clk_freq_tbl ftbl_gcc_sdcc2_apps_clk[] = {
 	F(  50000000,	   gpll0,  16,	  0,	0),
 	F( 100000000,	   gpll0,   8,	  0,	0),
 	F( 160000000,	   gpll0,   5,	  0,	0),
-	F( 177770000,	   gpll0, 4.5,	  0,	0),
 	F( 200000000,	   gpll0,   4,	  0,	0),
 	F_END
 };
@@ -2813,7 +2802,7 @@ static void gcc_gfx3d_fmax(struct platform_device *pdev)
 	pr_info("%s, Version: %d, bin: %d\n", __func__, version,
 					bin);
 
-	gfx3d_clk_src.c.fmax[VDD_DIG_HIGH] = 465000000;
+	gfx3d_clk_src.c.fmax[VDD_DIG_HIGH] = 900000000;
 	gfx3d_clk_src.freq_tbl = ftbl_gcc_oxili_gfx3d_465_clk;
 }
 
