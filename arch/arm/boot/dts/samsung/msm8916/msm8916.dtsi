@@ -412,6 +412,7 @@
 		qcom,bw-tbl =
 			< 3051 /* 400 MHz */>,
 			< 4066 /* 533 MHz */>,
+			< 5088 /* 667 MHz */>,
 			< 6102 /* 800 MHz */>,
 			< 8132 /* 1066 MHz */>;
 		qcom,ab-percent = < 30 >;
@@ -429,8 +430,9 @@
 			cpu-to-dev-map =
 				 <  400000  3051>,
 				 <  533330  4066>,
-				 < 1248000  6102>,
-				 < 1497600  8132>;
+				 < 1248000  5088>,
+				 < 1728000  6102>,
+				 < 2131200  8132>;
 		};
 	};
 
@@ -1703,18 +1705,18 @@
 		compatible = "qcom,msm-thermal";
 		qcom,sensor-id = <5>;
 		qcom,poll-ms = <250>;
-		qcom,limit-temp = <80>;
+		qcom,limit-temp = <100>;
 		qcom,temp-hysteresis = <10>;
 		qcom,freq-step = <2>;
 		qcom,freq-control-mask = <0xf>;
 		qcom,core-limit-temp = <85>;
 		qcom,core-temp-hysteresis = <10>;
 		qcom,core-control-mask = <0xe>;
-		qcom,hotplug-temp = <105>;
+		qcom,hotplug-temp = <108>;
 		qcom,hotplug-temp-hysteresis = <15>;
 		qcom,cpu-sensors = "tsens_tz_sensor5", "tsens_tz_sensor5",
 				"tsens_tz_sensor4", "tsens_tz_sensor4";
-		qcom,freq-mitigation-temp = <105>;
+		qcom,freq-mitigation-temp = <108>;
 		qcom,freq-mitigation-temp-hysteresis = <15>;
 		qcom,freq-mitigation-value = <800000>;
 		qcom,freq-mitigation-control-mask = <0x01>;
@@ -1732,7 +1734,7 @@
 
 		qcom,vdd-apps-rstr{
 			qcom,vdd-rstr-reg = "vdd-apps";
-			qcom,levels = <800000 1094400 1190400>;
+			qcom,levels = <1094400 1248000 1363200>;
 			qcom,freq-req;
 		};
 	};
